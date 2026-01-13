@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { useNewSongNotification } from '@/hooks/useNewSongNotification';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import SongCard from '@/components/SongCard';
 import HorizontalSection from '@/components/HorizontalSection';
 import FavoritesWidget from '@/components/FavoritesWidget';
+import PullToRefreshIndicator from '@/components/PullToRefresh';
 import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
@@ -53,7 +55,7 @@ const Home = () => {
     }
   };
 
-  const fetchSongs = async () => {
+  const fetchSongs = useCallback(async () => {
     const { data } = await supabase
       .from('songs')
       .select('*')
@@ -72,7 +74,16 @@ const Home = () => {
       })));
     }
     setLoading(false);
-  };
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchSongs();
+    toast.success('Refreshed! 🔄');
+  }, [fetchSongs]);
+
+  const { pullDistance, isRefreshing, progress, isTriggered, handlers } = usePullToRefresh({
+    onRefresh: handleRefresh,
+  });
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -121,11 +132,20 @@ const Home = () => {
   return (
     <TabTransition>
       <motion.div 
-        className="min-h-screen bg-black pb-44"
+        className="min-h-screen bg-black pb-44 relative"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={iosSpring}
+        {...handlers}
+        style={{ transform: `translateY(${pullDistance}px)` }}
       >
+      {/* Pull to refresh indicator */}
+      <PullToRefreshIndicator 
+        pullDistance={pullDistance} 
+        isRefreshing={isRefreshing} 
+        progress={progress}
+        isTriggered={isTriggered}
+      />
       {/* iOS-style header with blur */}
       <motion.header
         className="sticky top-0 z-30 px-6 py-4 safe-area-pt"
