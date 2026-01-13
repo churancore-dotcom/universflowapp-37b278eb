@@ -1,7 +1,8 @@
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Shuffle, Repeat, Repeat1, ChevronDown, Heart, ListMusic } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Shuffle, Repeat, Repeat1, ChevronDown, Heart, ListMusic, AirplayIcon } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { Slider } from '@/components/ui/slider';
+import { iosSpring, iosBounce, sheetVariants } from '@/lib/animations';
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -40,169 +41,255 @@ const FullscreenPlayer = () => {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 bg-background overflow-hidden"
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className="fixed inset-0 z-50 overflow-hidden"
+        style={{
+          background: 'linear-gradient(180deg, #1c1c1e 0%, #000000 100%)',
+        }}
+        initial={{ y: "100%", opacity: 0.5 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: "100%", opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         drag="y"
         dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0, bottom: 0.5 }}
+        dragElastic={{ top: 0, bottom: 0.4 }}
         onDragEnd={handleDragEnd}
       >
-        {/* Background gradient based on album art */}
-        <div className="absolute inset-0">
-          <div
-            className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background to-background"
-          />
+        {/* Ambient background glow */}
+        <div className="absolute inset-0 overflow-hidden">
           {currentSong.cover_url && (
             <motion.img
               src={currentSong.cover_url}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover opacity-20 blur-3xl scale-150"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.2 }}
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[60%] object-cover opacity-30 blur-[100px]"
+              initial={{ opacity: 0, scale: 1.2 }}
+              animate={{ opacity: 0.3, scale: 1 }}
+              transition={{ duration: 0.8 }}
             />
           )}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
         </div>
 
-        <div className="relative flex flex-col h-full px-6 py-8 md:px-12 lg:px-24">
+        <div className="relative flex flex-col h-full px-8 py-6 md:px-16 lg:px-32 safe-area-pt safe-area-pb">
+          {/* iOS-style drag indicator */}
+          <motion.div 
+            className="w-9 h-1 rounded-full bg-white/30 mx-auto mb-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          />
+
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <motion.button
-              className="p-2 rounded-full hover:bg-white/10 transition-colors"
+              className="p-2 -ml-2 rounded-full"
               onClick={() => setExpanded(false)}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.1, backgroundColor: 'rgba(255,255,255,0.1)' }}
+              whileTap={{ scale: 0.85 }}
+              transition={iosBounce}
             >
-              <ChevronDown className="w-6 h-6" />
+              <ChevronDown className="w-7 h-7" />
             </motion.button>
-            <p className="text-sm font-medium text-muted-foreground">Now Playing</p>
+            
+            <motion.p 
+              className="text-xs font-semibold uppercase tracking-widest text-muted-foreground"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              Now Playing
+            </motion.p>
+            
             <motion.button
-              className="p-2 rounded-full hover:bg-white/10 transition-colors"
-              whileTap={{ scale: 0.9 }}
+              className="p-2 -mr-2 rounded-full"
+              whileHover={{ scale: 1.1, backgroundColor: 'rgba(255,255,255,0.1)' }}
+              whileTap={{ scale: 0.85 }}
+              transition={iosBounce}
             >
               <ListMusic className="w-5 h-5" />
             </motion.button>
           </div>
 
-          {/* Album Art */}
-          <div className="flex-1 flex items-center justify-center">
+          {/* Album Art - iOS Music style */}
+          <div className="flex-1 flex items-center justify-center py-4">
             <motion.div
-              className="relative w-72 h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-72 h-72 md:w-80 md:h-80 lg:w-[360px] lg:h-[360px]"
               layoutId="album-art"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1 }}
+              initial={{ scale: 0.85, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ ...iosSpring, delay: 0.1 }}
             >
-              {currentSong.cover_url ? (
-                <motion.img
-                  src={currentSong.cover_url}
-                  alt={currentSong.title}
-                  className="w-full h-full object-cover"
-                  animate={isPlaying ? { rotate: 360 } : {}}
-                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary/50 to-accent/50 flex items-center justify-center">
-                  <div className="flex items-end gap-1 h-24">
-                    {[...Array(5)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="w-3 bg-white/80 rounded-full"
-                        animate={isPlaying ? {
-                          height: [20, 80 + Math.random() * 20, 20],
-                        } : { height: 20 }}
-                        transition={{
-                          duration: 0.6 + Math.random() * 0.3,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                          delay: i * 0.1,
-                        }}
-                      />
-                    ))}
+              <motion.div 
+                className="w-full h-full rounded-2xl overflow-hidden shadow-2xl"
+                style={{
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+                }}
+              >
+                {currentSong.cover_url ? (
+                  <img
+                    src={currentSong.cover_url}
+                    alt={currentSong.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center">
+                    <div className="flex items-end gap-1.5 h-28">
+                      {[...Array(5)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          className="w-3.5 rounded-full"
+                          style={{
+                            background: 'linear-gradient(to top, rgba(255,255,255,0.5), white)',
+                          }}
+                          animate={isPlaying ? {
+                            height: [20, 80 + Math.random() * 30, 20],
+                          } : { height: 24 }}
+                          transition={{
+                            duration: 0.6 + Math.random() * 0.2,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                            delay: i * 0.08,
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {/* Glow effect */}
-              <div className="absolute inset-0 rounded-2xl glow-primary opacity-50" />
+                )}
+              </motion.div>
             </motion.div>
           </div>
 
           {/* Song Info */}
-          <div className="mt-8 text-center">
-            <motion.h2
-              className="text-2xl md:text-3xl font-display font-bold truncate"
-              layoutId="song-title"
-            >
-              {currentSong.title}
-            </motion.h2>
-            <motion.p
-              className="mt-2 text-lg text-muted-foreground"
-              layoutId="song-artist"
-            >
-              {currentSong.artist}
-            </motion.p>
-          </div>
+          <motion.div 
+            className="mt-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...iosSpring, delay: 0.15 }}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0 pr-4">
+                <motion.h2
+                  className="text-2xl md:text-3xl font-bold truncate"
+                  layoutId="song-title"
+                >
+                  {currentSong.title}
+                </motion.h2>
+                <motion.p
+                  className="mt-1 text-xl text-primary font-medium"
+                  layoutId="song-artist"
+                >
+                  {currentSong.artist}
+                </motion.p>
+              </div>
+              <motion.button
+                className="p-2 rounded-full"
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 0.9 }}
+                transition={iosBounce}
+              >
+                <Heart className="w-6 h-6 text-muted-foreground hover:text-primary transition-colors" />
+              </motion.button>
+            </div>
+          </motion.div>
 
-          {/* Progress */}
-          <div className="mt-8">
+          {/* Progress - iOS style */}
+          <motion.div 
+            className="mt-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
             <Slider
               value={[progress]}
               max={duration || 100}
-              step={1}
+              step={0.1}
               onValueChange={([value]) => seek(value)}
-              className="cursor-pointer"
+              className="cursor-pointer [&_[role=slider]]:w-3 [&_[role=slider]]:h-3 [&_[role=slider]]:bg-white"
             />
-            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+            <div className="flex justify-between mt-2 text-[11px] font-medium text-muted-foreground tracking-wide">
               <span>{formatTime(progress)}</span>
-              <span>{formatTime(duration)}</span>
+              <span>-{formatTime(Math.max(0, duration - progress))}</span>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-8 mt-8">
+          {/* Main Controls - iOS style */}
+          <motion.div 
+            className="flex items-center justify-center gap-10 mt-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...iosSpring, delay: 0.25 }}
+          >
             <motion.button
-              className={`p-2 rounded-full transition-colors ${shuffle ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-              onClick={toggleShuffle}
-              whileTap={{ scale: 0.9 }}
-            >
-              <Shuffle className="w-5 h-5" />
-            </motion.button>
-            
-            <motion.button
-              className="p-3 rounded-full hover:bg-white/10 transition-colors"
+              className="p-3"
               onClick={prevSong}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.85 }}
+              transition={iosBounce}
             >
-              <SkipBack className="w-7 h-7" />
+              <SkipBack className="w-8 h-8" fill="currentColor" />
             </motion.button>
             
             <motion.button
-              className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-background"
+              className="w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center text-black"
               onClick={togglePlay}
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.88 }}
               whileHover={{ scale: 1.05 }}
+              transition={iosBounce}
+              style={{
+                boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+              }}
             >
               {isPlaying ? (
-                <Pause className="w-8 h-8" />
+                <Pause className="w-9 h-9" fill="black" />
               ) : (
-                <Play className="w-8 h-8 ml-1" />
+                <Play className="w-9 h-9 ml-1" fill="black" />
               )}
             </motion.button>
             
             <motion.button
-              className="p-3 rounded-full hover:bg-white/10 transition-colors"
+              className="p-3"
               onClick={nextSong}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.85 }}
+              transition={iosBounce}
             >
-              <SkipForward className="w-7 h-7" />
+              <SkipForward className="w-8 h-8" fill="currentColor" />
+            </motion.button>
+          </motion.div>
+
+          {/* Secondary Controls */}
+          <motion.div 
+            className="flex items-center justify-between mt-8 px-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <motion.button
+              className={`p-2 rounded-full transition-colors ${shuffle ? 'text-primary' : 'text-muted-foreground'}`}
+              onClick={toggleShuffle}
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+              transition={iosBounce}
+            >
+              <Shuffle className="w-5 h-5" />
             </motion.button>
             
+            <div className="flex items-center gap-3 w-36">
+              <Volume2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <Slider
+                value={[volume * 100]}
+                max={100}
+                step={1}
+                onValueChange={([value]) => setVolume(value / 100)}
+                className="cursor-pointer [&_[role=slider]]:w-3 [&_[role=slider]]:h-3"
+              />
+            </div>
+            
             <motion.button
-              className={`p-2 rounded-full transition-colors ${repeat !== 'off' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`p-2 rounded-full transition-colors ${repeat !== 'off' ? 'text-primary' : 'text-muted-foreground'}`}
               onClick={toggleRepeat}
+              whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 0.9 }}
+              transition={iosBounce}
             >
               {repeat === 'one' ? (
                 <Repeat1 className="w-5 h-5" />
@@ -210,28 +297,7 @@ const FullscreenPlayer = () => {
                 <Repeat className="w-5 h-5" />
               )}
             </motion.button>
-          </div>
-
-          {/* Volume & Actions */}
-          <div className="flex items-center justify-between mt-8 px-4">
-            <motion.button
-              className="p-2 rounded-full hover:bg-white/10 transition-colors text-muted-foreground hover:text-primary"
-              whileTap={{ scale: 0.9 }}
-            >
-              <Heart className="w-5 h-5" />
-            </motion.button>
-            
-            <div className="flex items-center gap-3 w-32">
-              <Volume2 className="w-4 h-4 text-muted-foreground" />
-              <Slider
-                value={[volume * 100]}
-                max={100}
-                step={1}
-                onValueChange={([value]) => setVolume(value / 100)}
-                className="cursor-pointer"
-              />
-            </div>
-          </div>
+          </motion.div>
         </div>
       </motion.div>
     </AnimatePresence>
