@@ -2,19 +2,22 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Song } from '@/contexts/PlayerContext';
+import { Song, usePlayer } from '@/contexts/PlayerContext';
 import SongCard from '@/components/SongCard';
 import HorizontalSection from '@/components/HorizontalSection';
 import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
-import { Sparkles, Music } from 'lucide-react';
-import { iosSpring, pageVariants, staggerContainer } from '@/lib/animations';
+import LockScreenPlayer from '@/components/LockScreenPlayer';
+import { Sparkles, Music, Lock } from 'lucide-react';
+import { iosSpring, staggerContainer } from '@/lib/animations';
 
 const Home = () => {
   const { user } = useAuth();
+  const { currentSong } = usePlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showLockScreen, setShowLockScreen] = useState(false);
 
   useEffect(() => {
     fetchSongs();
@@ -121,19 +124,34 @@ const Home = () => {
             <p className="text-[13px] text-muted-foreground font-medium">{greeting()}</p>
             <h1 className="text-[22px] font-bold tracking-tight">{user?.email?.split('@')[0] || 'Music Lover'}</h1>
           </motion.div>
-          <motion.button
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, hsl(211 100% 50%), hsl(328 100% 54%))',
-            }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.92 }}
-            transition={iosSpring}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <Sparkles className="w-5 h-5 text-white" />
-          </motion.button>
+          <div className="flex items-center gap-2">
+            {currentSong && (
+              <motion.button
+                onClick={() => setShowLockScreen(true)}
+                className="w-10 h-10 rounded-full flex items-center justify-center glass"
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.92 }}
+                transition={iosSpring}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <Lock className="w-5 h-5 text-white/80" />
+              </motion.button>
+            )}
+            <motion.button
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, hsl(211 100% 50%), hsl(328 100% 54%))',
+              }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
+              transition={iosSpring}
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <Sparkles className="w-5 h-5 text-white" />
+            </motion.button>
+          </div>
         </div>
       </motion.header>
 
@@ -186,6 +204,7 @@ const Home = () => {
       <BottomNav />
       <MiniPlayer />
       <FullscreenPlayer />
+      <LockScreenPlayer isOpen={showLockScreen} onClose={() => setShowLockScreen(false)} />
     </motion.div>
   );
 };
