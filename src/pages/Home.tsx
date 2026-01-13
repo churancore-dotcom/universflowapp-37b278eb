@@ -9,6 +9,7 @@ import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
 import { Sparkles, Music } from 'lucide-react';
+import { iosSpring, pageVariants, staggerContainer } from '@/lib/animations';
 
 const Home = () => {
   const { user } = useAuth();
@@ -56,51 +57,107 @@ const Home = () => {
 
   const EmptyState = () => (
     <motion.div
-      className="text-center py-16"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      className="text-center py-20"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={iosSpring}
     >
-      <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-6">
+      <motion.div 
+        className="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6"
+        style={{
+          background: 'linear-gradient(135deg, hsl(211 100% 50% / 0.2), hsl(328 100% 54% / 0.2))',
+        }}
+        initial={{ scale: 0, rotate: -20 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ ...iosSpring, delay: 0.1 }}
+      >
         <Music className="w-12 h-12 text-muted-foreground" />
-      </div>
-      <h2 className="text-xl font-display font-bold mb-2">No music yet</h2>
-      <p className="text-muted-foreground max-w-xs mx-auto">
+      </motion.div>
+      <motion.h2 
+        className="text-xl font-semibold mb-2"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        No music yet
+      </motion.h2>
+      <motion.p 
+        className="text-muted-foreground max-w-xs mx-auto text-[15px]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
         Music will appear here once an admin uploads songs to the platform.
-      </p>
+      </motion.p>
     </motion.div>
   );
 
   return (
-    <div className="min-h-screen bg-background pb-40">
+    <motion.div 
+      className="min-h-screen bg-black pb-44"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={iosSpring}
+    >
+      {/* iOS-style header with blur */}
       <motion.header
-        className="sticky top-0 z-30 glass px-6 py-4"
-        initial={{ opacity: 0, y: -20 }}
+        className="sticky top-0 z-30 px-6 py-4 safe-area-pt"
+        style={{
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)',
+        }}
+        initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={iosSpring}
       >
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{greeting()}</p>
-            <h1 className="text-xl font-display font-bold">{user?.email?.split('@')[0] || 'Music Lover'}</h1>
-          </div>
           <motion.div
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...iosSpring, delay: 0.1 }}
           >
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+            <p className="text-[13px] text-muted-foreground font-medium">{greeting()}</p>
+            <h1 className="text-[22px] font-bold tracking-tight">{user?.email?.split('@')[0] || 'Music Lover'}</h1>
           </motion.div>
+          <motion.button
+            className="w-10 h-10 rounded-full flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, hsl(211 100% 50%), hsl(328 100% 54%))',
+            }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            transition={iosSpring}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <Sparkles className="w-5 h-5 text-white" />
+          </motion.button>
         </div>
       </motion.header>
 
-      <main className="px-6 pt-6">
+      <main className="px-6 pt-8">
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
+          <motion.div 
+            className="flex justify-center py-20"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <motion.div 
+              className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
+          </motion.div>
         ) : songs.length === 0 ? (
           <EmptyState />
         ) : (
-          <>
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
             <HorizontalSection title="New Releases" subtitle="Fresh tracks just added">
               {songs.slice(0, 10).map((song, i) => (
                 <SongCard key={song.id} song={song} index={i} />
@@ -122,14 +179,14 @@ const Home = () => {
                 ))}
               </HorizontalSection>
             )}
-          </>
+          </motion.div>
         )}
       </main>
 
       <BottomNav />
       <MiniPlayer />
       <FullscreenPlayer />
-    </div>
+    </motion.div>
   );
 };
 

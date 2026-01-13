@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Home, Search, Library, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '@/contexts/PlayerContext';
+import { iosSpring, iosBounce } from '@/lib/animations';
 
 const navItems = [
   { icon: Home, label: 'Home', path: '/home' },
@@ -17,14 +18,14 @@ const BottomNav = () => {
 
   return (
     <motion.nav
-      className={`fixed left-0 right-0 z-40 glass border-t border-white/5 ${
-        currentSong ? 'bottom-[72px]' : 'bottom-0'
+      className={`fixed left-0 right-0 z-40 ios-tab-bar safe-area-pb ${
+        currentSong ? 'bottom-[76px]' : 'bottom-0'
       }`}
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
+      initial={{ y: 100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ ...iosSpring, delay: 0.3 }}
     >
-      <div className="flex items-center justify-around py-2">
+      <div className="flex items-center justify-around py-2 px-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -32,35 +33,48 @@ const BottomNav = () => {
           return (
             <motion.button
               key={item.path}
-              className="relative flex flex-col items-center gap-1 py-2 px-6"
+              className="relative flex flex-col items-center gap-0.5 py-2 px-8 rounded-2xl"
               onClick={() => navigate(item.path)}
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.85 }}
+              transition={iosBounce}
             >
               <motion.div
+                className="relative"
                 animate={{
-                  scale: isActive ? 1.1 : 1,
+                  scale: isActive ? 1 : 0.95,
+                  y: isActive ? -2 : 0,
                 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                transition={iosSpring}
               >
                 <Icon
-                  className={`w-6 h-6 transition-colors ${
+                  className={`w-6 h-6 transition-colors duration-200 ${
                     isActive ? 'text-primary' : 'text-muted-foreground'
                   }`}
+                  strokeWidth={isActive ? 2.5 : 2}
                 />
+                {isActive && (
+                  <motion.div
+                    className="absolute -inset-3 rounded-2xl bg-primary/10"
+                    layoutId="nav-glow"
+                    transition={iosSpring}
+                  />
+                )}
               </motion.div>
-              <span
-                className={`text-xs font-medium transition-colors ${
+              
+              <motion.span
+                className={`text-[10px] font-medium transition-colors duration-200 ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}
+                animate={{ opacity: isActive ? 1 : 0.7 }}
               >
                 {item.label}
-              </span>
+              </motion.span>
               
               {isActive && (
                 <motion.div
-                  className="absolute -bottom-2 w-1 h-1 rounded-full bg-primary"
+                  className="absolute -bottom-0.5 w-5 h-0.5 rounded-full bg-primary"
                   layoutId="nav-indicator"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  transition={iosSpring}
                 />
               )}
             </motion.button>
