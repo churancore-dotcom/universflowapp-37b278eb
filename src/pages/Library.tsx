@@ -298,7 +298,7 @@ const Library = () => {
   return (
     <TabTransition>
       <motion.div 
-        className="min-h-screen bg-black pb-44"
+        className="min-h-screen bg-black pb-52"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
