@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { useState, useMemo } from 'react';
+import { motion, AnimatePresence, PanInfo, useSpring, useTransform, useMotionValue } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Shuffle, Repeat, Repeat1, ChevronDown, ListMusic, Share2, Waves } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { Slider } from '@/components/ui/slider';
@@ -14,6 +14,69 @@ const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Ultra-premium spring config
+const ultraSpring = {
+  type: "spring" as const,
+  stiffness: 400,
+  damping: 25,
+  mass: 0.8,
+};
+
+const magneticSpring = {
+  type: "spring" as const,
+  stiffness: 500,
+  damping: 30,
+  mass: 0.5,
+};
+
+// Custom haptic volume slider component
+const HapticVolumeSlider = ({ 
+  value, 
+  onChange 
+}: { 
+  value: number; 
+  onChange: (value: number) => void;
+}) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const glowIntensity = useMemo(() => Math.min(value * 1.5, 1), [value]);
+  
+  return (
+    <motion.div 
+      className="relative w-full h-1.5 rounded-full bg-white/10 cursor-pointer overflow-visible"
+      animate={{
+        boxShadow: isDragging 
+          ? `0 0 ${20 * glowIntensity}px ${8 * glowIntensity}px rgba(var(--primary-rgb), ${0.3 + glowIntensity * 0.4})`
+          : `0 0 ${10 * glowIntensity}px ${4 * glowIntensity}px rgba(var(--primary-rgb), ${0.1 + glowIntensity * 0.2})`,
+      }}
+      transition={{ duration: 0.2 }}
+    >
+      <Slider
+        value={[value * 100]}
+        max={100}
+        step={1}
+        onValueChange={([v]) => {
+          onChange(v / 100);
+          setIsDragging(true);
+        }}
+        onValueCommit={() => setIsDragging(false)}
+        className="cursor-pointer [&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-lg"
+      />
+      {/* Glow pulse animation */}
+      <motion.div 
+        className="absolute inset-0 rounded-full pointer-events-none"
+        animate={isDragging ? {
+          scale: [1, 1.1, 1],
+          opacity: [0.5, 0.8, 0.5],
+        } : {}}
+        transition={{ duration: 0.3, repeat: Infinity }}
+        style={{
+          background: `linear-gradient(90deg, transparent, rgba(var(--primary-rgb), ${glowIntensity * 0.5}), transparent)`,
+        }}
+      />
+    </motion.div>
+  );
 };
 
 const FullscreenPlayer = () => {
@@ -42,10 +105,20 @@ const FullscreenPlayer = () => {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
 
+  // Play button rotation for smooth icon transition
+  const playRotation = useMotionValue(0);
+  const smoothRotation = useSpring(playRotation, { stiffness: 300, damping: 20 });
+
   const handleDragEnd = (_: any, info: PanInfo) => {
     if (info.offset.y > 100) {
       setExpanded(false);
     }
+  };
+
+  const handlePlayToggle = () => {
+    // Trigger rotation animation on toggle
+    playRotation.set(playRotation.get() + 360);
+    togglePlay();
   };
 
   if (!currentSong || !isExpanded) return null;
@@ -67,19 +140,29 @@ const FullscreenPlayer = () => {
           dragElastic={{ top: 0, bottom: 0.4 }}
           onDragEnd={handleDragEnd}
         >
-          {/* Ambient background glow */}
+          {/* Ultra Mesh Background - responds to album art */}
           <div className="absolute inset-0 overflow-hidden">
             {currentSong.cover_url && (
               <motion.img
                 src={currentSong.cover_url}
                 alt=""
-                className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[60%] object-cover opacity-30 blur-[100px]"
-                initial={{ opacity: 0, scale: 1.2 }}
-                animate={{ opacity: 0.3, scale: 1 }}
-                transition={{ duration: 0.8 }}
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] h-[80%] object-cover blur-[100px]"
+                initial={{ opacity: 0, scale: 1.5 }}
+                animate={{ 
+                  opacity: 0.15, 
+                  scale: isPlaying ? 1.6 : 1.5,
+                  filter: `blur(100px) saturate(${isPlaying ? 2.1 : 1.5})`,
+                }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
+            {/* Glassmorphism overlay */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black"
+              style={{
+                backdropFilter: 'blur(50px) saturate(210%)',
+              }}
+            />
           </div>
 
           <div className="relative flex flex-col h-full px-8 py-6 md:px-16 lg:px-32 safe-area-pt safe-area-pb">
@@ -123,15 +206,36 @@ const FullscreenPlayer = () => {
               </motion.button>
             </div>
 
-            {/* Album Art - iOS Music style */}
+            {/* Album Art - Ultra Premium with breathing effect */}
             <div className="flex-1 flex items-center justify-center py-4">
               <motion.div
                 className="relative w-72 h-72 md:w-80 md:h-80 lg:w-[360px] lg:h-[360px]"
                 layoutId="album-art"
                 initial={{ scale: 0.85, opacity: 0, y: 30 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                transition={{ ...iosSpring, delay: 0.1 }}
+                animate={{ 
+                  scale: isPlaying ? 1.0 : 0.92, 
+                  opacity: isPlaying ? 1 : 0.75, 
+                  y: 0,
+                  filter: isPlaying ? 'blur(0px)' : 'blur(2px)',
+                }}
+                transition={{ ...ultraSpring, delay: 0.1 }}
               >
+                {/* Outer glow ring */}
+                <motion.div
+                  className="absolute -inset-4 rounded-3xl"
+                  animate={{
+                    boxShadow: isPlaying 
+                      ? '0 0 60px 15px rgba(var(--primary-rgb), 0.3), 0 30px 60px -12px rgba(0, 0, 0, 0.8)'
+                      : '0 0 30px 5px rgba(var(--primary-rgb), 0.1), 0 20px 40px -12px rgba(0, 0, 0, 0.6)',
+                    scale: isPlaying ? [1, 1.02, 1] : 1,
+                  }}
+                  transition={isPlaying ? { 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  } : { duration: 0.5 }}
+                />
+                
                 <motion.div 
                   className="w-full h-full rounded-2xl overflow-hidden shadow-2xl"
                   style={{
@@ -224,7 +328,7 @@ const FullscreenPlayer = () => {
               </div>
             </motion.div>
 
-            {/* Main Controls - iOS style */}
+            {/* Main Controls - Ultra Premium with physics */}
             <motion.div 
               className="flex items-center justify-center gap-10 mt-6"
               initial={{ opacity: 0, y: 20 }}
@@ -234,92 +338,151 @@ const FullscreenPlayer = () => {
               <motion.button
                 className="p-3"
                 onClick={prevSong}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.85 }}
-                transition={iosBounce}
+                whileHover={{ scale: 1.15, x: -3 }}
+                whileTap={{ scale: 0.8, x: -8 }}
+                transition={ultraSpring}
               >
                 <SkipBack className="w-8 h-8" fill="currentColor" />
               </motion.button>
               
+              {/* Ultra Premium Play/Pause Button */}
               <motion.button
-                className="w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center text-black"
-                onClick={togglePlay}
+                className="w-[76px] h-[76px] rounded-full bg-white flex items-center justify-center text-black relative overflow-hidden"
+                onClick={handlePlayToggle}
                 whileTap={{ scale: 0.88 }}
-                whileHover={{ scale: 1.05 }}
-                transition={iosBounce}
+                whileHover={{ scale: 1.08 }}
+                transition={ultraSpring}
                 style={{
-                  boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+                  boxShadow: isPlaying 
+                    ? '0 8px 40px rgba(255,255,255,0.4), 0 0 60px rgba(var(--primary-rgb), 0.3)'
+                    : '0 8px 30px rgba(0,0,0,0.3)',
+                  rotate: smoothRotation,
                 }}
               >
-                {isPlaying ? (
-                  <Pause className="w-9 h-9" fill="black" />
-                ) : (
-                  <Play className="w-9 h-9 ml-1" fill="black" />
-                )}
+                {/* Inner glow */}
+                <motion.div
+                  className="absolute inset-0 rounded-full"
+                  animate={{
+                    background: isPlaying 
+                      ? 'radial-gradient(circle at center, rgba(var(--primary-rgb), 0.1) 0%, transparent 70%)'
+                      : 'transparent',
+                  }}
+                />
+                <AnimatePresence mode="wait">
+                  {isPlaying ? (
+                    <motion.div
+                      key="pause"
+                      initial={{ scale: 0, rotate: -90 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 90 }}
+                      transition={ultraSpring}
+                    >
+                      <Pause className="w-9 h-9" fill="black" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="play"
+                      initial={{ scale: 0, rotate: 90 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: -90 }}
+                      transition={ultraSpring}
+                    >
+                      <Play className="w-9 h-9 ml-1" fill="black" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.button>
               
               <motion.button
                 className="p-3"
                 onClick={nextSong}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.85 }}
-                transition={iosBounce}
+                whileHover={{ scale: 1.15, x: 3 }}
+                whileTap={{ scale: 0.8, x: 8 }}
+                transition={ultraSpring}
               >
                 <SkipForward className="w-8 h-8" fill="currentColor" />
               </motion.button>
             </motion.div>
 
-            {/* Secondary Controls */}
+            {/* Secondary Controls with Kinetic Toggles */}
             <motion.div 
               className="flex items-center justify-between mt-8 px-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
+              {/* Shuffle with magnetic pull effect */}
               <motion.button
-                className={`p-2 rounded-full transition-colors ${shuffle ? 'text-primary' : 'text-muted-foreground'}`}
+                className={`p-2.5 rounded-full transition-colors relative ${shuffle ? 'text-primary' : 'text-muted-foreground'}`}
                 onClick={toggleShuffle}
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
-                transition={iosBounce}
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.85 }}
+                transition={magneticSpring}
               >
-                <Shuffle className="w-5 h-5" />
+                {shuffle && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-primary/20"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    layoutId="shuffle-glow"
+                    style={{
+                      boxShadow: '0 0 20px 5px rgba(var(--primary-rgb), 0.3)',
+                    }}
+                  />
+                )}
+                <Shuffle className="w-5 h-5 relative z-10" />
               </motion.button>
 
-              {/* Crossfade toggle */}
+              {/* Crossfade toggle with glow */}
               <motion.button
-                className={`p-2 rounded-full transition-colors ${crossfade ? 'text-primary' : 'text-muted-foreground'}`}
+                className={`p-2.5 rounded-full transition-colors relative ${crossfade ? 'text-primary' : 'text-muted-foreground'}`}
                 onClick={toggleCrossfade}
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
-                transition={iosBounce}
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.85 }}
+                transition={magneticSpring}
                 title={crossfade ? 'Crossfade On' : 'Crossfade Off'}
               >
-                <Waves className="w-5 h-5" />
+                {crossfade && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-primary/20"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    style={{
+                      boxShadow: '0 0 20px 5px rgba(var(--primary-rgb), 0.3)',
+                    }}
+                  />
+                )}
+                <Waves className="w-5 h-5 relative z-10" />
               </motion.button>
               
-              <div className="flex items-center gap-3 w-28">
+              {/* Haptic Volume Slider */}
+              <div className="flex items-center gap-3 w-32">
                 <Volume2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <Slider
-                  value={[volume * 100]}
-                  max={100}
-                  step={1}
-                  onValueChange={([value]) => setVolume(value / 100)}
-                  className="cursor-pointer [&_[role=slider]]:w-3 [&_[role=slider]]:h-3"
-                />
+                <HapticVolumeSlider value={volume} onChange={setVolume} />
               </div>
               
+              {/* Repeat with magnetic pull effect */}
               <motion.button
-                className={`p-2 rounded-full transition-colors ${repeat !== 'off' ? 'text-primary' : 'text-muted-foreground'}`}
+                className={`p-2.5 rounded-full transition-colors relative ${repeat !== 'off' ? 'text-primary' : 'text-muted-foreground'}`}
                 onClick={toggleRepeat}
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
-                transition={iosBounce}
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.85 }}
+                transition={magneticSpring}
               >
+                {repeat !== 'off' && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-primary/20"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    style={{
+                      boxShadow: '0 0 20px 5px rgba(var(--primary-rgb), 0.3)',
+                    }}
+                  />
+                )}
                 {repeat === 'one' ? (
-                  <Repeat1 className="w-5 h-5" />
+                  <Repeat1 className="w-5 h-5 relative z-10" />
                 ) : (
-                  <Repeat className="w-5 h-5" />
+                  <Repeat className="w-5 h-5 relative z-10" />
                 )}
               </motion.button>
             </motion.div>

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Music, Image, X, Check, Loader2, AlertCircle, Link, Globe, Youtube, Sparkles, Zap } from 'lucide-react';
+import { Upload, Music, Image, X, Check, Loader2, AlertCircle, Link, Globe, Youtube, Sparkles, Zap, Brain, Shield, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { compressImage, getCompressionStats, formatBytes } from '@/lib/imageCompression';
+
 const genres = ['Pop', 'Rock', 'Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Classical', 'Country', 'Indie', 'Metal', 'Phonk', 'Lo-Fi', 'Bollywood', 'Punjabi', 'Haryanvi'];
 const moods = ['Happy', 'Sad', 'Energetic', 'Calm', 'Romantic', 'Dark', 'Uplifting', 'Chill', 'Slow Reverb', 'Bass Boosted'];
 
@@ -24,9 +25,18 @@ const EXTRACTABLE_PLATFORMS = [
   'fb.watch', 'vimeo.com', 'twitch.tv', 'reddit.com', 'bilibili.com'
 ];
 
+// Extraction stages for visual feedback
+type ExtractionStage = 'idle' | 'analyzing' | 'decrypting' | 'syncing' | 'complete' | 'fallback';
+
 interface ValidationError {
   type: 'audio' | 'cover' | 'url';
   message: string;
+}
+
+interface AIMetadata {
+  title?: string;
+  artist?: string;
+  genre?: string;
 }
 
 const UploadMusic = () => {
@@ -50,6 +60,11 @@ const UploadMusic = () => {
   const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionSaved, setCompressionSaved] = useState<{ savedBytes: number; savedPercent: number } | null>(null);
+  
+  // New: Multi-stage extraction state
+  const [extractionStage, setExtractionStage] = useState<ExtractionStage>('idle');
+  const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [aiMetadata, setAiMetadata] = useState<AIMetadata | null>(null);
   
   const [metadata, setMetadata] = useState({
     title: '',
@@ -135,6 +150,29 @@ const UploadMusic = () => {
     return transformed;
   };
 
+  // Fetch AI metadata from YouTube URL
+  const fetchAIMetadata = async (url: string): Promise<AIMetadata | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-metadata', {
+        body: { url },
+      });
+
+      if (error || !data?.success) {
+        console.log('AI metadata fetch failed:', error || data?.error);
+        return null;
+      }
+
+      return {
+        title: data.title || undefined,
+        artist: data.artist || undefined,
+        genre: data.genre || undefined,
+      };
+    } catch (err) {
+      console.log('AI metadata error:', err);
+      return null;
+    }
+  };
+
   // Extract audio from platforms like YouTube, SoundCloud, etc.
   const extractAudioFromPlatform = async (url: string): Promise<{ 
     audioUrl: string; 
@@ -190,46 +228,100 @@ const UploadMusic = () => {
     setValidationErrors(prev => prev.filter(e => e.type !== 'url'));
     setExtractedUrl(null);
     setDetectedPlatform(null);
+    setExtractionStage('idle');
+    setExtractionError(null);
+    setAiMetadata(null);
 
     try {
       // Check if this URL needs extraction (YouTube, SoundCloud, etc.)
       if (needsExtraction(audioUrl)) {
         setIsExtracting(true);
-        toast.loading('Extracting audio from platform...', { id: 'extracting' });
         
-        const result = await extractAudioFromPlatform(audioUrl);
+        // Stage 1: Analyzing (AI Metadata Pre-fetch)
+        setExtractionStage('analyzing');
         
-        if (result) {
-          setExtractedUrl(result.audioUrl);
-          setDetectedPlatform(result.platform);
+        // Fetch AI metadata in parallel with extraction attempt
+        const aiMetadataPromise = fetchAIMetadata(audioUrl);
+        
+        // Stage 2: Decrypting (Audio Extraction)
+        setTimeout(() => setExtractionStage('decrypting'), 1500);
+        
+        let extractionResult = null;
+        let extractionFailed = false;
+        
+        try {
+          extractionResult = await extractAudioFromPlatform(audioUrl);
+        } catch (error: any) {
+          console.log('Extraction failed, falling back to AI metadata:', error.message);
+          extractionFailed = true;
+        }
+        
+        // Get AI metadata result
+        const aiResult = await aiMetadataPromise;
+        if (aiResult) {
+          setAiMetadata(aiResult);
+        }
+        
+        if (extractionResult) {
+          // Stage 3: Syncing (Success)
+          setExtractionStage('syncing');
           
-          // Use duration from API if available, otherwise try to get from audio element
-          if (result.duration && result.duration > 0) {
-            setAudioDuration(result.duration);
+          setTimeout(() => {
+            setExtractionStage('complete');
+          }, 800);
+          
+          setExtractedUrl(extractionResult.audioUrl);
+          setDetectedPlatform(extractionResult.platform);
+          
+          // Use duration from API if available
+          if (extractionResult.duration && extractionResult.duration > 0) {
+            setAudioDuration(extractionResult.duration);
           } else {
-            const duration = await getAudioDurationFromUrl(result.audioUrl);
+            const duration = await getAudioDurationFromUrl(extractionResult.audioUrl);
             if (duration > 0) {
               setAudioDuration(duration);
             }
           }
           
           // Auto-fill metadata from extracted video info
-          if (result.title && !metadata.title) {
-            setMetadata(prev => ({ ...prev, title: prev.title || result.title! }));
+          if (extractionResult.title && !metadata.title) {
+            setMetadata(prev => ({ ...prev, title: prev.title || extractionResult!.title! }));
           }
-          if (result.artist && !metadata.artist) {
-            setMetadata(prev => ({ ...prev, artist: prev.artist || result.artist! }));
+          if (extractionResult.artist && !metadata.artist) {
+            setMetadata(prev => ({ ...prev, artist: prev.artist || extractionResult!.artist! }));
           }
           
           // Set thumbnail as cover URL if available
-          if (result.thumbnail && !coverUrl && !coverFile) {
-            setCoverUrl(result.thumbnail);
-            setCoverPreview(result.thumbnail);
+          if (extractionResult.thumbnail && !coverUrl && !coverFile) {
+            setCoverUrl(extractionResult.thumbnail);
+            setCoverPreview(extractionResult.thumbnail);
           }
           
           setUrlValidated(true);
-          toast.dismiss('extracting');
-          toast.success(`Audio extracted from ${result.platform}!`);
+          toast.success(`Audio extracted from ${extractionResult.platform}!`);
+        } else if (extractionFailed && aiResult) {
+          // Graceful fallback with AI metadata
+          setExtractionStage('fallback');
+          
+          // Pre-fill form with AI-generated metadata
+          if (aiResult.title && !metadata.title) {
+            setMetadata(prev => ({ ...prev, title: aiResult.title! }));
+          }
+          if (aiResult.artist && !metadata.artist) {
+            setMetadata(prev => ({ ...prev, artist: aiResult.artist! }));
+          }
+          if (aiResult.genre && !metadata.genre) {
+            setMetadata(prev => ({ ...prev, genre: aiResult.genre! }));
+          }
+          
+          setExtractionError('Audio servers busy. Metadata recovered; please provide the direct audio link manually.');
+          setUrlValidated(false);
+          toast.warning('Metadata recovered via AI. Please provide a direct audio link.', { duration: 5000 });
+        } else {
+          // Complete failure
+          setExtractionStage('idle');
+          setExtractionError('Could not extract audio or metadata. Please try a direct audio link.');
+          toast.error('Extraction failed. Please use a direct audio URL.');
         }
       } else {
         // Direct URL - transform and validate
@@ -239,14 +331,16 @@ const UploadMusic = () => {
         if (duration > 0) {
           setAudioDuration(duration);
           setUrlValidated(true);
+          setExtractionStage('complete');
           toast.success('Audio URL validated!');
         } else {
           setUrlValidated(true);
+          setExtractionStage('complete');
           toast.success('URL accepted - will be used as provided');
         }
       }
     } catch (error: any) {
-      toast.dismiss('extracting');
+      setExtractionStage('idle');
       toast.error(error.message || 'Failed to validate/extract audio');
       setValidationErrors(prev => [...prev.filter(e => e.type !== 'url'), { type: 'url', message: error.message }]);
     } finally {
@@ -644,6 +738,8 @@ const UploadMusic = () => {
                   setUrlValidated(false); 
                   setExtractedUrl(null);
                   setDetectedPlatform(null);
+                  setExtractionStage('idle');
+                  setExtractionError(null);
                 }}
                 placeholder="YouTube, SoundCloud, or direct audio URL"
                 className="flex-1 h-11 rounded-xl bg-muted/30 border-0"
@@ -664,15 +760,65 @@ const UploadMusic = () => {
               </Button>
             </div>
             
-            {/* Status messages */}
-            {isExtracting && (
-              <p className="text-xs text-primary mt-2 flex items-center gap-1">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Extracting audio from platform...
-              </p>
-            )}
+            {/* Multi-stage extraction animation */}
+            <AnimatePresence mode="wait">
+              {extractionStage !== 'idle' && extractionStage !== 'complete' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mt-3 p-3 rounded-xl bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border border-primary/20"
+                >
+                  <div className="flex items-center gap-3">
+                    {extractionStage === 'analyzing' && (
+                      <>
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
+                          <Brain className="w-5 h-5 text-primary" />
+                        </motion.div>
+                        <div>
+                          <p className="text-sm font-medium text-primary">Analyzing with AI...</p>
+                          <p className="text-xs text-muted-foreground">Extracting metadata from URL</p>
+                        </div>
+                      </>
+                    )}
+                    {extractionStage === 'decrypting' && (
+                      <>
+                        <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
+                          <Shield className="w-5 h-5 text-accent" />
+                        </motion.div>
+                        <div>
+                          <p className="text-sm font-medium text-accent">Decrypting Stream...</p>
+                          <p className="text-xs text-muted-foreground">Connecting to proxy servers</p>
+                        </div>
+                      </>
+                    )}
+                    {extractionStage === 'syncing' && (
+                      <>
+                        <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 0.5, repeat: Infinity }}>
+                          <Database className="w-5 h-5 text-green-500" />
+                        </motion.div>
+                        <div>
+                          <p className="text-sm font-medium text-green-500">Syncing to Vault...</p>
+                          <p className="text-xs text-muted-foreground">Preparing audio stream</p>
+                        </div>
+                      </>
+                    )}
+                    {extractionStage === 'fallback' && (
+                      <>
+                        <AlertCircle className="w-5 h-5 text-yellow-500" />
+                        <div>
+                          <p className="text-sm font-medium text-yellow-500">Metadata Recovered</p>
+                          <p className="text-xs text-muted-foreground">{extractionError}</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
-            {urlValidated && detectedPlatform && (
+            {/* Success/validated status */}
+            {urlValidated && detectedPlatform && extractionStage === 'complete' && (
               <div className="mt-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
                 <p className="text-xs text-green-500 flex items-center gap-1">
                   <Check className="w-3 h-3" />
