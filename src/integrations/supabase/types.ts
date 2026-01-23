@@ -71,6 +71,42 @@ export type Database = {
         }
         Relationships: []
       }
+      donations: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          email: string | null
+          id: string
+          is_anonymous: boolean
+          message: string | null
+          platform: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          email?: string | null
+          id?: string
+          is_anonymous?: boolean
+          message?: string | null
+          platform: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          email?: string | null
+          id?: string
+          is_anonymous?: boolean
+          message?: string | null
+          platform?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       friends: {
         Row: {
           created_at: string
@@ -351,6 +387,7 @@ export type Database = {
           file_size: number | null
           genre: string | null
           id: string
+          is_premium_only: boolean
           is_visible: boolean
           mood: string | null
           play_count: number
@@ -372,6 +409,7 @@ export type Database = {
           file_size?: number | null
           genre?: string | null
           id?: string
+          is_premium_only?: boolean
           is_visible?: boolean
           mood?: string | null
           play_count?: number
@@ -393,6 +431,7 @@ export type Database = {
           file_size?: number | null
           genre?: string | null
           id?: string
+          is_premium_only?: boolean
           is_visible?: boolean
           mood?: string | null
           play_count?: number
@@ -438,6 +477,45 @@ export type Database = {
           },
         ]
       }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          platform: Database["public"]["Enums"]["subscription_platform"]
+          purchase_token: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          subscription_type: Database["public"]["Enums"]["subscription_type"]
+          transaction_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          platform?: Database["public"]["Enums"]["subscription_platform"]
+          purchase_token?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          subscription_type?: Database["public"]["Enums"]["subscription_type"]
+          transaction_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          platform?: Database["public"]["Enums"]["subscription_platform"]
+          purchase_token?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          subscription_type?: Database["public"]["Enums"]["subscription_type"]
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -446,7 +524,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      subscription_platform: "android" | "ios" | "web" | "donation"
+      subscription_status: "active" | "expired" | "cancelled" | "pending"
+      subscription_type: "free" | "premium_monthly" | "premium_yearly"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -573,6 +653,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_platform: ["android", "ios", "web", "donation"],
+      subscription_status: ["active", "expired", "cancelled", "pending"],
+      subscription_type: ["free", "premium_monthly", "premium_yearly"],
+    },
   },
 } as const

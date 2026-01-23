@@ -17,6 +17,7 @@ import PlaylistDetail from "./pages/PlaylistDetail";
 import ArtistDetail from "./pages/ArtistDetail";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import Support from "./pages/Support";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UploadMusic from "./pages/admin/UploadMusic";
@@ -68,6 +69,7 @@ const AnimatedRoutes = () => {
         <Route path="/artist/:artistId" element={<ProtectedRoute><ArtistDetail /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
         <Route path="/add-friend/:shareCode" element={<AddFriend />} />
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<AdminDashboard />} />

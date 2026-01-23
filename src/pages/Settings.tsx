@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Volume2, Palette, Trash2, Info, Headphones, Bell, Shield, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Volume2, Palette, Trash2, Info, Headphones, Bell, Shield, ChevronRight, Heart, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
@@ -9,9 +9,11 @@ import PageTransition from '@/components/PageTransition';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { iosSpring, iosBounce } from '@/lib/animations';
+import { usePremium } from '@/hooks/usePremium';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { isPremium } = usePremium();
   const [crossfade, setCrossfade] = useState(3);
   const [gaplessPlayback, setGaplessPlayback] = useState(true);
   const [autoplay, setAutoplay] = useState(true);
@@ -160,6 +162,39 @@ const Settings = () => {
               className="data-[state=checked]:bg-primary"
             />
           </SettingRow>
+        </SettingSection>
+
+        {/* Support & Premium */}
+        <SettingSection title="Support" icon={Heart} iconColor="rgba(255, 45, 85, 0.9)" delay={0.12}>
+          <motion.button
+            onClick={() => navigate('/support')}
+            className="w-full px-5 py-4 flex items-center justify-between border-b border-white/[0.06]"
+            whileTap={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+          >
+            <div className="flex items-center gap-3">
+              {isPremium && (
+                <div className="px-2 py-0.5 rounded-full bg-primary/20">
+                  <span className="text-xs font-medium text-primary">Premium</span>
+                </div>
+              )}
+              <span className="text-[15px]">{isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Crown className="w-4 h-4 text-primary" />
+              <ChevronRight className="w-5 h-5" />
+            </div>
+          </motion.button>
+          <motion.button
+            onClick={() => navigate('/support')}
+            className="w-full px-5 py-4 flex items-center justify-between"
+            whileTap={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+          >
+            <span className="text-[15px]">Buy Me a Coffee</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="text-[15px]">Support the app</span>
+              <ChevronRight className="w-5 h-5" />
+            </div>
+          </motion.button>
         </SettingSection>
 
         {/* Notifications */}
