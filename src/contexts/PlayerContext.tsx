@@ -82,28 +82,50 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isCrossfading = useRef(false);
   const isInitialized = useRef(false);
 
+  // Use refs for values that need to be accessed in callbacks without stale closures
+  const repeatRef = useRef(repeat);
+  const crossfadeRef = useRef(crossfade);
+  const crossfadeDurationRef = useRef(crossfadeDuration);
+  const queueRef = useRef(queue);
+  const currentIndexRef = useRef(currentIndex);
+  const shuffleRef = useRef(shuffle);
+  const volumeRef = useRef(volume);
+  const isPlayingRef = useRef(isPlaying);
+
+  // Keep refs in sync with state
+  useEffect(() => { repeatRef.current = repeat; }, [repeat]);
+  useEffect(() => { crossfadeRef.current = crossfade; }, [crossfade]);
+  useEffect(() => { crossfadeDurationRef.current = crossfadeDuration; }, [crossfadeDuration]);
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
+  // Forward declarations for functions used in callbacks
+  const startCrossfadeRef = useRef<() => void>(() => {});
+  const nextSongInternalRef = useRef<() => void>(() => {});
+  const playSongAtIndexRef = useRef<(index: number) => void>(() => {});
+
   // Initialize audio elements with WebView compatibility
   useEffect(() => {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
     const audio = new Audio();
-    audio.volume = volume;
-    audio.preload = 'metadata'; // Changed from 'auto' for better WebView compat
-    audio.crossOrigin = 'anonymous'; // For CORS
+    audio.volume = volumeRef.current;
+    audio.preload = 'metadata';
+    audio.crossOrigin = 'anonymous';
     
-    // WebView compatibility attributes
     audio.setAttribute('playsinline', 'true');
     audio.setAttribute('webkit-playsinline', 'true');
     
-    // Enable background playback
     if ('mediaSession' in navigator) {
       audio.setAttribute('x-webkit-airplay', 'allow');
     }
     
     audioRef.current = audio;
 
-    // Create second audio element for crossfade
     const nextAudio = new Audio();
     nextAudio.volume = 0;
     nextAudio.preload = 'metadata';
@@ -118,10 +140,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // Start crossfade before song ends
-      if (crossfade && queue.length > 1 && audioRef.current?.duration) {
+      if (crossfadeRef.current && queueRef.current.length > 1 && audioRef.current?.duration) {
         const timeLeft = audioRef.current.duration - audioRef.current.currentTime;
-        if (timeLeft <= crossfadeDuration && timeLeft > 0 && !isCrossfading.current) {
-          startCrossfade();
+        if (timeLeft <= crossfadeDurationRef.current && timeLeft > 0 && !isCrossfading.current) {
+          startCrossfadeRef.current();
         }
       }
     };
@@ -133,11 +155,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const handleEnded = () => {
-      if (repeat === 'one' && audioRef.current) {
+      if (repeatRef.current === 'one' && audioRef.current) {
         audioRef.current.currentTime = 0;
         safeAudioPlay(audioRef.current);
       } else if (!isCrossfading.current) {
-        nextSongInternal();
+        nextSongInternalRef.current();
       }
     };
 
@@ -154,12 +176,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const handleError = (e: Event) => {
       const audioEl = e.target as HTMLAudioElement;
       console.warn('Audio error:', audioEl.error?.message || 'Unknown error');
-      // Don't crash - just log and continue
     };
 
-    const handleCanPlay = () => {
-      // Audio is ready to play
-    };
+    const handleCanPlay = () => {};
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -169,12 +188,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', handleCanPlay);
 
-    // Handle visibility change to ensure audio continues
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isPlaying && audioRef.current) {
-        // Keep playing in background
-      } else if (document.visibilityState === 'visible' && isPlaying && audioRef.current?.paused) {
-        // Resume if was playing
+      if (document.visibilityState === 'visible' && isPlayingRef.current && audioRef.current?.paused) {
         safeAudioPlay(audioRef.current);
       }
     };
@@ -196,9 +211,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         audio.src = '';
         nextAudio.pause();
         nextAudio.src = '';
-      } catch (e) {
-        // Ignore cleanup errors
-      }
+      } catch (e) {}
       
       if (crossfadeIntervalRef.current) {
         clearInterval(crossfadeIntervalRef.current);
@@ -213,25 +226,46 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [volume]);
 
+  const playSongAtIndex = useCallback((index: number) => {
+    const song = queueRef.current[index];
+    if (song && audioRef.current) {
+      // Cancel any ongoing crossfade
+      if (crossfadeIntervalRef.current) {
+        clearInterval(crossfadeIntervalRef.current);
+        crossfadeIntervalRef.current = null;
+      }
+      isCrossfading.current = false;
+
+      setCurrentSong(song);
+      audioRef.current.src = song.audio_url;
+      audioRef.current.volume = volumeRef.current;
+      safeAudioPlay(audioRef.current);
+      setIsPlaying(true);
+    }
+  }, []);
+
+  // Update ref
+  useEffect(() => { playSongAtIndexRef.current = playSongAtIndex; }, [playSongAtIndex]);
+
   const startCrossfade = useCallback(() => {
     if (!audioRef.current || !nextAudioRef.current || isCrossfading.current) return;
-    if (queue.length <= 1) return;
+    if (queueRef.current.length <= 1) return;
 
     isCrossfading.current = true;
 
     // Determine next song
     let nextIndex: number;
-    if (shuffle) {
-      nextIndex = Math.floor(Math.random() * queue.length);
+    if (shuffleRef.current) {
+      nextIndex = Math.floor(Math.random() * queueRef.current.length);
     } else {
-      nextIndex = (currentIndex + 1) % queue.length;
-      if (nextIndex === 0 && repeat === 'off') {
+      nextIndex = (currentIndexRef.current + 1) % queueRef.current.length;
+      if (nextIndex === 0 && repeatRef.current === 'off') {
         isCrossfading.current = false;
         return;
       }
     }
 
-    const nextSong = queue[nextIndex];
+    const nextSong = queueRef.current[nextIndex];
     if (!nextSong) {
       isCrossfading.current = false;
       return;
@@ -245,7 +279,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     const steps = 30;
-    const stepDuration = (crossfadeDuration * 1000) / steps;
+    const stepDuration = (crossfadeDurationRef.current * 1000) / steps;
     let currentStep = 0;
 
     crossfadeIntervalRef.current = window.setInterval(() => {
@@ -253,10 +287,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const fadeProgress = currentStep / steps;
 
       if (audioRef.current) {
-        audioRef.current.volume = Math.max(0, volume * (1 - fadeProgress));
+        audioRef.current.volume = Math.max(0, volumeRef.current * (1 - fadeProgress));
       }
       if (nextAudioRef.current) {
-        nextAudioRef.current.volume = Math.min(volume, volume * fadeProgress);
+        nextAudioRef.current.volume = Math.min(volumeRef.current, volumeRef.current * fadeProgress);
       }
 
       if (currentStep >= steps) {
@@ -285,43 +319,31 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isCrossfading.current = false;
       }
     }, stepDuration);
-  }, [queue, currentIndex, shuffle, repeat, volume, crossfadeDuration]);
+  }, []);
+
+  // Update ref
+  useEffect(() => { startCrossfadeRef.current = startCrossfade; }, [startCrossfade]);
 
   const nextSongInternal = useCallback(() => {
-    if (queue.length === 0) return;
+    if (queueRef.current.length === 0) return;
     
     let nextIndex: number;
-    if (shuffle) {
-      nextIndex = Math.floor(Math.random() * queue.length);
+    if (shuffleRef.current) {
+      nextIndex = Math.floor(Math.random() * queueRef.current.length);
     } else {
-      nextIndex = (currentIndex + 1) % queue.length;
-      if (nextIndex === 0 && repeat === 'off') {
+      nextIndex = (currentIndexRef.current + 1) % queueRef.current.length;
+      if (nextIndex === 0 && repeatRef.current === 'off') {
         setIsPlaying(false);
         return;
       }
     }
     
     setCurrentIndex(nextIndex);
-    playSongAtIndex(nextIndex);
-  }, [queue, currentIndex, shuffle, repeat]);
+    playSongAtIndexRef.current(nextIndex);
+  }, []);
 
-  const playSongAtIndex = (index: number) => {
-    const song = queue[index];
-    if (song && audioRef.current) {
-      // Cancel any ongoing crossfade
-      if (crossfadeIntervalRef.current) {
-        clearInterval(crossfadeIntervalRef.current);
-        crossfadeIntervalRef.current = null;
-      }
-      isCrossfading.current = false;
-
-      setCurrentSong(song);
-      audioRef.current.src = song.audio_url;
-      audioRef.current.volume = volume;
-      safeAudioPlay(audioRef.current);
-      setIsPlaying(true);
-    }
-  };
+  // Update ref
+  useEffect(() => { nextSongInternalRef.current = nextSongInternal; }, [nextSongInternal]);
 
   const playSong = useCallback(async (song: Song, offlineUrl?: string | null) => {
     if (audioRef.current) {
@@ -334,15 +356,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setCurrentSong(song);
       audioRef.current.src = offlineUrl || song.audio_url;
-      audioRef.current.volume = volume;
+      audioRef.current.volume = volumeRef.current;
       await safeAudioPlay(audioRef.current);
       setIsPlaying(true);
       
       // Add to queue if not already there
-      const existingIndex = queue.findIndex(s => s.id === song.id);
+      const existingIndex = queueRef.current.findIndex(s => s.id === song.id);
       if (existingIndex === -1) {
         setQueueState(prev => [...prev, song]);
-        setCurrentIndex(queue.length);
+        setCurrentIndex(queueRef.current.length);
       } else {
         setCurrentIndex(existingIndex);
       }
@@ -362,7 +384,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Silent fail for tracking
       }
     }
-  }, [queue, volume]);
+  }, []);
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current || !currentSong) return;
@@ -422,8 +444,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       crossfadeIntervalRef.current = null;
     }
     isCrossfading.current = false;
-    nextSongInternal();
-  }, [nextSongInternal]);
+    nextSongInternalRef.current();
+  }, []);
 
   const prevSong = useCallback(() => {
     if (!audioRef.current) return;
@@ -435,14 +457,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     isCrossfading.current = false;
     
-    if (progress > 3) {
+    const currentProgress = audioRef.current.currentTime;
+    if (currentProgress > 3) {
       audioRef.current.currentTime = 0;
-    } else if (queue.length > 0) {
-      const prevIndex = currentIndex === 0 ? queue.length - 1 : currentIndex - 1;
+    } else if (queueRef.current.length > 0) {
+      const prevIndex = currentIndexRef.current === 0 ? queueRef.current.length - 1 : currentIndexRef.current - 1;
       setCurrentIndex(prevIndex);
-      playSongAtIndex(prevIndex);
+      playSongAtIndexRef.current(prevIndex);
     }
-  }, [progress, queue, currentIndex]);
+  }, []);
 
   const seek = useCallback((time: number) => {
     if (audioRef.current) {
