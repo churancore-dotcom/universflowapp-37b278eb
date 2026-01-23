@@ -1,9 +1,10 @@
-// Global detection for Median native app - no dependencies
-const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+// Global detection for Median native app - Official method from Median docs
+const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
 
-export const isMedianApp = userAgent.indexOf('MedianIOS') > -1 || userAgent.indexOf('MedianAndroid') > -1;
-export const isMedianIOS = userAgent.indexOf('MedianIOS') > -1;
-export const isMedianAndroid = userAgent.indexOf('MedianAndroid') > -1;
+// Official detection: check for 'median' in user agent (lowercase)
+export const isMedianApp = userAgent.indexOf('median') > -1;
+export const isMedianIOS = userAgent.indexOf('medianios') > -1;
+export const isMedianAndroid = userAgent.indexOf('medianandroid') > -1;
 
 // Also expose on window for easy access
 if (typeof window !== 'undefined') {
