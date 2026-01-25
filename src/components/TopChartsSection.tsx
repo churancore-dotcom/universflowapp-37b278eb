@@ -79,7 +79,11 @@ const TopChartItem = memo(({ song, rank, playCount, onClick, isActive, isPlaying
 
 TopChartItem.displayName = 'TopChartItem';
 
-const TopChartsSection = () => {
+interface TopChartsSectionProps {
+  compact?: boolean;
+}
+
+const TopChartsSection = ({ compact = false }: TopChartsSectionProps) => {
   const { currentSong, isPlaying, playSong, togglePlay, setQueue } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
   const [topSongs, setTopSongs] = useState<{ song: Song; play_count: number }[]>([]);
@@ -126,7 +130,6 @@ const TopChartsSection = () => {
     if (currentSong?.id === song.id) {
       togglePlay();
     } else {
-      // Set queue from clicked song
       const queue = topSongs.map(t => t.song);
       const reordered = [...queue.slice(index), ...queue.slice(0, index)];
       setQueue(reordered);
@@ -137,15 +140,17 @@ const TopChartsSection = () => {
 
   if (loading || topSongs.length === 0) return null;
 
+  const displaySongs = compact ? topSongs.slice(0, 3) : topSongs.slice(0, 5);
+
   return (
-    <section className="mb-8">
-      <div className="flex items-center gap-2 mb-4 px-1">
-        <TrendingUp className="w-5 h-5 text-accent" />
-        <h2 className="text-[20px] font-bold tracking-tight">Top Charts</h2>
+    <section className={compact ? 'mb-0' : 'mb-8'}>
+      <div className={`flex items-center gap-2 ${compact ? 'mb-2' : 'mb-4'} px-1`}>
+        <TrendingUp className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} text-accent`} />
+        <h2 className={`${compact ? 'text-[16px]' : 'text-[20px]'} font-bold tracking-tight`}>Top Charts</h2>
       </div>
       
       <motion.div
-        className="rounded-3xl overflow-hidden"
+        className={`${compact ? 'rounded-2xl' : 'rounded-3xl'} overflow-hidden`}
         style={{
           background: 'linear-gradient(135deg, rgba(28, 28, 30, 0.7), rgba(40, 40, 42, 0.6))',
           backdropFilter: 'blur(20px)',
@@ -155,7 +160,7 @@ const TopChartsSection = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={iosSpring}
       >
-        {topSongs.slice(0, 5).map(({ song, play_count }, index) => (
+        {displaySongs.map(({ song, play_count }, index) => (
           <TopChartItem
             key={song.id}
             song={song}

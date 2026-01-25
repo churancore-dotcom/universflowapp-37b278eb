@@ -104,7 +104,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
     <>
       <AnimatePresence>
         <motion.div 
-          className="fixed inset-0 z-50 overflow-hidden bg-black" 
+          className="fixed inset-0 z-50 overflow-hidden overflow-y-auto bg-black" 
           initial={{ y: "100%" }} 
           animate={{ y: 0 }} 
           exit={{ y: "100%" }} 
@@ -114,7 +114,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
           dragElastic={{ top: 0, bottom: 0.3 }} 
           onDragEnd={handleDragEnd}
         >
-          {/* Apple Music blurred background - simplified for performance */}
+          {/* Apple Music blurred background */}
           <div className="absolute inset-0 overflow-hidden">
             {currentSong.cover_url && (
               <img 
@@ -124,55 +124,53 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 style={{ filter: 'blur(80px) saturate(1.5)' }} 
               />
             )}
-            {/* Dark overlay */}
             <div className="absolute inset-0 bg-black/60" />
           </div>
 
-          <div className="relative flex flex-col h-full px-4 sm:px-8 safe-area-pt safe-area-pb">
-            {/* Apple Music drag indicator */}
-            <div className="flex justify-center pt-2 sm:pt-3 pb-1 sm:pb-2">
-              <div className="w-8 sm:w-9 h-1 rounded-full bg-white/30" />
+          <div className="relative flex flex-col min-h-full h-full px-3 xs:px-4 sm:px-6 pt-safe pb-safe">
+            {/* Drag indicator */}
+            <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+              <div className="w-8 h-1 rounded-full bg-white/30" />
             </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between py-1 sm:py-2">
+            {/* Header - compact */}
+            <div className="flex items-center justify-between py-1 flex-shrink-0">
               <motion.button 
-                className="p-1.5 sm:p-2 -ml-1 sm:-ml-2" 
+                className="p-1.5 -ml-1 touch-manipulation" 
                 onClick={() => setExpanded(false)} 
                 whileTap={{ scale: 0.9 }} 
                 transition={iosBounce}
               >
-                <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7 text-white/80" />
+                <ChevronDown className="w-6 h-6 text-white/80" />
               </motion.button>
               
-              <div className="text-center flex-1 px-2">
-                <p className="text-[10px] sm:text-[11px] font-medium uppercase tracking-widest text-white/50">
+              <div className="text-center flex-1 px-2 min-w-0">
+                <p className="text-[9px] xs:text-[10px] font-medium uppercase tracking-widest text-white/50">
                   Playing From
                 </p>
-                <p className="text-[12px] sm:text-[13px] font-semibold text-white/90 mt-0.5 truncate">
+                <p className="text-[11px] xs:text-[12px] font-semibold text-white/90 mt-0.5 truncate">
                   {currentSong.album || 'Library'}
                 </p>
               </div>
               
               <motion.button 
-                className="p-1.5 sm:p-2 -mr-1 sm:-mr-2" 
+                className="p-1.5 -mr-1 touch-manipulation" 
                 onClick={() => setShowPlaylistModal(true)} 
                 whileTap={{ scale: 0.9 }} 
                 transition={iosBounce}
               >
-                <Ellipsis className="w-5 h-5 sm:w-6 sm:h-6 text-white/80" />
+                <Ellipsis className="w-5 h-5 text-white/80" />
               </motion.button>
             </div>
 
-            {/* Album Art - responsive sizing */}
-            <div className="flex-1 flex items-center justify-center py-3 sm:py-6 min-h-0">
+            {/* Album Art - responsive with dynamic sizing */}
+            <div className="flex-1 flex items-center justify-center py-2 min-h-0 max-h-[45vh]">
               <motion.div 
-                className="relative w-full max-w-[260px] min-[375px]:max-w-[280px] sm:max-w-[320px] aspect-square" 
+                className="relative w-full max-w-[220px] xs:max-w-[250px] min-[400px]:max-w-[280px] sm:max-w-[320px] aspect-square" 
                 initial={{ scale: 0.8, opacity: 0 }} 
                 animate={{ scale: isPlaying ? 1 : 0.88, opacity: 1 }} 
                 transition={appleSpring}
               >
-                {/* Unique per-song animations based on song ID */}
                 <AlbumArtAnimations 
                   isPlaying={isPlaying} 
                   bassFrequency={bassFrequency} 
@@ -181,9 +179,8 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                   songId={currentSong.id} 
                 />
 
-                {/* Album artwork */}
                 <motion.div 
-                  className="relative w-full h-full rounded-xl overflow-hidden shadow-2xl z-10 opacity-100" 
+                  className="relative w-full h-full rounded-xl overflow-hidden shadow-2xl z-10" 
                   animate={{
                     boxShadow: isPlaying 
                       ? `0 0 ${60 + bassFrequency * 40}px ${15 + bassFrequency * 15}px hsl(var(--primary) / ${0.25 + bassFrequency * 0.2}), 0 30px 60px -15px rgba(0, 0, 0, 0.8)` 
@@ -201,23 +198,23 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-                      <div className="text-white/60 text-5xl sm:text-6xl">♪</div>
+                      <div className="text-white/60 text-4xl xs:text-5xl">♪</div>
                     </div>
                   )}
                 </motion.div>
               </motion.div>
             </div>
 
-            {/* Song Info & Actions - responsive sizing */}
-            <div className="space-y-4 sm:space-y-6 pb-3 sm:pb-4">
+            {/* Song Info & Controls - always visible */}
+            <div className="flex-shrink-0 space-y-3 xs:space-y-4 pb-2">
               {/* Title and Artist */}
-              <div className="flex items-start justify-between gap-3 sm:gap-4">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-lg sm:text-[22px] font-bold text-white truncate">
+                  <h2 className="text-base xs:text-lg sm:text-xl font-bold text-white truncate leading-tight">
                     {currentSong.title}
                   </h2>
                   <motion.button 
-                    className="text-base sm:text-[18px] text-rose-400 font-medium truncate block" 
+                    className="text-sm xs:text-base text-rose-400 font-medium truncate block max-w-full" 
                     onClick={() => {
                       if (currentSong.artist_id) {
                         setExpanded(false);
@@ -229,110 +226,105 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                     {currentSong.artist}
                   </motion.button>
                 </div>
-                <div className="flex items-center gap-0.5 sm:gap-1">
-                  <LikeButton songId={currentSong.id} size="md" />
-                  <DownloadButton song={currentSong} size="md" />
+                <div className="flex items-center gap-0 flex-shrink-0">
+                  <LikeButton songId={currentSong.id} size="sm" />
+                  <DownloadButton song={currentSong} size="sm" />
                 </div>
               </div>
 
-              {/* Progress bar - responsive */}
+              {/* Progress bar */}
               <div>
                 <Slider 
                   value={[safeProgress]} 
                   max={safeDuration} 
                   step={0.1} 
                   onValueChange={([value]) => seek(value)} 
-                  className="[&_[role=slider]]:w-3.5 [&_[role=slider]]:h-3.5 sm:[&_[role=slider]]:w-4 sm:[&_[role=slider]]:h-4 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[data-radix-slider-track]]:h-[3px] sm:[&_[data-radix-slider-track]]:h-[4px] [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-rose-500" 
+                  className="[&_[role=slider]]:w-3 [&_[role=slider]]:h-3 xs:[&_[role=slider]]:w-3.5 xs:[&_[role=slider]]:h-3.5 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[data-radix-slider-track]]:h-[2.5px] xs:[&_[data-radix-slider-track]]:h-[3px] [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-rose-500" 
                 />
-                <div className="flex justify-between mt-1.5 sm:mt-2 text-[11px] sm:text-[12px] font-medium text-white/50">
+                <div className="flex justify-between mt-1 text-[10px] xs:text-[11px] font-medium text-white/50">
                   <span>{formatTime(safeProgress)}</span>
                   <span>-{formatTime(Math.max(0, timeRemaining))}</span>
                 </div>
               </div>
 
-              {/* Main Controls - responsive sizing */}
-              <div className="flex items-center justify-between px-2 sm:px-4">
-                {/* Shuffle */}
+              {/* Main Controls - compact for mobile */}
+              <div className="flex items-center justify-between px-0 xs:px-2">
                 <motion.button 
-                  className={`p-1.5 sm:p-2 ${shuffle ? 'text-rose-400' : 'text-white/50'}`} 
+                  className={`p-1.5 touch-manipulation ${shuffle ? 'text-rose-400' : 'text-white/50'}`} 
                   onClick={toggleShuffle} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
                 >
-                  <Shuffle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Shuffle className="w-4 h-4 xs:w-[18px] xs:h-[18px]" />
                 </motion.button>
 
-                {/* Previous */}
                 <motion.button 
-                  className="p-1.5 sm:p-2" 
+                  className="p-1.5 touch-manipulation" 
                   onClick={prevSong} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
                 >
-                  <SkipBack className="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="white" />
+                  <SkipBack className="w-6 h-6 xs:w-7 xs:h-7 text-white" fill="white" />
                 </motion.button>
                 
-                {/* Play/Pause - responsive sizing */}
                 <motion.button 
-                  className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full bg-white flex items-center justify-center" 
+                  className="w-14 h-14 xs:w-16 xs:h-16 rounded-full bg-white flex items-center justify-center touch-manipulation" 
                   onClick={togglePlay} 
                   whileTap={{ scale: 0.9 }} 
                   transition={appleSpring}
                 >
                   {isPlaying ? (
-                    <Pause className="w-7 h-7 sm:w-8 sm:h-8 text-black" fill="black" />
+                    <Pause className="w-6 h-6 xs:w-7 xs:h-7 text-black" fill="black" />
                   ) : (
-                    <Play className="w-7 h-7 sm:w-8 sm:h-8 text-black ml-1" fill="black" />
+                    <Play className="w-6 h-6 xs:w-7 xs:h-7 text-black ml-0.5" fill="black" />
                   )}
                 </motion.button>
                 
-                {/* Next */}
                 <motion.button 
-                  className="p-1.5 sm:p-2" 
+                  className="p-1.5 touch-manipulation" 
                   onClick={nextSong} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
                 >
-                  <SkipForward className="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="white" />
+                  <SkipForward className="w-6 h-6 xs:w-7 xs:h-7 text-white" fill="white" />
                 </motion.button>
 
-                {/* Repeat */}
                 <motion.button 
-                  className={`p-1.5 sm:p-2 ${repeat !== 'off' ? 'text-rose-400' : 'text-white/50'}`} 
+                  className={`p-1.5 touch-manipulation ${repeat !== 'off' ? 'text-rose-400' : 'text-white/50'}`} 
                   onClick={toggleRepeat} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
                 >
-                  {repeat === 'one' ? <Repeat1 className="w-4 h-4 sm:w-5 sm:h-5" /> : <Repeat className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  {repeat === 'one' ? <Repeat1 className="w-4 h-4 xs:w-[18px] xs:h-[18px]" /> : <Repeat className="w-4 h-4 xs:w-[18px] xs:h-[18px]" />}
                 </motion.button>
               </div>
 
-              {/* Volume slider */}
-              <div className="px-1 sm:px-2">
+              {/* Volume slider - compact */}
+              <div className="px-0 xs:px-1">
                 <AppleVolumeSlider value={volume} onChange={setVolume} />
               </div>
 
-              {/* Bottom actions - responsive */}
-              <div className="flex items-center justify-between px-4 sm:px-6 pt-1 sm:pt-2">
-                <motion.button className="p-1.5 sm:p-2" onClick={() => setShowLyrics(true)} whileTap={{ scale: 0.85 }}>
-                  <Mic2 className="w-4 h-4 sm:w-5 sm:h-5 text-white/50" />
+              {/* Bottom actions - single row */}
+              <div className="flex items-center justify-around pt-1">
+                <motion.button className="p-2 touch-manipulation" onClick={() => setShowLyrics(true)} whileTap={{ scale: 0.85 }}>
+                  <Mic2 className="w-4 h-4 xs:w-[18px] xs:h-[18px] text-white/50" />
                 </motion.button>
 
-                <motion.button className="p-1.5 sm:p-2" onClick={() => setShowDedicationModal(true)} whileTap={{ scale: 0.85 }}>
-                  <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-white/50" />
+                <motion.button className="p-2 touch-manipulation" onClick={() => setShowDedicationModal(true)} whileTap={{ scale: 0.85 }}>
+                  <Heart className="w-4 h-4 xs:w-[18px] xs:h-[18px] text-white/50" />
                 </motion.button>
 
-                <motion.button className="p-1.5 sm:p-2" onClick={() => setShowShareModal(true)} whileTap={{ scale: 0.85 }}>
-                  <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-white/50" />
+                <motion.button className="p-2 touch-manipulation" onClick={() => setShowShareModal(true)} whileTap={{ scale: 0.85 }}>
+                  <Share2 className="w-4 h-4 xs:w-[18px] xs:h-[18px] text-white/50" />
                 </motion.button>
                 
-                <motion.button className="p-1.5 sm:p-2" onClick={() => setShowPlaylistModal(true)} whileTap={{ scale: 0.85 }}>
-                  <ListMusic className="w-4 h-4 sm:w-5 sm:h-5 text-white/50" />
+                <motion.button className="p-2 touch-manipulation" onClick={() => setShowPlaylistModal(true)} whileTap={{ scale: 0.85 }}>
+                  <ListMusic className="w-4 h-4 xs:w-[18px] xs:h-[18px] text-white/50" />
                 </motion.button>
               </div>
 
-              {/* Song Reactions */}
-              <div className="pt-1 sm:pt-2">
+              {/* Song Reactions - compact */}
+              <div className="pt-0">
                 <SongReactions songId={currentSong.id} songTitle={currentSong.title} />
               </div>
             </div>

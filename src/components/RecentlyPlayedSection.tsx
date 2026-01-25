@@ -66,7 +66,11 @@ const RecentlyPlayedItem = memo(({ song, playedAt, onClick, isActive, isPlaying 
 
 RecentlyPlayedItem.displayName = 'RecentlyPlayedItem';
 
-const RecentlyPlayedSection = () => {
+interface RecentlyPlayedSectionProps {
+  compact?: boolean;
+}
+
+const RecentlyPlayedSection = ({ compact = false }: RecentlyPlayedSectionProps) => {
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
@@ -91,7 +95,6 @@ const RecentlyPlayedSection = () => {
         .limit(10);
 
       if (data) {
-        // Deduplicate by song id
         const seen = new Set<string>();
         const unique = data.filter((item: any) => {
           if (!item.songs || seen.has(item.songs.id)) return false;
@@ -135,15 +138,17 @@ const RecentlyPlayedSection = () => {
 
   if (loading || recentSongs.length === 0) return null;
 
+  const displaySongs = compact ? recentSongs.slice(0, 3) : recentSongs;
+
   return (
-    <section className="mb-8">
-      <div className="flex items-center gap-2 mb-4 px-1">
-        <Clock className="w-5 h-5 text-primary" />
-        <h2 className="text-[20px] font-bold tracking-tight">Recently Played</h2>
+    <section className={compact ? 'mb-0' : 'mb-8'}>
+      <div className={`flex items-center gap-2 ${compact ? 'mb-2' : 'mb-4'} px-1`}>
+        <Clock className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} text-primary`} />
+        <h2 className={`${compact ? 'text-[16px]' : 'text-[20px]'} font-bold tracking-tight`}>Recently Played</h2>
       </div>
       
       <motion.div
-        className="rounded-3xl overflow-hidden"
+        className={`${compact ? 'rounded-2xl' : 'rounded-3xl'} overflow-hidden`}
         style={{
           background: 'rgba(28, 28, 30, 0.6)',
           backdropFilter: 'blur(20px)',
@@ -152,7 +157,7 @@ const RecentlyPlayedSection = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={iosSpring}
       >
-        {recentSongs.map(({ song, played_at }) => (
+        {displaySongs.map(({ song, played_at }) => (
           <RecentlyPlayedItem
             key={`${song.id}-${played_at}`}
             song={song}

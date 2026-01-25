@@ -390,14 +390,27 @@ const Home = () => {
                 </HorizontalSection>
               )}
 
+              {/* Recommended for You - 2nd priority */}
+              {songs.length > 3 && (
+                <HorizontalSection title="Recommended for You" subtitle="Based on your taste" songs={recommendedSongs}>
+                  {recommendedSongs.map((song, i) => (
+                    <SongCard key={song.id} song={song} index={i} />
+                  ))}
+                </HorizontalSection>
+              )}
+
+              {/* Top Charts & Recently Played - compact row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <TopChartsSection compact />
+                </div>
+                <div className="space-y-2">
+                  <RecentlyPlayedSection compact />
+                </div>
+              </div>
+
               {/* Featured Artists */}
               <FeaturedArtistsSection />
-
-              {/* Top Charts */}
-              <TopChartsSection />
-
-              {/* Recently Played */}
-              <RecentlyPlayedSection />
 
               {/* Favorites Widget */}
               <FavoritesWidget />
@@ -406,14 +419,6 @@ const Home = () => {
               {trendingSongs.length > 0 && (
                 <HorizontalSection title="Trending Now" subtitle="What's hot right now" songs={trendingSongs}>
                   {trendingSongs.map((song, i) => (
-                    <SongCard key={song.id} song={song} index={i} />
-                  ))}
-                </HorizontalSection>
-              )}
-
-              {songs.length > 3 && (
-                <HorizontalSection title="Recommended for You" subtitle="Based on your taste" songs={recommendedSongs}>
-                  {recommendedSongs.map((song, i) => (
                     <SongCard key={song.id} song={song} index={i} />
                   ))}
                 </HorizontalSection>
