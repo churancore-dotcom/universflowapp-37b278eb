@@ -127,17 +127,17 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
             <div className="absolute inset-0 bg-black/60" />
           </div>
 
-          {/* Main content container */}
-          <div className="relative flex flex-col h-full px-6 pt-3 pb-6">
+          {/* Main content container - mobile optimized */}
+          <div className="relative flex flex-col h-full px-4 pt-2 pb-4">
             {/* Drag indicator */}
-            <div className="flex justify-center mb-2">
-              <div className="w-10 h-1 rounded-full bg-white/30" />
+            <div className="flex justify-center mb-1">
+              <div className="w-9 h-1 rounded-full bg-white/30" />
             </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
+            {/* Header - compact */}
+            <div className="flex items-center justify-between mb-2">
               <motion.button 
-                className="p-2 -ml-2 touch-manipulation" 
+                className="w-12 h-12 flex items-center justify-center -ml-2 touch-manipulation" 
                 onClick={() => setExpanded(false)} 
                 whileTap={{ scale: 0.9 }} 
                 transition={iosBounce}
@@ -145,7 +145,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 <ChevronDown className="w-7 h-7 text-white/80" />
               </motion.button>
               
-              <div className="text-center flex-1 px-4 min-w-0">
+              <div className="text-center flex-1 px-2 min-w-0">
                 <p className="text-[10px] font-medium uppercase tracking-widest text-white/50">
                   Playing From
                 </p>
@@ -155,7 +155,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               </div>
               
               <motion.button 
-                className="p-2 -mr-2 touch-manipulation" 
+                className="w-12 h-12 flex items-center justify-center -mr-2 touch-manipulation" 
                 onClick={() => setShowPlaylistModal(true)} 
                 whileTap={{ scale: 0.9 }} 
                 transition={iosBounce}
@@ -164,10 +164,10 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               </motion.button>
             </div>
 
-            {/* Album Art - centered and sized properly */}
-            <div className="flex-1 flex items-center justify-center min-h-0 mb-4">
+            {/* Album Art - flexible, centered */}
+            <div className="flex-1 flex items-center justify-center min-h-0 py-2">
               <motion.div 
-                className="relative w-[75vw] max-w-[320px] aspect-square" 
+                className="relative w-[80vw] max-w-[300px] aspect-square" 
                 initial={{ scale: 0.8, opacity: 0 }} 
                 animate={{ scale: isPlaying ? 1 : 0.95, opacity: 1 }} 
                 transition={appleSpring}
@@ -207,16 +207,16 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               </motion.div>
             </div>
 
-            {/* Song Info & Controls */}
-            <div className="flex-shrink-0 space-y-4">
+            {/* Controls Section - fixed at bottom */}
+            <div className="flex-shrink-0 space-y-3">
               {/* Title and Artist */}
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-bold text-white truncate">
+                  <h2 className="text-lg font-bold text-white truncate">
                     {currentSong.title}
                   </h2>
                   <motion.button 
-                    className="text-base text-rose-400 font-medium truncate block" 
+                    className="text-sm text-rose-400 font-medium truncate block" 
                     onClick={() => {
                       if (currentSong.artist_id) {
                         setExpanded(false);
@@ -228,31 +228,31 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                     {currentSong.artist}
                   </motion.button>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-0.5 flex-shrink-0">
                   <LikeButton songId={currentSong.id} size="sm" />
                   <DownloadButton song={currentSong} size="sm" />
                 </div>
               </div>
 
-              {/* Progress bar */}
-              <div>
+              {/* Progress bar - easy to drag, larger touch target */}
+              <div className="py-1">
                 <Slider 
                   value={[safeProgress]} 
                   max={safeDuration} 
                   step={0.1} 
                   onValueChange={([value]) => seek(value)} 
-                  className="[&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[data-radix-slider-track]]:h-[3px] [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-rose-500" 
+                  className="[&_[role=slider]]:w-5 [&_[role=slider]]:h-5 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-rose-500" 
                 />
-                <div className="flex justify-between mt-1.5 text-xs font-medium text-white/50">
+                <div className="flex justify-between mt-1 text-[11px] font-medium text-white/50">
                   <span>{formatTime(safeProgress)}</span>
                   <span>-{formatTime(Math.max(0, timeRemaining))}</span>
                 </div>
               </div>
 
-              {/* Main Controls */}
-              <div className="flex items-center justify-between px-2">
+              {/* Main Controls - centered play button */}
+              <div className="flex items-center justify-center gap-6">
                 <motion.button 
-                  className={`p-2 touch-manipulation ${shuffle ? 'text-rose-400' : 'text-white/50'}`} 
+                  className={`w-12 h-12 flex items-center justify-center touch-manipulation ${shuffle ? 'text-rose-400' : 'text-white/50'}`} 
                   onClick={toggleShuffle} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
@@ -261,7 +261,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 </motion.button>
 
                 <motion.button 
-                  className="p-2 touch-manipulation" 
+                  className="w-12 h-12 flex items-center justify-center touch-manipulation" 
                   onClick={prevSong} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
@@ -270,8 +270,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 </motion.button>
                 
                 <motion.button 
-                  className="w-18 h-18 rounded-full bg-white flex items-center justify-center touch-manipulation" 
-                  style={{ width: 72, height: 72 }}
+                  className="w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center touch-manipulation"
                   onClick={togglePlay} 
                   whileTap={{ scale: 0.9 }} 
                   transition={appleSpring}
@@ -284,7 +283,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 </motion.button>
                 
                 <motion.button 
-                  className="p-2 touch-manipulation" 
+                  className="w-12 h-12 flex items-center justify-center touch-manipulation" 
                   onClick={nextSong} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
@@ -293,7 +292,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 </motion.button>
 
                 <motion.button 
-                  className={`p-2 touch-manipulation ${repeat !== 'off' ? 'text-rose-400' : 'text-white/50'}`} 
+                  className={`w-12 h-12 flex items-center justify-center touch-manipulation ${repeat !== 'off' ? 'text-rose-400' : 'text-white/50'}`} 
                   onClick={toggleRepeat} 
                   whileTap={{ scale: 0.85 }} 
                   transition={iosBounce}
@@ -303,30 +302,28 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               </div>
 
               {/* Volume slider */}
-              <div className="px-2">
-                <AppleVolumeSlider value={volume} onChange={setVolume} />
-              </div>
+              <AppleVolumeSlider value={volume} onChange={setVolume} />
 
-              {/* Bottom actions */}
-              <div className="flex items-center justify-around pb-2">
-                <motion.button className="p-3 touch-manipulation" onClick={() => setShowLyrics(true)} whileTap={{ scale: 0.85 }}>
+              {/* Bottom actions - compact row */}
+              <div className="flex items-center justify-around pt-1 pb-2">
+                <motion.button className="w-12 h-12 flex items-center justify-center touch-manipulation" onClick={() => setShowLyrics(true)} whileTap={{ scale: 0.85 }}>
                   <Mic2 className="w-5 h-5 text-white/60" />
                 </motion.button>
 
-                <motion.button className="p-3 touch-manipulation" onClick={() => setShowDedicationModal(true)} whileTap={{ scale: 0.85 }}>
+                <motion.button className="w-12 h-12 flex items-center justify-center touch-manipulation" onClick={() => setShowDedicationModal(true)} whileTap={{ scale: 0.85 }}>
                   <Heart className="w-5 h-5 text-white/60" />
                 </motion.button>
 
-                <motion.button className="p-3 touch-manipulation" onClick={() => setShowShareModal(true)} whileTap={{ scale: 0.85 }}>
+                <motion.button className="w-12 h-12 flex items-center justify-center touch-manipulation" onClick={() => setShowShareModal(true)} whileTap={{ scale: 0.85 }}>
                   <Share2 className="w-5 h-5 text-white/60" />
                 </motion.button>
                 
-                <motion.button className="p-3 touch-manipulation" onClick={() => setShowPlaylistModal(true)} whileTap={{ scale: 0.85 }}>
+                <motion.button className="w-12 h-12 flex items-center justify-center touch-manipulation" onClick={() => setShowPlaylistModal(true)} whileTap={{ scale: 0.85 }}>
                   <ListMusic className="w-5 h-5 text-white/60" />
                 </motion.button>
               </div>
 
-              {/* Song Reactions */}
+              {/* Song Reactions - compact */}
               <SongReactions songId={currentSong.id} songTitle={currentSong.title} />
             </div>
           </div>

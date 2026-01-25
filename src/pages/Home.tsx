@@ -25,7 +25,7 @@ import AIPlaylistGenerator from '@/components/AIPlaylistGenerator';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import OfflineSection from '@/components/OfflineSection';
 import { TabTransition } from '@/components/PageTransition';
-import { Sparkles, Music, Lock, Bell, Moon, ListMusic, Sliders, Waves, Wand2 } from 'lucide-react';
+import { Sparkles, Music, Lock, Moon, ListMusic, Sliders, Waves } from 'lucide-react';
 import { iosSpring, staggerContainer } from '@/lib/animations';
 import { toast } from 'sonner';
 
@@ -257,21 +257,8 @@ const Home = () => {
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-white/90 flex-shrink-0">{greeting()}</p>
             
-            {/* Scrollable icons container - 48px touch targets */}
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-              {/* AI DJ button */}
-              <motion.button
-                onClick={() => setShowAIPlaylist(true)}
-                className="w-10 h-10 min-w-[40px] rounded-full flex items-center justify-center flex-shrink-0"
-                style={{
-                  background: 'linear-gradient(135deg, hsl(280 100% 60%), hsl(320 100% 55%))',
-                }}
-                whileTap={{ scale: 0.9 }}
-                transition={iosSpring}
-              >
-                <Wand2 className="w-5 h-5 text-white" />
-              </motion.button>
-
+            {/* Icons container - 48px touch targets */}
+            <div className="flex items-center gap-1.5">
               {/* Queue button */}
               <motion.button
                 onClick={() => setShowQueue(true)}
@@ -321,17 +308,6 @@ const Home = () => {
               >
                 <Moon className="w-5 h-5 text-white/80" />
               </motion.button>
-
-              {!notificationsEnabled && (
-                <motion.button
-                  onClick={handleEnableNotifications}
-                  className="w-10 h-10 min-w-[40px] rounded-full flex items-center justify-center glass flex-shrink-0"
-                  whileTap={{ scale: 0.9 }}
-                  transition={iosSpring}
-                >
-                  <Bell className="w-5 h-5 text-white/80" />
-                </motion.button>
-              )}
             </div>
           </div>
         </motion.header>
