@@ -1,9 +1,9 @@
-import React, { memo, useCallback } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import React, { memo, useCallback, useState } from 'react';
+import { motion, AnimatePresence, Reorder, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { X, GripVertical, Play, Pause, Trash2 } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { iosSpring } from '@/lib/animations';
-
+import { triggerHaptic } from '@/hooks/useHaptics';
 interface QueueDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,54 +18,103 @@ interface QueueItemProps {
   onRemove: () => void;
 }
 
+const SWIPE_DELETE_THRESHOLD = 100;
+
 const QueueItem = memo(({ song, index, isActive, isPlaying, onPlay, onRemove }: QueueItemProps) => {
+  const [isRemoving, setIsRemoving] = useState(false);
+  const x = useMotionValue(0);
+  const deleteOpacity = useTransform(x, [-SWIPE_DELETE_THRESHOLD, -40], [1, 0]);
+  const deleteScale = useTransform(x, [-SWIPE_DELETE_THRESHOLD, -40], [1, 0.6]);
+
+  const handleDragEnd = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.x < -SWIPE_DELETE_THRESHOLD) {
+      triggerHaptic('impactMedium');
+      setIsRemoving(true);
+      setTimeout(() => {
+        onRemove();
+      }, 200);
+    }
+  }, [onRemove]);
+
+  if (isRemoving) {
+    return (
+      <motion.div
+        initial={{ opacity: 1, height: 'auto' }}
+        animate={{ opacity: 0, height: 0, marginBottom: 0 }}
+        transition={{ duration: 0.2 }}
+      />
+    );
+  }
+
   return (
     <Reorder.Item
       value={song}
       id={song.id}
-      className={`flex items-center gap-3 p-3 rounded-2xl transition-colors cursor-grab active:cursor-grabbing ${
-        isActive ? 'bg-primary/10' : 'bg-white/5'
-      }`}
+      className="relative overflow-hidden rounded-2xl"
+      dragListener={false}
     >
-      <GripVertical className="w-5 h-5 text-muted-foreground/50 flex-shrink-0" />
-      
-      <span className="w-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        {index + 1}
-      </span>
-
-      <motion.button
-        className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0"
-        onClick={onPlay}
-        whileTap={{ scale: 0.9 }}
+      {/* Delete action background */}
+      <motion.div 
+        className="absolute inset-0 bg-destructive flex items-center justify-end pr-6 rounded-2xl"
+        style={{ opacity: deleteOpacity }}
       >
-        {song.cover_url ? (
-          <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/30" />
-        )}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-          {isActive && isPlaying ? (
-            <Pause className="w-4 h-4 text-white" fill="white" />
+        <motion.div style={{ scale: deleteScale }}>
+          <Trash2 className="w-6 h-6 text-white" />
+        </motion.div>
+      </motion.div>
+
+      {/* Swipeable content */}
+      <motion.div
+        className={`relative flex items-center gap-3 p-3 rounded-2xl transition-colors ${
+          isActive ? 'bg-primary/10' : 'bg-white/5'
+        }`}
+        style={{ x }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={{ left: 0.4, right: 0 }}
+        dragDirectionLock
+        onDragEnd={handleDragEnd}
+      >
+        <GripVertical className="w-5 h-5 text-muted-foreground/50 flex-shrink-0" />
+        
+        <span className="w-6 text-center text-sm text-muted-foreground flex-shrink-0">
+          {index + 1}
+        </span>
+
+        <motion.button
+          className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0"
+          onClick={onPlay}
+          whileTap={{ scale: 0.9 }}
+        >
+          {song.cover_url ? (
+            <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
           ) : (
-            <Play className="w-4 h-4 text-white ml-0.5" fill="white" />
+            <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/30" />
           )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            {isActive && isPlaying ? (
+              <Pause className="w-4 h-4 text-white" fill="white" />
+            ) : (
+              <Play className="w-4 h-4 text-white ml-0.5" fill="white" />
+            )}
+          </div>
+        </motion.button>
+
+        <div className="flex-1 min-w-0">
+          <p className={`font-medium text-sm truncate ${isActive ? 'text-primary' : ''}`}>
+            {song.title}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
         </div>
-      </motion.button>
 
-      <div className="flex-1 min-w-0">
-        <p className={`font-medium text-sm truncate ${isActive ? 'text-primary' : ''}`}>
-          {song.title}
-        </p>
-        <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
-      </div>
-
-      <motion.button
-        className="p-2 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-        onClick={onRemove}
-        whileTap={{ scale: 0.85 }}
-      >
-        <Trash2 className="w-4 h-4" />
-      </motion.button>
+        <motion.button
+          className="p-2 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+          onClick={onRemove}
+          whileTap={{ scale: 0.85 }}
+        >
+          <Trash2 className="w-4 h-4" />
+        </motion.button>
+      </motion.div>
     </Reorder.Item>
   );
 });
