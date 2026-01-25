@@ -143,10 +143,10 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
             <div className="absolute inset-0 bg-black/60" />
           </div>
 
-          {/* Main content - compact mobile layout */}
-          <div className="relative flex flex-col h-full px-4 pt-2 pb-2 overflow-hidden">
+          {/* Main content - ultra compact mobile layout */}
+          <div className="relative flex flex-col h-full px-4 pt-1 pb-1 overflow-hidden">
             {/* Drag indicator */}
-            <div className="flex justify-center mb-1.5">
+            <div className="flex justify-center mb-1">
               <motion.div 
                 className="w-9 h-1 rounded-full bg-white/40"
                 whileHover={{ scaleX: 1.2 }}
@@ -154,33 +154,23 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               />
             </div>
 
-            {/* Header - minimal */}
-            <div className="flex items-center justify-between mb-2">
+            {/* Header - ultra minimal */}
+            <div className="flex items-center justify-between mb-1">
               <motion.button 
-                className="w-10 h-10 flex items-center justify-center -ml-1 touch-manipulation" 
+                className="w-9 h-9 flex items-center justify-center -ml-1 touch-manipulation" 
                 onClick={() => { triggerHaptic('impactLight'); setExpanded(false); }} 
                 whileTap={{ scale: 0.85 }} 
                 transition={tapSpring}
               >
-                <ChevronDown className="w-6 h-6 text-white/80" />
+                <ChevronDown className="w-5 h-5 text-white/80" />
               </motion.button>
               
-              <motion.div 
-                className="text-center flex-1 px-2 min-w-0"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={originBounce}
-              >
-                <p className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                  Now Playing
-                </p>
-                <p className="text-xs font-semibold text-white/90 truncate">
-                  {currentSong.album || 'Library'}
-                </p>
-              </motion.div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                Now Playing
+              </p>
               
               <motion.button 
-                className="w-10 h-10 flex items-center justify-center -mr-1 touch-manipulation" 
+                className="w-9 h-9 flex items-center justify-center -mr-1 touch-manipulation" 
                 onClick={() => { triggerHaptic('impactLight'); setShowPlaylistModal(true); }} 
                 whileTap={{ scale: 0.85 }} 
                 transition={tapSpring}
@@ -189,10 +179,10 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               </motion.button>
             </div>
 
-            {/* Album Art - compact, fixed size for mobile */}
-            <div className="flex items-center justify-center py-2">
+            {/* Album Art - compact */}
+            <div className="flex items-center justify-center flex-1 min-h-0 py-1">
               <motion.div 
-                className="relative w-[72vw] max-w-[280px] aspect-square" 
+                className="relative w-[68vw] max-w-[260px] aspect-square" 
                 initial={{ scale: 0.85, opacity: 0 }} 
                 animate={{ 
                   scale: isPlaying ? 1 : 0.96, 
@@ -200,7 +190,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 }} 
                 transition={originBounce}
               >
-                <AlbumArtAnimations 
+                <AlbumArtAnimations
                   isPlaying={isPlaying} 
                   bassFrequency={bassFrequency} 
                   midFrequency={midFrequency} 
@@ -235,9 +225,9 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               </motion.div>
             </div>
 
-            {/* Controls Section - tight spacing */}
+            {/* Controls Section - minimal spacing */}
             <motion.div 
-              className="flex-shrink-0 space-y-2.5 mt-3"
+              className="flex-shrink-0 space-y-1.5 mt-2"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...originBounce, delay: 0.1 }}
@@ -274,23 +264,23 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 </div>
               </div>
 
-              {/* Progress bar - large touch target */}
-              <div className="py-0.5">
+              {/* Progress bar */}
+              <div>
                 <Slider 
                   value={[safeProgress]} 
                   max={safeDuration} 
                   step={0.1} 
                   onValueChange={([value]) => seek(value)} 
-                  className="[&_[role=slider]]:w-[18px] [&_[role=slider]]:h-[18px] [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-lg [&_[data-radix-slider-track]]:h-[5px] [&_[data-radix-slider-track]]:bg-white/15 [&_[data-radix-slider-range]]:bg-rose-500" 
+                  className="[&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-lg [&_[data-radix-slider-track]]:h-1 [&_[data-radix-slider-track]]:bg-white/15 [&_[data-radix-slider-range]]:bg-rose-500" 
                 />
-                <div className="flex justify-between mt-1.5 text-[11px] font-semibold text-white/50 tabular-nums">
+                <div className="flex justify-between mt-1 text-[10px] font-semibold text-white/50 tabular-nums">
                   <span>{formatTime(safeProgress)}</span>
                   <span>-{formatTime(Math.max(0, timeRemaining))}</span>
                 </div>
               </div>
 
-              {/* Main Controls - centered with Origin OS bounce */}
-              <div className="flex items-center justify-center gap-5">
+              {/* Main Controls */}
+              <div className="flex items-center justify-center gap-4">
                 <motion.button 
                   className={`w-11 h-11 flex items-center justify-center touch-manipulation rounded-full ${shuffle ? 'text-rose-400 bg-rose-500/15' : 'text-white/50'}`} 
                   onClick={() => { triggerHaptic('impactLight'); toggleShuffle(); }} 
@@ -365,31 +355,29 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 </motion.button>
               </div>
 
-              {/* Volume slider - compact */}
-              <div className="pt-1">
-                <AppleVolumeSlider value={volume} onChange={setVolume} />
-              </div>
+              {/* Volume slider */}
+              <AppleVolumeSlider value={volume} onChange={setVolume} />
 
-              {/* Bottom actions - tight row */}
-              <div className="flex items-center justify-around py-1">
-                <motion.button className="w-11 h-11 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowLyrics(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
-                  <Mic2 className="w-[18px] h-[18px] text-white/60" />
+              {/* Bottom actions */}
+              <div className="flex items-center justify-around">
+                <motion.button className="w-10 h-10 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowLyrics(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
+                  <Mic2 className="w-4 h-4 text-white/60" />
                 </motion.button>
 
-                <motion.button className="w-11 h-11 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowDedicationModal(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
-                  <Heart className="w-[18px] h-[18px] text-white/60" />
+                <motion.button className="w-10 h-10 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowDedicationModal(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
+                  <Heart className="w-4 h-4 text-white/60" />
                 </motion.button>
 
-                <motion.button className="w-11 h-11 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowShareModal(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
-                  <Share2 className="w-[18px] h-[18px] text-white/60" />
+                <motion.button className="w-10 h-10 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowShareModal(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
+                  <Share2 className="w-4 h-4 text-white/60" />
                 </motion.button>
                 
-                <motion.button className="w-11 h-11 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowPlaylistModal(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
-                  <ListMusic className="w-[18px] h-[18px] text-white/60" />
+                <motion.button className="w-10 h-10 flex items-center justify-center touch-manipulation" onClick={() => { triggerHaptic('selection'); setShowPlaylistModal(true); }} whileTap={{ scale: 0.8 }} transition={tapSpring}>
+                  <ListMusic className="w-4 h-4 text-white/60" />
                 </motion.button>
               </div>
 
-              {/* Song Reactions - minimal spacing */}
+              {/* Song Reactions */}
               <SongReactions songId={currentSong.id} songTitle={currentSong.title} />
             </motion.div>
           </div>
