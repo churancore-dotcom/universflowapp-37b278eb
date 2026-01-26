@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useLike } from '@/hooks/useLike';
 import { iosBounce } from '@/lib/animations';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface LikeButtonProps {
   songId: string;
@@ -30,6 +31,7 @@ const LikeButton = memo(({ songId, size = 'md', className = '' }: LikeButtonProp
       className={`rounded-full flex items-center justify-center relative transition-colors ${sizeClasses[size]} ${className}`}
       onClick={(e) => {
         e.stopPropagation();
+        triggerHaptic(isLiked ? 'impactLight' : 'impactMedium');
         toggleLike();
       }}
       whileTap={{ scale: 0.9 }}

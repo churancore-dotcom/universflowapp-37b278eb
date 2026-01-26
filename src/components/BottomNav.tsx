@@ -3,6 +3,7 @@ import { Home, Search, Library, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { iosBounce } from '@/lib/animations';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 const navItems = [
   { icon: Home, label: 'Listen Now', path: '/home' },
@@ -38,7 +39,10 @@ const BottomNav = () => {
             <motion.button
               key={item.path}
               className="flex flex-col items-center justify-center gap-0.5 min-w-[72px] min-h-[52px] py-1"
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                triggerHaptic('selection');
+                navigate(item.path);
+              }}
               whileTap={{ scale: 0.88 }}
               transition={iosBounce}
             >

@@ -25,6 +25,7 @@ import { TabTransition } from '@/components/PageTransition';
 import Footer from '@/components/Footer';
 import { Music, Lock, ListMusic, Sliders } from 'lucide-react';
 import { toast } from 'sonner';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 // Simple empty state
 const EmptyState = memo(() => (
@@ -216,21 +217,30 @@ const Home = () => {
             
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setShowQueue(true)}
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setShowQueue(true);
+                }}
                 className="w-10 h-10 min-w-[40px] rounded-full flex items-center justify-center glass flex-shrink-0 active:scale-90 transition-transform"
               >
                 <ListMusic className="w-5 h-5 text-white/80" />
               </button>
 
               <button
-                onClick={() => setShowEqualizer(true)}
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setShowEqualizer(true);
+                }}
                 className="w-10 h-10 min-w-[40px] rounded-full flex items-center justify-center glass flex-shrink-0 active:scale-90 transition-transform"
               >
                 <Sliders className="w-5 h-5 text-white/80" />
               </button>
 
               <button
-                onClick={() => setShowLockScreen(true)}
+                onClick={() => {
+                  triggerHaptic('selection');
+                  setShowLockScreen(true);
+                }}
                 className="w-10 h-10 min-w-[40px] rounded-full flex items-center justify-center glass flex-shrink-0 active:scale-90 transition-transform"
               >
                 <Lock className="w-5 h-5 text-white/80" />

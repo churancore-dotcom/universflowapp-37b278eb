@@ -3,6 +3,7 @@ import { Download, Check, Trash2, Loader2, CloudOff, AlertCircle, ListPlus } fro
 import { useDownloads } from '@/contexts/DownloadContext';
 import { Song } from '@/contexts/PlayerContext';
 import { iosBounce } from '@/lib/animations';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface DownloadButtonProps {
   song: Song;
@@ -35,6 +36,8 @@ const DownloadButton = ({ song, size = 'md', showLabel = false, queueMode = fals
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isDownloading || inQueue) return;
+    
+    triggerHaptic('impactMedium');
     
     if (downloaded) {
       removeSong(song.id);

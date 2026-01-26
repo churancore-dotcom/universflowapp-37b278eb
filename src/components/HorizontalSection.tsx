@@ -2,6 +2,7 @@ import React, { memo, ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Song } from '@/contexts/PlayerContext';
 import DownloadAllButton from './DownloadAllButton';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface HorizontalSectionProps {
   title: string;
@@ -33,7 +34,10 @@ const HorizontalSection = memo(({ title, subtitle, children, onSeeAll, songs }: 
           {onSeeAll && (
             <button
               className="flex items-center gap-0.5 text-sm text-primary font-semibold active:opacity-60 transition-opacity min-h-[44px] px-2"
-              onClick={onSeeAll}
+              onClick={() => {
+                triggerHaptic('selection');
+                onSeeAll();
+              }}
             >
               See All
               <ChevronRight className="w-4 h-4" />

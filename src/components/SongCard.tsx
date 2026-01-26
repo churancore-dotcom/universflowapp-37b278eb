@@ -48,6 +48,7 @@ const SongCard = memo(({ song, index = 0, sectionSongs }: SongCardProps) => {
   const handleArtistClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (song.artist_id) {
+      triggerHaptic('selection');
       navigate(`/artist/${song.artist_id}`);
     }
   }, [song.artist_id, navigate]);
@@ -72,6 +73,7 @@ const SongCard = memo(({ song, index = 0, sectionSongs }: SongCardProps) => {
 
   const handleAddToPlaylist = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    triggerHaptic('selection');
     setShowAddToPlaylist(true);
   }, []);
 

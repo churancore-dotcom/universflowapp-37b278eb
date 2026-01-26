@@ -11,14 +11,15 @@ interface MobileShellProps {
 const MobileShell = ({ children }: MobileShellProps) => {
   return (
     <div 
-      className="fixed inset-0 bg-black flex justify-center overflow-hidden"
+      className="fixed inset-0 bg-black flex justify-center"
       style={{ touchAction: 'manipulation' }}
     >
       <div 
-        className="relative w-full max-w-[390px] h-full bg-background overflow-hidden"
+        className="relative w-full max-w-[390px] h-full bg-background overflow-y-auto overflow-x-hidden"
         style={{
           minHeight: '100dvh',
           maxHeight: '100dvh',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {children}
