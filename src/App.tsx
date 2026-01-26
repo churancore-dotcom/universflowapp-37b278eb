@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PlayerProvider, usePlayer } from "./contexts/PlayerContext";
 import { DownloadProvider } from "./contexts/DownloadContext";
 import SplashScreen from "./components/SplashScreen";
+import MobileShell from "./components/MobileShell";
 import DownloadQueuePanel from "./components/DownloadQueuePanel";
 import PrerollAd from "./components/ads/PrerollAd";
 import PWAInstallBanner from "./components/PWAInstallBanner";
@@ -126,7 +127,7 @@ const AppContent = () => {
   const [showSplash, setShowSplash] = useState(true);
 
   return (
-    <>
+    <MobileShell>
       <Toaster />
       <AnimatePresence mode="wait">
         {showSplash ? (
@@ -138,7 +139,7 @@ const AppContent = () => {
       <PrerollAdWrapper />
       <DownloadQueuePanel />
       <PWAInstallBanner />
-    </>
+    </MobileShell>
   );
 };
 

@@ -91,7 +91,8 @@ const MiniPlayer = memo(function MiniPlayer() {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed bottom-[56px] left-0 right-0 z-40 px-2"
+        className="fixed left-1/2 -translate-x-1/2 w-full max-w-[390px] z-40 px-2"
+        style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}

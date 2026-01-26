@@ -164,11 +164,12 @@ const Home = () => {
   return (
     <TabTransition>
       <div 
-        className="min-h-screen bg-black pb-40 relative overflow-y-auto overflow-x-hidden"
+        className="h-full bg-black relative overflow-y-auto overflow-x-hidden"
         {...handlers}
         style={{ 
           transform: `translateY(${pullDistance}px)`,
           WebkitOverflowScrolling: 'touch',
+          paddingBottom: '140px', // Space for MiniPlayer + BottomNav
         }}
       >
         {/* Simple gradient background */}

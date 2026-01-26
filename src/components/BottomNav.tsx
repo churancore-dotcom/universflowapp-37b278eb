@@ -18,7 +18,7 @@ const BottomNav = () => {
 
   return (
     <motion.nav
-      className="fixed left-0 right-0 bottom-0 z-50 safe-area-pb"
+      className="fixed left-1/2 -translate-x-1/2 w-full max-w-[390px] bottom-0 z-50 safe-area-pb"
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 400, damping: 30, delay: 0.2 }}
