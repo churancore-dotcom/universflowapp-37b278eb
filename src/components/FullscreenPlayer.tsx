@@ -142,7 +142,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
             </div>
 
             {/* Album Art */}
-            <div className="flex items-center justify-center py-2">
+            <div className="flex-1 flex items-center justify-center">
               <div className="relative w-[68vw] max-w-[260px] aspect-square">
                 {/* Simple glow */}
                 {isPlaying && (
