@@ -19,11 +19,15 @@ const BottomNav = () => {
 
   return (
     <motion.nav
-      className="fixed left-0 right-0 bottom-0 w-full z-50 safe-area-pb"
+      className="fixed bottom-0 z-50 safe-area-pb"
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 400, damping: 30, delay: 0.2 }}
       style={{ 
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '390px',
+        maxWidth: '100vw',
         background: 'rgba(18, 18, 20, 0.94)',
         backdropFilter: 'blur(40px) saturate(200%)',
         WebkitBackdropFilter: 'blur(40px) saturate(200%)',
