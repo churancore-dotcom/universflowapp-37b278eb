@@ -111,12 +111,12 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
           {/* Main content */}
           <div className="relative flex flex-col h-full px-4 pt-2 pb-2 overflow-hidden">
             {/* Drag indicator */}
-            <div className="flex justify-center mb-1.5">
+            <div className="flex justify-center mb-1">
               <div className="w-9 h-1 rounded-full bg-white/40" />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1">
               <button 
                 className="w-10 h-10 flex items-center justify-center -ml-1 active:scale-90 transition-transform" 
                 onClick={() => { triggerHaptic('impactLight'); setExpanded(false); }}
@@ -142,8 +142,8 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
             </div>
 
             {/* Album Art */}
-            <div className="flex items-center justify-center py-3">
-              <div className="relative w-[72vw] max-w-[280px] aspect-square">
+            <div className="flex items-center justify-center py-2">
+              <div className="relative w-[68vw] max-w-[260px] aspect-square">
                 {/* Simple glow */}
                 {isPlaying && (
                   <div
@@ -180,7 +180,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
             </div>
 
             {/* Controls Section */}
-            <div className="flex-shrink-0 space-y-3 mt-2">
+            <div className="flex-shrink-0 space-y-2 mt-1">
               {/* Title and Artist */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -264,12 +264,10 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               </div>
 
               {/* Volume slider */}
-              <div className="pt-1">
-                <VolumeSlider value={volume} onChange={setVolume} />
-              </div>
+              <VolumeSlider value={volume} onChange={setVolume} />
 
               {/* Bottom actions */}
-              <div className="flex items-center justify-around py-1">
+              <div className="flex items-center justify-around">
                 <button 
                   className="w-11 h-11 flex items-center justify-center active:scale-90 transition-transform" 
                   onClick={() => { triggerHaptic('selection'); setShowDedicationModal(true); }}
