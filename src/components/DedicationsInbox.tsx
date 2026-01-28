@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { toast } from 'sonner';
 import { iosSpring, iosBounce } from '@/lib/animations';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface DedicationsInboxProps {
   isOpen: boolean;
@@ -112,10 +113,10 @@ const DedicationsInbox = ({ isOpen, onClose }: DedicationsInboxProps) => {
       markAsRead(dedication.id);
     }
     
-    const songs = dedications.map(d => d.song).filter(s => s.audio_url);
-    setQueue(songs);
+    // Play ONLY the dedicated song (not the entire list) so user hears exactly what their friend sent
+    triggerHaptic('impactMedium');
     playSong(dedication.song);
-    toast.success(`Playing ${dedication.song.title} 💝`);
+    toast.success(`💝 Playing "${dedication.song.title}" dedicated by ${dedication.senderName}`);
   };
 
   const formatTimeAgo = (date: Date) => {

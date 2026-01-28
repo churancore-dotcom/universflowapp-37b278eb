@@ -1,8 +1,9 @@
 import { memo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { WifiOff, Play, Music, HardDrive } from 'lucide-react';
+import { WifiOff, Play, Music, HardDrive, ArrowLeft, Shuffle } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
+import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
@@ -20,8 +21,10 @@ interface CachedSong {
 const Offline = memo(function Offline() {
   const { playSong, currentSong, isPlaying, setQueue } = usePlayer();
   const { downloads } = useDownloads();
+  const navigate = useNavigate();
   const [cachedSongs, setCachedSongs] = useState<CachedSong[]>([]);
   const [storageUsed, setStorageUsed] = useState<string>('0 MB');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
     // Load downloaded songs from context
@@ -42,6 +45,18 @@ const Offline = memo(function Offline() {
         setStorageUsed(`${usedMB} MB`);
       });
     }
+
+    // Listen for online/offline status
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, [downloads]);
 
   const handlePlayAll = () => {
@@ -49,6 +64,15 @@ const Offline = memo(function Offline() {
       triggerHaptic('impactMedium');
       setQueue(cachedSongs as any);
       playSong(cachedSongs[0] as any);
+    }
+  };
+
+  const handleShufflePlay = () => {
+    if (cachedSongs.length > 0) {
+      triggerHaptic('impactMedium');
+      const shuffled = [...cachedSongs].sort(() => Math.random() - 0.5);
+      setQueue(shuffled as any);
+      playSong(shuffled[0] as any);
     }
   };
 
@@ -60,13 +84,23 @@ const Offline = memo(function Offline() {
   return (
     <div className="min-h-screen bg-background flex flex-col pb-40 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Header */}
-      <div className="sticky top-0 z-40 px-4 pt-4 pb-3 bg-background/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-40 px-4 pt-4 pb-3 bg-background/80 backdrop-blur-xl safe-area-pt">
         <div className="flex items-center gap-3">
+          {isOnline && (
+            <button
+              onClick={() => navigate(-1)}
+              className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
           <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center">
             <WifiOff className="w-6 h-6 text-primary" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-foreground">Offline Mode</h1>
+            <h1 className="text-xl font-bold text-foreground">
+              {isOnline ? 'Downloaded Music' : 'Offline Mode'}
+            </h1>
             <p className="text-sm text-muted-foreground">
               {cachedSongs.length} songs • {storageUsed} used
             </p>
@@ -93,16 +127,26 @@ const Offline = memo(function Offline() {
           </motion.div>
         ) : (
           <>
-            {/* Play All Button */}
-            <motion.button
-              className="w-full py-4 mb-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base flex items-center justify-center gap-2"
-              onClick={handlePlayAll}
-              whileTap={{ scale: 0.97 }}
-              transition={iosSpring}
-            >
-              <Play className="w-5 h-5" fill="currentColor" />
-              Play All ({cachedSongs.length})
-            </motion.button>
+            {/* Play All Buttons */}
+            <div className="flex gap-3 mb-4">
+              <motion.button
+                className="flex-1 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base flex items-center justify-center gap-2"
+                onClick={handlePlayAll}
+                whileTap={{ scale: 0.97 }}
+                transition={iosSpring}
+              >
+                <Play className="w-5 h-5" fill="currentColor" />
+                Play All
+              </motion.button>
+              <motion.button
+                className="py-4 px-6 rounded-2xl bg-muted text-foreground font-semibold text-base flex items-center justify-center gap-2"
+                onClick={handleShufflePlay}
+                whileTap={{ scale: 0.97 }}
+                transition={iosSpring}
+              >
+                <Shuffle className="w-5 h-5" />
+              </motion.button>
+            </div>
 
             {/* Song List */}
             <motion.div

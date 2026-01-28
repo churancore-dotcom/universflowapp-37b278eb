@@ -21,7 +21,12 @@ import {
   ToggleLeft,
   Bell,
   Shield,
-  Gift
+  Gift,
+  Key,
+  DollarSign,
+  Zap,
+  FlaskConical,
+  Lock
 } from 'lucide-react';
 
 const navItems = [
@@ -35,6 +40,12 @@ const navItems = [
   { icon: Crown, label: 'Subscriptions', path: '/admin/subscriptions' },
   { icon: Heart, label: 'Donations', path: '/admin/donations' },
   { icon: Gift, label: 'Promo Codes', path: '/admin/promo-codes' },
+  { icon: DollarSign, label: 'Revenue', path: '/admin/revenue' },
+  { icon: Zap, label: 'Engagement', path: '/admin/engagement' },
+  { icon: Bell, label: 'Push Notifications', path: '/admin/notifications' },
+  { icon: FlaskConical, label: 'A/B Testing', path: '/admin/ab-testing' },
+  { icon: Key, label: 'API Management', path: '/admin/api' },
+  { icon: Lock, label: 'Security', path: '/admin/security' },
   { icon: Palette, label: 'App Settings', path: '/admin/app-settings' },
   { icon: ToggleLeft, label: 'Feature Flags', path: '/admin/features' },
   { icon: Bell, label: 'Announcements', path: '/admin/announcements' },
