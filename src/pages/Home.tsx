@@ -7,7 +7,6 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useSongCache } from '@/hooks/useSongCache';
 import SongCard from '@/components/SongCard';
 import HorizontalSection from '@/components/HorizontalSection';
-import RecentlyPlayedSection from '@/components/RecentlyPlayedSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
@@ -275,8 +274,6 @@ const Home = () => {
               )}
 
               <FeaturedArtistsSection />
-
-              <RecentlyPlayedSection />
 
               {trendingSongs.length > 0 && (
                 <HorizontalSection title="Trending Now" subtitle="What's hot right now" songs={trendingSongs}>

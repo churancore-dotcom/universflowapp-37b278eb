@@ -43,6 +43,12 @@ import SystemHealth from "./pages/admin/SystemHealth";
 import ContentScheduler from "./pages/admin/ContentScheduler";
 import BackupExport from "./pages/admin/BackupExport";
 import PromoCodes from "./pages/admin/PromoCodes";
+import APIManagement from "./pages/admin/APIManagement";
+import PushNotifications from "./pages/admin/PushNotifications";
+import RevenueAnalytics from "./pages/admin/RevenueAnalytics";
+import UserEngagement from "./pages/admin/UserEngagement";
+import ABTesting from "./pages/admin/ABTesting";
+import SecurityCenter from "./pages/admin/SecurityCenter";
 import AddFriend from "./pages/AddFriend";
 import Offline from "./pages/Offline";
 import NotFound from "./pages/NotFound";
@@ -105,6 +111,12 @@ const AnimatedRoutes = () => {
           <Route path="backup" element={<BackupExport />} />
           <Route path="promo-codes" element={<PromoCodes />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="api" element={<APIManagement />} />
+          <Route path="notifications" element={<PushNotifications />} />
+          <Route path="revenue" element={<RevenueAnalytics />} />
+          <Route path="engagement" element={<UserEngagement />} />
+          <Route path="ab-testing" element={<ABTesting />} />
+          <Route path="security" element={<SecurityCenter />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

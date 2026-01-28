@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Play, Pause, SkipForward, X } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
@@ -23,6 +23,28 @@ const MiniPlayer = memo(function MiniPlayer() {
 
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  // Sync visibility with bottom nav scroll behavior
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDelta = currentScrollY - lastScrollY.current;
+      
+      if (Math.abs(scrollDelta) > 10) {
+        if (scrollDelta > 0 && currentScrollY > 100) {
+          setIsNavVisible(false);
+        } else {
+          setIsNavVisible(true);
+        }
+        lastScrollY.current = currentScrollY;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleTogglePlay = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,7 +116,12 @@ const MiniPlayer = memo(function MiniPlayer() {
         className="fixed left-0 right-0 w-full z-40 px-2"
         style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}
         initial={{ y: 60, opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
-        animate={{ y: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+        animate={{ 
+          y: isNavVisible ? 0 : 100, 
+          opacity: isNavVisible ? 1 : 0, 
+          scale: 1, 
+          filter: 'blur(0px)' 
+        }}
         exit={{ y: 60, opacity: 0, scale: 0.98, filter: 'blur(5px)' }}
         transition={{ 
           type: "spring", 
