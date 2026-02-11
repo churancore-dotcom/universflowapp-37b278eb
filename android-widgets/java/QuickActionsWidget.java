@@ -11,8 +11,6 @@ import com.getcapacitor.BridgeActivity;
 
 public class QuickActionsWidget extends AppWidgetProvider {
 
-    public static final String ACTION_SHUFFLE_ALL = "app.lovable.universflow.SHUFFLE_ALL";
-
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
         for (int appWidgetId : appWidgetIds) {
@@ -24,56 +22,38 @@ public class QuickActionsWidget extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_quick_actions);
         
         // Open App
-        Intent openAppIntent = new Intent(context, BridgeActivity.class);
-        openAppIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent openAppPendingIntent = PendingIntent.getActivity(context, 0, 
-            openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_open_app, openAppPendingIntent);
+        views.setOnClickPendingIntent(R.id.widget_open_app, 
+            createDeepLinkIntent(context, "universflow://home", 0));
         
-        // Search - deep link
-        Intent searchIntent = new Intent(context, BridgeActivity.class);
-        searchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        searchIntent.setData(Uri.parse("universflow://search"));
-        PendingIntent searchPendingIntent = PendingIntent.getActivity(context, 1, 
-            searchIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_search, searchPendingIntent);
+        // Search
+        views.setOnClickPendingIntent(R.id.widget_search, 
+            createDeepLinkIntent(context, "universflow://search", 1));
         
-        // Shuffle All
-        Intent shuffleIntent = new Intent(context, QuickActionsWidget.class);
-        shuffleIntent.setAction(ACTION_SHUFFLE_ALL);
-        PendingIntent shufflePendingIntent = PendingIntent.getBroadcast(context, 2, 
+        // Shuffle All - launches app with action
+        Intent shuffleIntent = new Intent(context, BridgeActivity.class);
+        shuffleIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        shuffleIntent.setData(Uri.parse("universflow://widget-action?action=WIDGET_SHUFFLE_ALL"));
+        shuffleIntent.putExtra("widget_action", "WIDGET_SHUFFLE_ALL");
+        PendingIntent shufflePendingIntent = PendingIntent.getActivity(context, 2, 
             shuffleIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         views.setOnClickPendingIntent(R.id.widget_shuffle_all, shufflePendingIntent);
         
-        // Recent - deep link to home
-        Intent recentIntent = new Intent(context, BridgeActivity.class);
-        recentIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        recentIntent.setData(Uri.parse("universflow://home"));
-        PendingIntent recentPendingIntent = PendingIntent.getActivity(context, 3, 
-            recentIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_recent, recentPendingIntent);
+        // Recent
+        views.setOnClickPendingIntent(R.id.widget_recent, 
+            createDeepLinkIntent(context, "universflow://home", 3));
         
-        // Library - deep link
-        Intent libraryIntent = new Intent(context, BridgeActivity.class);
-        libraryIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        libraryIntent.setData(Uri.parse("universflow://library"));
-        PendingIntent libraryPendingIntent = PendingIntent.getActivity(context, 4, 
-            libraryIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.widget_library, libraryPendingIntent);
+        // Library
+        views.setOnClickPendingIntent(R.id.widget_library, 
+            createDeepLinkIntent(context, "universflow://library", 4));
         
         appWidgetManager.updateAppWidget(appWidgetId, views);
     }
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        super.onReceive(context, intent);
-        
-        String action = intent.getAction();
-        if (ACTION_SHUFFLE_ALL.equals(action)) {
-            Intent appIntent = new Intent();
-            appIntent.setPackage(context.getPackageName());
-            appIntent.setAction("app.lovable.universflow.WIDGET_SHUFFLE_ALL");
-            context.sendBroadcast(appIntent);
-        }
+    private static PendingIntent createDeepLinkIntent(Context context, String uri, int requestCode) {
+        Intent intent = new Intent(context, BridgeActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.setData(Uri.parse(uri));
+        return PendingIntent.getActivity(context, requestCode, 
+            intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 }

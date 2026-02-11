@@ -3,6 +3,7 @@ package app.lovable.universflow.widgets;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -14,19 +15,11 @@ import org.json.JSONObject;
 
 public class FavoritesWidget extends AppWidgetProvider {
 
-    public static final String ACTION_SHUFFLE_FAVORITES = "app.lovable.universflow.SHUFFLE_FAVORITES";
-    public static final String ACTION_PLAY_FAVORITE = "app.lovable.universflow.PLAY_FAVORITE";
     public static final String PREFS_NAME = "UniversFlowWidgetPrefs";
-    public static final String EXTRA_SONG_ID = "song_id";
 
     private static final int[] FAV_CONTAINERS = {
         R.id.widget_fav_1, R.id.widget_fav_2, R.id.widget_fav_3,
         R.id.widget_fav_4, R.id.widget_fav_5, R.id.widget_fav_6
-    };
-
-    private static final int[] FAV_IMAGES = {
-        R.id.widget_fav_1_art, R.id.widget_fav_2_art, R.id.widget_fav_3_art,
-        R.id.widget_fav_4_art, R.id.widget_fav_5_art
     };
 
     @Override
@@ -39,25 +32,24 @@ public class FavoritesWidget extends AppWidgetProvider {
     static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_favorites);
         
-        // Get stored favorites
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String favoritesJson = prefs.getString("favorites", "[]");
         
         try {
             JSONArray favorites = new JSONArray(favoritesJson);
             
-            // Update favorite slots (first 5)
             for (int i = 0; i < 5; i++) {
                 if (i < favorites.length()) {
                     JSONObject song = favorites.getJSONObject(i);
                     String songId = song.getString("id");
                     
-                    // Set click to play this song
-                    Intent playIntent = new Intent(context, FavoritesWidget.class);
-                    playIntent.setAction(ACTION_PLAY_FAVORITE);
-                    playIntent.putExtra(EXTRA_SONG_ID, songId);
-                    playIntent.setData(Uri.parse("song://" + songId)); // Unique URI
-                    PendingIntent playPendingIntent = PendingIntent.getBroadcast(context, i, 
+                    // Launch app with song play action
+                    Intent playIntent = new Intent(context, BridgeActivity.class);
+                    playIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    playIntent.setData(Uri.parse("universflow://widget-action?action=WIDGET_PLAY_SONG&song_id=" + songId));
+                    playIntent.putExtra("widget_action", "WIDGET_PLAY_SONG");
+                    playIntent.putExtra("song_id", songId);
+                    PendingIntent playPendingIntent = PendingIntent.getActivity(context, 100 + i, 
                         playIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
                     views.setOnClickPendingIntent(FAV_CONTAINERS[i], playPendingIntent);
                 }
@@ -66,48 +58,28 @@ public class FavoritesWidget extends AppWidgetProvider {
             e.printStackTrace();
         }
         
-        // Shuffle button
-        Intent shuffleIntent = new Intent(context, FavoritesWidget.class);
-        shuffleIntent.setAction(ACTION_SHUFFLE_FAVORITES);
-        PendingIntent shufflePendingIntent = PendingIntent.getBroadcast(context, 10, 
+        // Shuffle favorites
+        Intent shuffleIntent = new Intent(context, BridgeActivity.class);
+        shuffleIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        shuffleIntent.setData(Uri.parse("universflow://widget-action?action=WIDGET_SHUFFLE_FAVORITES"));
+        shuffleIntent.putExtra("widget_action", "WIDGET_SHUFFLE_FAVORITES");
+        PendingIntent shufflePendingIntent = PendingIntent.getActivity(context, 110, 
             shuffleIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         views.setOnClickPendingIntent(R.id.widget_shuffle_favorites, shufflePendingIntent);
         
-        // See All / Slot 6 opens library
-        Intent libraryIntent = new Intent(context, BridgeActivity.class);
-        libraryIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        libraryIntent.setData(Uri.parse("universflow://library"));
-        PendingIntent libraryPendingIntent = PendingIntent.getActivity(context, 11, 
-            libraryIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(FAV_CONTAINERS[5], libraryPendingIntent);
+        // See All opens library
+        views.setOnClickPendingIntent(FAV_CONTAINERS[5], 
+            createDeepLinkIntent(context, "universflow://library", 111));
         
         appWidgetManager.updateAppWidget(appWidgetId, views);
     }
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        super.onReceive(context, intent);
-        
-        String action = intent.getAction();
-        if (action == null) return;
-        
-        Intent appIntent = new Intent();
-        appIntent.setPackage(context.getPackageName());
-        
-        switch (action) {
-            case ACTION_SHUFFLE_FAVORITES:
-                appIntent.setAction("app.lovable.universflow.WIDGET_SHUFFLE_FAVORITES");
-                context.sendBroadcast(appIntent);
-                break;
-            case ACTION_PLAY_FAVORITE:
-                String songId = intent.getStringExtra(EXTRA_SONG_ID);
-                if (songId != null) {
-                    appIntent.setAction("app.lovable.universflow.WIDGET_PLAY_SONG");
-                    appIntent.putExtra(EXTRA_SONG_ID, songId);
-                    context.sendBroadcast(appIntent);
-                }
-                break;
-        }
+    private static PendingIntent createDeepLinkIntent(Context context, String uri, int requestCode) {
+        Intent intent = new Intent(context, BridgeActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.setData(Uri.parse(uri));
+        return PendingIntent.getActivity(context, requestCode, 
+            intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     public static void updateFavorites(Context context, String favoritesJson) {
@@ -117,9 +89,11 @@ public class FavoritesWidget extends AppWidgetProvider {
         editor.putString("favorites", favoritesJson);
         editor.apply();
         
-        // Trigger widget update
-        Intent intent = new Intent(context, FavoritesWidget.class);
-        intent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
-        context.sendBroadcast(intent);
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        ComponentName widget = new ComponentName(context, FavoritesWidget.class);
+        int[] ids = manager.getAppWidgetIds(widget);
+        for (int id : ids) {
+            updateAppWidget(context, manager, id);
+        }
     }
 }

@@ -49,15 +49,14 @@ jobs:
 
       - name: Integrate Android widgets
         run: |
-          # Create widget package directory (matching the package name in Java files)
+          # Create widget package directory
           mkdir -p android/app/src/main/java/app/lovable/universflow/widgets
           
-          # Copy Java widget files to the widgets subdirectory
+          # Copy Java widget files
           cp android-widgets/java/*.java android/app/src/main/java/app/lovable/universflow/widgets/
           
           # Fix the import for R class in all Java files
           for file in android/app/src/main/java/app/lovable/universflow/widgets/*.java; do
-            # Add import for the R class from the app package
             sed -i 's/package app.lovable.universflow.widgets;/package app.lovable.universflow.widgets;\n\nimport app.lovable.universflow.R;/' "$file"
           done
           
@@ -72,36 +71,58 @@ jobs:
           cp android-widgets/res/xml/*.xml android/app/src/main/res/xml/
           
           # Merge string resources properly
-          # First, remove the closing </resources> tag from the base strings.xml
           sed -i '/<\/resources>/d' android/app/src/main/res/values/strings.xml
-          # Extract only the <string> elements from widget strings (skip XML declaration and root tags)
           grep '<string name=' android-widgets/res/values/strings_widgets.xml >> android/app/src/main/res/values/strings.xml
-          # Add the closing tag back
           echo '</resources>' >> android/app/src/main/res/values/strings.xml
 
       - name: Update AndroidManifest.xml for widgets
         run: |
-          # Add widget receivers and service to AndroidManifest.xml
-          # Using the correct package path (.widgets.ClassName)
+          # Add deep link intent filter to the main activity
+          sed -i 's/<\/activity>/\
+                  <intent-filter>\
+                      <action android:name="android.intent.action.VIEW" \/>\
+                      <category android:name="android.intent.category.DEFAULT" \/>\
+                      <category android:name="android.intent.category.BROWSABLE" \/>\
+                      <data android:scheme="universflow" \/>\
+                  <\/intent-filter>\
+              <\/activity>/g' android/app/src/main/AndroidManifest.xml
+
+          # Add widget receivers and services before closing </application> tag
           sed -i 's/<\/application>/\
-              <!-- Widget Receivers -->\
+              <!-- Now Playing Widget -->\
               <receiver android:name=".widgets.NowPlayingWidget" android:exported="false">\
                   <intent-filter>\
                       <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
                   <\/intent-filter>\
                   <meta-data android:name="android.appwidget.provider" android:resource="@xml\/now_playing_widget_info" \/>\
               <\/receiver>\
+              <!-- Favorites Widget -->\
               <receiver android:name=".widgets.FavoritesWidget" android:exported="false">\
                   <intent-filter>\
                       <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
                   <\/intent-filter>\
                   <meta-data android:name="android.appwidget.provider" android:resource="@xml\/favorites_widget_info" \/>\
               <\/receiver>\
+              <!-- Quick Actions Widget -->\
               <receiver android:name=".widgets.QuickActionsWidget" android:exported="false">\
                   <intent-filter>\
                       <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
                   <\/intent-filter>\
                   <meta-data android:name="android.appwidget.provider" android:resource="@xml\/quick_actions_widget_info" \/>\
+              <\/receiver>\
+              <!-- Recently Played Widget -->\
+              <receiver android:name=".widgets.RecentlyPlayedWidget" android:exported="false">\
+                  <intent-filter>\
+                      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
+                  <\/intent-filter>\
+                  <meta-data android:name="android.appwidget.provider" android:resource="@xml\/recently_played_widget_info" \/>\
+              <\/receiver>\
+              <!-- Music Search Widget -->\
+              <receiver android:name=".widgets.MusicSearchWidget" android:exported="false">\
+                  <intent-filter>\
+                      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
+                  <\/intent-filter>\
+                  <meta-data android:name="android.appwidget.provider" android:resource="@xml\/music_search_widget_info" \/>\
               <\/receiver>\
               <!-- Widget Update Service -->\
               <service android:name=".widgets.WidgetUpdateService" android:exported="false" \/>\

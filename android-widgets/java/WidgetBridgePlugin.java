@@ -14,7 +14,6 @@ import java.io.InputStream;
 
 /**
  * Capacitor plugin to bridge web app with native Android widgets.
- * This allows JavaScript to update widget state and receive widget events.
  */
 @CapacitorPlugin(name = "WidgetBridge")
 public class WidgetBridgePlugin extends Plugin {
@@ -28,11 +27,8 @@ public class WidgetBridgePlugin extends Plugin {
         String coverUrl = call.getString("coverUrl");
         
         Context context = getContext();
-        
-        // Update widget state
         NowPlayingWidget.updatePlaybackState(context, title, artist, isPlaying, progress, null);
         
-        // If cover URL provided, load it async
         if (coverUrl != null && !coverUrl.isEmpty()) {
             loadAlbumArtAsync(context, coverUrl, title, artist, isPlaying, progress);
         }
@@ -44,9 +40,15 @@ public class WidgetBridgePlugin extends Plugin {
     public void updateFavorites(PluginCall call) {
         String favoritesJson = call.getString("favorites", "[]");
         Context context = getContext();
-        
         FavoritesWidget.updateFavorites(context, favoritesJson);
-        
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void updateRecentlyPlayed(PluginCall call) {
+        String recentJson = call.getString("recent", "[]");
+        Context context = getContext();
+        RecentlyPlayedWidget.updateRecentlyPlayed(context, recentJson);
         call.resolve();
     }
     
@@ -54,7 +56,6 @@ public class WidgetBridgePlugin extends Plugin {
     public void refreshWidgets(PluginCall call) {
         Context context = getContext();
         
-        // Broadcast update to all widget types
         Intent nowPlayingIntent = new Intent(context, NowPlayingWidget.class);
         nowPlayingIntent.setAction("android.appwidget.action.APPWIDGET_UPDATE");
         context.sendBroadcast(nowPlayingIntent);
@@ -66,8 +67,43 @@ public class WidgetBridgePlugin extends Plugin {
         Intent quickActionsIntent = new Intent(context, QuickActionsWidget.class);
         quickActionsIntent.setAction("android.appwidget.action.APPWIDGET_UPDATE");
         context.sendBroadcast(quickActionsIntent);
+
+        Intent recentIntent = new Intent(context, RecentlyPlayedWidget.class);
+        recentIntent.setAction("android.appwidget.action.APPWIDGET_UPDATE");
+        context.sendBroadcast(recentIntent);
+
+        Intent searchIntent = new Intent(context, MusicSearchWidget.class);
+        searchIntent.setAction("android.appwidget.action.APPWIDGET_UPDATE");
+        context.sendBroadcast(searchIntent);
         
         call.resolve();
+    }
+
+    /**
+     * Called when the app is launched from a widget action.
+     * Checks the launching intent for widget actions and notifies JS.
+     */
+    @PluginMethod
+    public void checkLaunchIntent(PluginCall call) {
+        Intent intent = getActivity().getIntent();
+        if (intent != null) {
+            String widgetAction = intent.getStringExtra("widget_action");
+            if (widgetAction != null) {
+                JSObject result = new JSObject();
+                result.put("action", widgetAction);
+                String songId = intent.getStringExtra("song_id");
+                if (songId != null) {
+                    result.put("songId", songId);
+                }
+                // Clear the intent extra so it doesn't fire again
+                intent.removeExtra("widget_action");
+                call.resolve(result);
+                return;
+            }
+        }
+        JSObject result = new JSObject();
+        result.put("action", "none");
+        call.resolve(result);
     }
     
     private void loadAlbumArtAsync(Context context, String url, String title, 
@@ -78,8 +114,6 @@ public class WidgetBridgePlugin extends Plugin {
                 InputStream inputStream = imageUrl.openStream();
                 Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
                 inputStream.close();
-                
-                // Update widget with album art
                 NowPlayingWidget.updatePlaybackState(context, title, artist, isPlaying, progress, bitmap);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -90,10 +124,5 @@ public class WidgetBridgePlugin extends Plugin {
     @Override
     public void load() {
         super.load();
-        
-        // Start widget update service
-        Context context = getContext();
-        Intent serviceIntent = new Intent(context, WidgetUpdateService.class);
-        context.startService(serviceIntent);
     }
 }

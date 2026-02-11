@@ -4,6 +4,7 @@ import {
   isWidgetBridgeAvailable, 
   updateNowPlayingWidget, 
   updateFavoritesWidget,
+  updateRecentlyPlayedWidget,
   setupWidgetEventListeners 
 } from '@/lib/widgetBridge';
 
@@ -29,8 +30,6 @@ export function useWidgetSync() {
     if (!isWidgetBridgeAvailable()) return;
     
     const updateKey = `${currentSong?.id}-${isPlaying}-${Math.floor(progress / 5)}`;
-    
-    // Throttle updates to every 5 seconds of progress
     if (updateKey === lastUpdateRef.current) return;
     lastUpdateRef.current = updateKey;
     
@@ -38,7 +37,7 @@ export function useWidgetSync() {
     
     updateNowPlayingWidget({
       title: currentSong?.title || 'Not Playing',
-      artist: currentSong?.artist || 'Open app to start',
+      artist: currentSong?.artist || 'Tap to open UniversFlow',
       isPlaying,
       progress: progressPercent,
       coverUrl: currentSong?.cover_url || undefined,
@@ -50,26 +49,17 @@ export function useWidgetSync() {
     if (!isWidgetBridgeAvailable()) return;
     
     const cleanup = setupWidgetEventListeners({
-      onPlayPause: () => {
-        togglePlay();
-      },
-      onNext: () => {
-        nextSong();
-      },
-      onPrevious: () => {
-        prevSong();
-      },
+      onPlayPause: () => togglePlay(),
+      onNext: () => nextSong(),
+      onPrevious: () => prevSong(),
       onShuffleAll: () => {
-        // Shuffle all songs - you'd need to implement this based on your data
         console.log('Widget: Shuffle All requested');
       },
       onShuffleFavorites: () => {
-        // Shuffle favorites - implement based on your liked songs
         console.log('Widget: Shuffle Favorites requested');
       },
       onPlaySong: (songId: string) => {
         console.log('Widget: Play song requested:', songId);
-        // Implement playing specific song by ID
       },
     });
     
@@ -99,4 +89,28 @@ export function useUpdateFavoritesWidget(likedSongs: Array<{
       }))
     );
   }, [likedSongs]);
+}
+
+/**
+ * Hook to update recently played widget
+ */
+export function useUpdateRecentlyPlayedWidget(recentSongs: Array<{
+  id: string;
+  title: string;
+  artist: string;
+  cover_url?: string | null;
+}>) {
+  useEffect(() => {
+    if (!isWidgetBridgeAvailable()) return;
+    if (!recentSongs || recentSongs.length === 0) return;
+    
+    updateRecentlyPlayedWidget(
+      recentSongs.slice(0, 4).map(song => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        coverUrl: song.cover_url || undefined,
+      }))
+    );
+  }, [recentSongs]);
 }
