@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
@@ -16,9 +17,10 @@ import LockScreenPlayer from '@/components/LockScreenPlayer';
 import EqualizerModal from '@/components/EqualizerModal';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { TabTransition } from '@/components/PageTransition';
-import { Music, Lock, ListMusic, Sliders } from 'lucide-react';
+import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import appLogo from '@/assets/app-logo.png';
 
 // Simple empty state
 const EmptyState = memo(() => (
@@ -65,7 +67,6 @@ const Home = () => {
     [songs]
   );
 
-  // All songs for the "All Songs" section - show all available songs
   const allSongs = useMemo(() => songs, [songs]);
 
   useEffect(() => {
@@ -119,80 +120,78 @@ const Home = () => {
 
   return (
     <TabTransition>
-      <div 
-        className="h-[100dvh] bg-black relative flex flex-col overflow-hidden"
-      >
-        {/* Ambient background */}
+      <div className="h-[100dvh] bg-background relative flex flex-col overflow-hidden">
+        {/* Ambient background — enhanced */}
         <div className="absolute inset-0 pointer-events-none">
           {currentSong?.cover_url && (
             <img
               src={currentSong.cover_url}
               alt=""
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] blur-[100px] opacity-[0.12]"
-              style={{ height: '40%' }}
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] blur-[100px] opacity-[0.15]"
+              style={{ height: '50%' }}
             />
           )}
           <div 
             className="absolute inset-0"
             style={{
               background: `
-                radial-gradient(ellipse 80% 50% at 50% 0%, hsl(220 100% 60% / 0.06), transparent),
-                radial-gradient(ellipse 60% 40% at 80% 20%, hsl(330 100% 60% / 0.04), transparent)
+                radial-gradient(ellipse 80% 50% at 50% 0%, hsl(350 100% 60% / 0.06), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 20%, hsl(280 100% 65% / 0.04), transparent),
+                radial-gradient(ellipse 40% 30% at 10% 60%, hsl(210 100% 60% / 0.03), transparent)
               `,
             }}
           />
         </div>
 
-        {/* Header */}
+        {/* Premium Header */}
         <header
-          className="flex-shrink-0 z-30 px-3 py-2 safe-area-pt"
+          className="flex-shrink-0 z-30 px-4 pt-3 pb-2.5 safe-area-pt"
           style={{
-            background: 'rgba(0, 0, 0, 0.9)',
-            backdropFilter: 'blur(30px)',
-            WebkitBackdropFilter: 'blur(30px)',
-            borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
           }}
         >
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-white/90 flex-shrink-0">{greeting()}</p>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-primary/30">
+                <img src={appLogo} alt="UniversFlow" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-foreground tracking-tight">{greeting()}</p>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  {songs.length} tracks available
+                </p>
+              </div>
+            </div>
             
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => {
-                  triggerHaptic('selection');
-                  setShowQueue(true);
-                }}
-                className="w-9 h-9 rounded-full flex items-center justify-center glass flex-shrink-0 active:scale-90 transition-transform"
-              >
-                <ListMusic className="w-4 h-4 text-white/80" />
-              </button>
-
-              <button
-                onClick={() => {
-                  triggerHaptic('selection');
-                  setShowEqualizer(true);
-                }}
-                className="w-9 h-9 rounded-full flex items-center justify-center glass flex-shrink-0 active:scale-90 transition-transform"
-              >
-                <Sliders className="w-4 h-4 text-white/80" />
-              </button>
-
-              <button
-                onClick={() => {
-                  triggerHaptic('selection');
-                  setShowLockScreen(true);
-                }}
-                className="w-9 h-9 rounded-full flex items-center justify-center glass flex-shrink-0 active:scale-90 transition-transform"
-              >
-                <Lock className="w-4 h-4 text-white/80" />
-              </button>
+              {[
+                { icon: ListMusic, action: () => setShowQueue(true) },
+                { icon: Sliders, action: () => setShowEqualizer(true) },
+                { icon: Lock, action: () => setShowLockScreen(true) },
+              ].map(({ icon: Icon, action }, i) => (
+                <motion.button
+                  key={i}
+                  onClick={() => { triggerHaptic('selection'); action(); }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                  }}
+                  whileTap={{ scale: 0.88 }}
+                >
+                  <Icon className="w-4 h-4 text-foreground/70" />
+                </motion.button>
+              ))}
             </div>
           </div>
         </header>
 
-        {/* Scrollable content area - calculated to fit exactly */}
+        {/* Scrollable content area */}
         <main 
-          className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-32 relative z-10"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-4 pb-32 relative z-10"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {loading ? (
@@ -200,11 +199,62 @@ const Home = () => {
           ) : songs.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-4">
-              {/* Featured Artists - Top priority for discovery */}
+            <div className="space-y-5">
+              {/* Hero Quick-Listen Banner */}
+              {currentSong && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  className="rounded-2xl overflow-hidden relative"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    backdropFilter: 'blur(30px)',
+                  }}
+                >
+                  {/* Album art background blur */}
+                  {currentSong.cover_url && (
+                    <img
+                      src={currentSong.cover_url}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover opacity-20 blur-xl"
+                    />
+                  )}
+                  <div className="relative flex items-center gap-3 p-3.5">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-lg ring-1 ring-white/10">
+                      {currentSong.cover_url ? (
+                        <img src={currentSong.cover_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                          <Headphones className="w-6 h-6 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] uppercase tracking-widest text-primary font-semibold mb-0.5">Now Playing</p>
+                      <p className="text-sm font-bold text-foreground truncate">{currentSong.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{currentSong.artist}</p>
+                    </div>
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <div className="flex items-end gap-[3px] h-4">
+                        {[0, 1, 2, 3].map(i => (
+                          <div
+                            key={i}
+                            className="w-[3px] bg-primary rounded-full animate-audio-wave"
+                            style={{ animationDelay: `${i * 0.12}s` }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Featured Artists */}
               <FeaturedArtistsSection />
 
-              {/* New Releases - Fresh content */}
+              {/* New Releases */}
               {newReleases.length > 0 && (
                 <HorizontalSection title="New Releases" subtitle="Fresh tracks" songs={newReleases}>
                   {newReleases.map((song, i) => (
@@ -213,7 +263,7 @@ const Home = () => {
                 </HorizontalSection>
               )}
 
-              {/* All Songs Section - Full catalog */}
+              {/* All Songs */}
               {allSongs.length > 0 && (
                 <AllSongsSection songs={allSongs} />
               )}

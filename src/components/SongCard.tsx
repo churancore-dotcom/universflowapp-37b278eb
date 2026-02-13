@@ -83,12 +83,14 @@ const SongCard = memo(({ song, index = 0, sectionSongs }: SongCardProps) => {
       className="group relative flex-shrink-0 w-[150px] snap-start will-change-transform"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      {/* Card Container - mobile optimized */}
+      {/* Card Container - premium glassmorphism */}
       <motion.div
-        className="relative aspect-square rounded-2xl overflow-hidden bg-muted/30 cursor-pointer shadow-lg"
+        className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer"
+        style={{
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,255,255,0.06)',
+        }}
         onClick={handleClick}
         whileTap={{ scale: 0.95 }}
-        whileHover={{ scale: 1.02 }}
         transition={{ type: "spring", stiffness: 400, damping: 20 }}
       >
         {/* Cover Image - Lazy loaded */}

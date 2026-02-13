@@ -219,32 +219,43 @@ const AllSongsSection = memo(({ songs }: AllSongsSectionProps) => {
   }, []);
 
   return (
-    <section className="mb-5">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h2 className="text-lg font-bold tracking-tight text-foreground">
-            All Songs
-          </h2>
-          <p className="text-xs text-muted-foreground/70 mt-0.5 font-medium">
-            {songs.length} tracks in your library
-          </p>
+    <section className="mb-2">
+      <div
+        className="rounded-2xl p-3"
+        style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '0.5px solid rgba(255,255,255,0.06)',
+          backdropFilter: 'blur(20px)',
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-sm font-bold tracking-tight text-foreground">
+              All Songs
+            </h2>
+            <p className="text-[11px] text-muted-foreground/60 mt-0.5 font-medium">
+              {songs.length} tracks in your library
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleViewMode}
+              className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              {viewMode === 'grid' ? (
+                <List className="w-3.5 h-3.5 text-foreground/70" />
+              ) : (
+                <LayoutGrid className="w-3.5 h-3.5 text-foreground/70" />
+              )}
+            </button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <button
-            onClick={toggleViewMode}
-            className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition-transform"
-          >
-            {viewMode === 'grid' ? (
-              <List className="w-4 h-4 text-white/80" />
-            ) : (
-              <LayoutGrid className="w-4 h-4 text-white/80" />
-            )}
-          </button>
-        </div>
-      </div>
 
       {/* Content */}
       <AnimatePresence mode="wait">
@@ -281,11 +292,16 @@ const AllSongsSection = memo(({ songs }: AllSongsSectionProps) => {
       {songs.length > displayCount && (
         <button
           onClick={toggleShowAll}
-          className="w-full mt-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-white/80 active:bg-white/10 transition-colors"
+          className="w-full mt-3 py-2.5 rounded-xl text-xs font-semibold text-foreground/70 active:bg-white/10 transition-colors"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '0.5px solid rgba(255,255,255,0.06)',
+          }}
         >
           {showAll ? 'Show Less' : `Show All ${songs.length} Songs`}
         </button>
       )}
+      </div>
     </section>
   );
 });
