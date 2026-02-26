@@ -40,19 +40,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer profile fetch
         if (session?.user) {
-          setTimeout(() => {
-            checkAdminStatus(session.user.id);
-          }, 0);
+          setTimeout(() => checkAdminStatus(session.user.id), 0);
         } else {
           setIsAdmin(false);
         }
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session — with a hard 5s timeout
+    const sessionTimeout = setTimeout(() => {
+      // If getSession hangs (stale token, network), stop loading anyway
+      setIsLoading(false);
+    }, 5000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(sessionTimeout);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -60,22 +63,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setIsLoading(false);
     }).catch(() => {
-      // Network failed — still allow app to render (user can try login)
+      clearTimeout(sessionTimeout);
+      // Session restore failed — clear stale tokens so future loads are clean
+      try {
+        const storageKey = Object.keys(localStorage).find(k => k.includes('auth-token'));
+        if (storageKey) localStorage.removeItem(storageKey);
+      } catch {}
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(sessionTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkAdminStatus = async (userId: string) => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
-    
-    setIsAdmin(!!data);
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      setIsAdmin(!!data);
+    } catch {
+      setIsAdmin(false);
+    }
   };
 
   const signUp = async (email: string, password: string) => {
@@ -84,95 +99,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: redirectUrl
-      }
+      options: { emailRedirectTo: redirectUrl }
     });
 
     // Create profile with share_code after successful signup
     if (!error && data.user) {
       const shareCode = Math.random().toString(36).substring(2, 10);
-      await supabase.from('profiles').upsert({
+      Promise.resolve(supabase.from('profiles').upsert({
         user_id: data.user.id,
         email: email,
         share_code: shareCode,
-      }, { onConflict: 'user_id' });
+      }, { onConflict: 'user_id' })).catch(() => {});
     }
     
     return { error: error as Error | null };
   };
 
   const signIn = async (email: string, password: string) => {
-    // Retry up to 2 times for transient network failures
-    let lastError: Error | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+    // Single attempt with a 10s timeout — no more 3x retry loop
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
 
-        if (error) {
-          // If it's a retryable fetch error, retry after a short delay
-          if (error.message?.includes('Failed to fetch') && attempt < 2) {
-            lastError = error as Error;
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-            continue;
-          }
-          return { error: error as Error };
-        }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-        // Do admin/profile checks in background — don't block login
-        if (data.user) {
-          const userId = data.user.id;
-          
-          // Fire-and-forget: ensure share_code exists (don't block login)
-          Promise.resolve(
-            supabase
-              .from('profiles')
-              .select('share_code')
-              .eq('user_id', userId)
-              .single()
-          ).then(({ data: profile }) => {
+      clearTimeout(timeout);
+
+      if (error) {
+        return { error: error as Error };
+      }
+
+      // Do admin check in background — don't block login
+      if (data.user) {
+        const userId = data.user.id;
+        
+        // Fire-and-forget: ensure share_code exists
+        Promise.resolve(
+          supabase
+            .from('profiles')
+            .select('share_code')
+            .eq('user_id', userId)
+            .single()
+        ).then(({ data: profile }) => {
             if (profile && !profile.share_code) {
               const newShareCode = Math.random().toString(36).substring(2, 10);
-              supabase.from('profiles').update({ share_code: newShareCode }).eq('user_id', userId);
+              Promise.resolve(supabase.from('profiles').update({ share_code: newShareCode }).eq('user_id', userId)).catch(() => {});
             }
           }).catch(() => {});
 
-          // Check admin — with timeout so login doesn't hang
-          try {
-            const adminPromise = supabase
+        // Admin check — 2s timeout max
+        try {
+          const adminResult = await Promise.race([
+            supabase
               .from('user_roles')
               .select('role')
               .eq('user_id', userId)
               .eq('role', 'admin')
-              .maybeSingle();
-            
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('timeout')), 3000)
-            );
-            
-            const { data: roleData } = await Promise.race([adminPromise, timeoutPromise]) as any;
-            const adminStatus = !!roleData;
-            setIsAdmin(adminStatus);
-            return { error: null, isAdmin: adminStatus };
-          } catch {
-            setIsAdmin(false);
-            return { error: null, isAdmin: false };
-          }
-        }
-
-        return { error: null, isAdmin: false };
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error('Login failed. Check your connection.');
-        if (attempt < 2) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-          continue;
+              .maybeSingle(),
+            new Promise<{ data: null }>((resolve) => 
+              setTimeout(() => resolve({ data: null }), 2000)
+            ),
+          ]);
+          
+          const adminStatus = !!(adminResult as any)?.data;
+          setIsAdmin(adminStatus);
+          return { error: null, isAdmin: adminStatus };
+        } catch {
+          setIsAdmin(false);
+          return { error: null, isAdmin: false };
         }
       }
+
+      return { error: null, isAdmin: false };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed. Check your connection.';
+      return { error: new Error(message) };
     }
-    return { error: lastError || new Error('Login failed. Check your connection.') };
   };
 
   const signOut = async () => {
