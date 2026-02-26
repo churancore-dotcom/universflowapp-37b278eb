@@ -2,3 +2,6 @@ project_id = "kzaeahjeqlihmxrfhjqd"
 
 [functions.extract-audio]
 verify_jwt = false
+
+[functions.jamendo-search]
+verify_jwt = false
