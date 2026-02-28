@@ -128,6 +128,16 @@ jobs:
               <service android:name=".widgets.WidgetUpdateService" android:exported="false" \/>\
           <\/application>/g' android/app/src/main/AndroidManifest.xml
 
+      - name: Register WidgetBridgePlugin in MainActivity
+        run: |
+          MAIN_ACTIVITY="android/app/src/main/java/app/lovable/universflow/MainActivity.java"
+          
+          # Add import for the WidgetBridgePlugin
+          sed -i 's/import com.getcapacitor.BridgeActivity;/import com.getcapacitor.BridgeActivity;\nimport app.lovable.universflow.widgets.WidgetBridgePlugin;/' "$MAIN_ACTIVITY"
+          
+          # Override onCreate to register the plugin
+          sed -i 's/public class MainActivity extends BridgeActivity {/public class MainActivity extends BridgeActivity {\n\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(WidgetBridgePlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n/' "$MAIN_ACTIVITY"
+
       - name: Sync Capacitor
         run: npx cap sync android
 
