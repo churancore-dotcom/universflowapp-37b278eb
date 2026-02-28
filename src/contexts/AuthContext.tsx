@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthError } from '@/lib/errorMessages';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -21,6 +22,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const ensureUserProfile = useCallback(async (sessionUser: User) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', sessionUser.id)
+        .maybeSingle();
+
+      if (error || data) return;
+
+      const { error: insertError } = await supabase.from('profiles').insert({
+        user_id: sessionUser.id,
+        email: sessionUser.email ?? null,
+      });
+
+      if (insertError && insertError.code !== '23505') {
+        console.error('Profile bootstrap failed:', insertError);
+      }
+    } catch (error) {
+      console.error('Profile bootstrap failed:', error);
+    }
+  }, []);
+
   const checkAdminRole = useCallback(async (userId: string) => {
     try {
       const { data } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });
@@ -33,50 +57,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // Use setTimeout to avoid deadlock with Supabase client
-        setTimeout(() => checkAdminRole(session.user.id), 0);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (nextSession?.user) {
+        setTimeout(async () => {
+          await ensureUserProfile(nextSession.user);
+          await checkAdminRole(nextSession.user.id);
+        }, 0);
       } else {
         setIsAdmin(false);
       }
+
       setIsLoading(false);
     });
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdminRole(session.user.id);
+    supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+
+      if (existingSession?.user) {
+        await ensureUserProfile(existingSession.user);
+        await checkAdminRole(existingSession.user.id);
       }
+
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [checkAdminRole]);
+  }, [checkAdminRole, ensureUserProfile]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: new Error(error.message) };
-    const admin = data.user ? await checkAdminRole(data.user.id) : false;
-    return { error: null, isAdmin: admin };
-  }, [checkAdminRole]);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: new Error(getAuthError(error)) };
+
+      if (data.user) {
+        await ensureUserProfile(data.user);
+      }
+
+      const admin = data.user ? await checkAdminRole(data.user.id) : false;
+      return { error: null, isAdmin: admin };
+    } catch (error) {
+      return { error: new Error(getAuthError(error)) };
+    }
+  }, [checkAdminRole, ensureUserProfile]);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) return { error: new Error(error.message) };
-    return { error: null };
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) return { error: new Error(getAuthError(error)) };
+      return { error: null };
+    } catch (error) {
+      return { error: new Error(getAuthError(error)) };
+    }
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setIsAdmin(false);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+    }
   }, []);
 
   return (
