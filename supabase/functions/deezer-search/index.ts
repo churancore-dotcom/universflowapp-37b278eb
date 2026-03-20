@@ -113,9 +113,10 @@ serve(async (req) => {
       artist: track.artist?.name || 'Unknown Artist',
       artist_id: track.artist?.id,
       album: track.album?.title || null,
+      album_id: track.album?.id || null,
       duration: track.duration || null,
       cover_url: track.album?.cover_xl || track.album?.cover_big || track.album?.cover_medium || null,
-      preview_url: track.preview || null, // 30s preview (not used for import)
+      preview_url: track.preview || null,
       rank: track.rank || 0,
     }));
 
