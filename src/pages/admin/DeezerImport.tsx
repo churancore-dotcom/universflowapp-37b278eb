@@ -12,6 +12,7 @@ interface DeezerTrack {
   artist: string;
   artist_id: number;
   album: string | null;
+  album_id: number | null;
   duration: number | null;
   cover_url: string | null;
   preview_url: string | null;
