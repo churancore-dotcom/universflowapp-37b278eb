@@ -107,44 +107,22 @@ const DeezerImport = () => {
     setImportStates(prev => ({ ...prev, [track.deezer_id]: { status: 'extracting' } }));
 
     try {
-      // Step 1: Search YouTube for the full song
+      // Step 1: Resolve a YouTube video server-side (avoids client CORS/rate-limit issues)
       const ytQuery = `${track.title} ${track.artist} official audio`;
-      const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(ytQuery)}`;
-      
-      // Use the extract-audio function with a YouTube search URL constructed from the song info
-      // First, we need to find the YouTube video - we'll use a constructed URL
-      const ytVideoUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(ytQuery)}`;
-      
-      // Use Invidious API to search for the video first
-      const searchResponse = await fetch(`https://inv.nadeko.net/api/v1/search?q=${encodeURIComponent(ytQuery)}&type=video`);
-      
       let videoId = '';
       let audioUrl = '';
       let thumbnail = '';
-      
-      if (searchResponse.ok) {
-        const searchResults = await searchResponse.json();
-        if (searchResults && searchResults.length > 0) {
-          videoId = searchResults[0].videoId;
-          thumbnail = searchResults[0].videoThumbnails?.find((t: any) => t.quality === 'maxresdefault')?.url 
-            || searchResults[0].videoThumbnails?.[0]?.url || '';
-        }
+
+      const { data: ytData, error: ytError } = await supabase.functions.invoke('deezer-search', {
+        body: { action: 'youtube_search', query: ytQuery },
+      });
+
+      if (ytError || !ytData?.videoId) {
+        throw new Error(ytData?.error || ytError?.message || 'Could not find song on YouTube');
       }
 
-      if (!videoId) {
-        // Fallback: try another Invidious instance
-        const fallbackResponse = await fetch(`https://invidious.privacyredirect.com/api/v1/search?q=${encodeURIComponent(ytQuery)}&type=video`);
-        if (fallbackResponse.ok) {
-          const fallbackResults = await fallbackResponse.json();
-          if (fallbackResults && fallbackResults.length > 0) {
-            videoId = fallbackResults[0].videoId;
-          }
-        }
-      }
-
-      if (!videoId) {
-        throw new Error('Could not find song on YouTube');
-      }
+      videoId = ytData.videoId;
+      thumbnail = ytData.thumbnail || '';
 
       setImportStates(prev => ({ ...prev, [track.deezer_id]: { status: 'importing' } }));
 

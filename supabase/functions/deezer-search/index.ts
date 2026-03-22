@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const INVIDIOUS_SEARCH_INSTANCES = [
+  "https://inv.nadeko.net",
+  "https://invidious.privacyredirect.com",
+  "https://yt.artemislena.eu",
+  "https://invidious.perennialte.ch",
+];
+
 const normalizeTracks = (data: any) =>
   (data.data || []).map((track: any) => ({
     deezer_id: track.id,
@@ -41,6 +48,38 @@ const buildSearchQueries = (rawQuery: string): string[] => {
   if (/hip\s?hop|rap/i.test(original)) querySet.add("hip hop");
 
   return Array.from(querySet);
+};
+
+const searchYouTubeByQuery = async (searchQuery: string) => {
+  for (const instance of INVIDIOUS_SEARCH_INSTANCES) {
+    try {
+      const url = `${instance}/api/v1/search?q=${encodeURIComponent(searchQuery)}&type=video&sort_by=relevance`;
+      const response = await fetch(url);
+      if (!response.ok) continue;
+
+      const rows = await response.json();
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+
+      const firstVideo = rows.find((row: any) => row?.videoId);
+      if (!firstVideo?.videoId) continue;
+
+      const thumbnail =
+        firstVideo.videoThumbnails?.find((t: any) => t?.quality === "maxresdefault")?.url ||
+        firstVideo.videoThumbnails?.[0]?.url ||
+        null;
+
+      return {
+        videoId: firstVideo.videoId,
+        title: firstVideo.title || null,
+        thumbnail,
+        source: instance,
+      };
+    } catch (error) {
+      console.error(`YouTube search failed on ${instance}:`, error);
+    }
+  }
+
+  return null;
 };
 
 serve(async (req) => {
@@ -95,6 +134,27 @@ serve(async (req) => {
           JSON.stringify({ tracks: [], total: 0, next: null, search_used: null, search_attempts: attempts }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      case "youtube_search": {
+        if (!query) {
+          return new Response(JSON.stringify({ error: "YouTube query is required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const result = await searchYouTubeByQuery(String(query));
+        if (!result) {
+          return new Response(JSON.stringify({ error: "Could not find song on YouTube" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true, ...result }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       case "chart":
@@ -152,7 +212,7 @@ serve(async (req) => {
 
       default:
         return new Response(
-          JSON.stringify({ error: "Invalid action. Use: search, chart, genre_artists, artist_top, playlist, track_genre" }),
+          JSON.stringify({ error: "Invalid action. Use: search, youtube_search, chart, genre_artists, artist_top, playlist, track_genre" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
