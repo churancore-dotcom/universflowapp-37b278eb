@@ -104,6 +104,8 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     if (!audioElement || !isOpen) return;
     let cancelled = false;
     (async () => {
+      // Resume context first (needed for user gesture requirement)
+      await audioEngine.resume();
       const ok = await audioEngine.bind(audioElement);
       if (cancelled) return;
       setConnected(ok);
