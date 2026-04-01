@@ -92,11 +92,10 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
       localStorage.setItem('eq_bands', JSON.stringify(bands));
       localStorage.setItem('eq_bass', String(bassBoost));
       localStorage.setItem('eq_reverb', String(reverb));
-      localStorage.setItem('eq_spatial', String(spatialAudio));
       localStorage.setItem('eq_speed', String(playbackSpeed));
       if (activePreset) localStorage.setItem('eq_preset', activePreset);
     } catch {}
-  }, [bands, bassBoost, reverb, spatialAudio, playbackSpeed, activePreset]);
+  }, [bands, bassBoost, reverb, playbackSpeed, activePreset]);
 
   // Bind engine when modal opens
   useEffect(() => {
