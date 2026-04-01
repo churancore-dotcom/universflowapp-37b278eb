@@ -12,7 +12,7 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private el: HTMLAudioElement | null = null;
 
-  // Persistent graph nodes (created once per context)
+  // Persistent graph nodes
   private inputGain: GainNode | null = null;
   private filters: BiquadFilterNode[] = [];
   private masterGain: GainNode | null = null;
@@ -42,11 +42,8 @@ class AudioEngine {
   }
 
   /**
-   * Build the processing graph ONCE. The graph is:
+   * Build the processing graph ONCE:
    * inputGain → analyser → filters[0..7] → panner → dry/wet → master → destination
-   * 
-   * Sources connect to inputGain. When we switch elements, we only
-   * disconnect/reconnect the source→inputGain link.
    */
   private ensureGraph() {
     if (this.graphBuilt) return;
@@ -56,14 +53,15 @@ class AudioEngine {
     this.inputGain.gain.value = 1;
 
     this.analyserNode = ctx.createAnalyser();
-    this.analyserNode.fftSize = 128;
-    this.analyserNode.smoothingTimeConstant = 0.85;
+    this.analyserNode.fftSize = 256;
+    this.analyserNode.smoothingTimeConstant = 0.8;
 
+    // Create 8 EQ filters with stronger Q for more noticeable effect
     this.filters = FREQUENCIES.map((freq, i) => {
       const f = ctx.createBiquadFilter();
       f.type = i === 0 ? 'lowshelf' : i === FREQUENCIES.length - 1 ? 'highshelf' : 'peaking';
       f.frequency.value = freq;
-      f.Q.value = 1.4;
+      f.Q.value = i === 0 || i === FREQUENCIES.length - 1 ? 1 : 2.0;
       f.gain.value = 0;
       return f;
     });
@@ -71,15 +69,15 @@ class AudioEngine {
     this.panner = ctx.createStereoPanner();
     this.panner.pan.value = 0;
 
-    // Reverb impulse
+    // Reverb impulse — longer, richer reverb tail
     this.convolver = ctx.createConvolver();
     const sr = ctx.sampleRate;
-    const len = sr * 2.5;
+    const len = sr * 3;
     const impulse = ctx.createBuffer(2, len, sr);
     for (let ch = 0; ch < 2; ch++) {
       const d = impulse.getChannelData(ch);
       for (let i = 0; i < len; i++) {
-        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.0);
       }
     }
     this.convolver.buffer = impulse;
@@ -106,12 +104,12 @@ class AudioEngine {
     this.masterGain.connect(ctx.destination);
 
     this.graphBuilt = true;
+    console.log('[AudioEngine] Graph built successfully');
     this.restoreSettings();
   }
 
   /**
    * Bind to an audio element. Safe to call repeatedly.
-   * Only reconnects source→inputGain; the rest of the graph stays intact.
    */
   async bind(audio: HTMLAudioElement): Promise<boolean> {
     try {
@@ -124,10 +122,11 @@ class AudioEngine {
 
       // Already bound to this exact element
       if (this.el === audio && this.currentSource) {
+        console.log('[AudioEngine] Already bound to this element');
         return true;
       }
 
-      // Disconnect previous source from inputGain (don't disconnect the rest)
+      // Disconnect previous source from inputGain
       if (this.currentSource) {
         try { this.currentSource.disconnect(this.inputGain!); } catch {}
       }
@@ -137,6 +136,7 @@ class AudioEngine {
       if (!source) {
         source = ctx.createMediaElementSource(audio);
         this.boundSources.set(audio, source);
+        console.log('[AudioEngine] Created new MediaElementSource');
       }
 
       // Connect source → inputGain (rest of chain is already wired)
@@ -144,9 +144,10 @@ class AudioEngine {
       this.currentSource = source;
       this.el = audio;
 
+      console.log('[AudioEngine] Bound successfully, ctx state:', ctx.state);
       return true;
     } catch (err) {
-      console.error('AudioEngine bind failed:', err);
+      console.error('[AudioEngine] Bind failed:', err);
       return false;
     }
   }
@@ -190,22 +191,27 @@ class AudioEngine {
 
   setBands(gains: number[]) {
     gains.forEach((g, i) => {
-      if (this.filters[i]) this.filters[i].gain.value = g;
+      if (this.filters[i]) {
+        this.filters[i].gain.value = g;
+      }
     });
   }
 
+  // Stronger bass boost — clearly audible
   setBassBoost(boost: number, bandGains: number[]) {
-    const factor = boost / 8;
+    if (!this.filters.length) return;
+    const factor = boost / 5; // Stronger: 100% → +20dB
     if (this.filters[0]) this.filters[0].gain.value = (bandGains[0] || 0) + factor;
-    if (this.filters[1]) this.filters[1].gain.value = (bandGains[1] || 0) + factor * 0.7;
-    if (this.filters[2]) this.filters[2].gain.value = (bandGains[2] || 0) + factor * 0.3;
+    if (this.filters[1]) this.filters[1].gain.value = (bandGains[1] || 0) + factor * 0.8;
+    if (this.filters[2]) this.filters[2].gain.value = (bandGains[2] || 0) + factor * 0.4;
   }
 
+  // Stronger reverb — clearly audible wet signal
   setReverb(amount: number) {
     if (this.wetGain && this.dryGain) {
       const wet = amount / 100;
-      this.wetGain.gain.value = wet * 0.6;
-      this.dryGain.gain.value = 1 - wet * 0.3;
+      this.wetGain.gain.value = wet * 0.8; // Stronger wet signal
+      this.dryGain.gain.value = 1 - wet * 0.2;
     }
   }
 
@@ -225,7 +231,8 @@ class AudioEngine {
   private startPanLoop() {
     const loop = () => {
       if (!this.is8DActive || !this.panner || !this.ctx) return;
-      this.panner.pan.value = Math.sin(this.ctx.currentTime * 0.8) * 0.85;
+      // Smooth sine wave panning L↔R at ~0.5Hz, full stereo width
+      this.panner.pan.value = Math.sin(this.ctx.currentTime * 0.5 * Math.PI) * 0.95;
       this.panRAF = requestAnimationFrame(loop);
     };
     this.panRAF = requestAnimationFrame(loop);

@@ -30,13 +30,13 @@ interface Preset {
 // Match the old screenshot layout: Flat, Bass Boost, Treble Boost, Vocal, 8D Audio, Phonk, Deep Bass, Concert
 const presets: Preset[] = [
   { name: 'Flat', icon: <Music2 className="w-4 h-4" />, bands: [0, 0, 0, 0, 0, 0, 0, 0], bassBoost: 0, reverb: 0 },
-  { name: 'Bass Boost', icon: <Zap className="w-4 h-4" />, bands: [8, 6, 4, 1, 0, -1, -2, -2], bassBoost: 60, reverb: 0 },
-  { name: 'Treble Boost', icon: <Sparkles className="w-4 h-4" />, bands: [-2, -1, 0, 1, 3, 5, 6, 7], bassBoost: 0, reverb: 0 },
-  { name: 'Vocal', icon: <Volume2 className="w-4 h-4" />, bands: [-3, -1, 1, 4, 5, 3, 1, 0], bassBoost: 0, reverb: 25 },
-  { name: '8D Audio', icon: <Globe className="w-4 h-4" />, bands: [2, 1, 0, -1, 0, 1, 2, 3], bassBoost: 20, reverb: 45 },
-  { name: 'Phonk', icon: <Radio className="w-4 h-4" />, bands: [7, 5, 3, 0, -2, 1, 3, 4], bassBoost: 70, reverb: 15 },
-  { name: 'Deep Bass', icon: <Headphones className="w-4 h-4" />, bands: [10, 8, 5, 2, 0, -1, -2, -3], bassBoost: 80, reverb: 10 },
-  { name: 'Concert', icon: <Sparkles className="w-4 h-4" />, bands: [3, 1, 0, 2, 4, 3, 2, 1], bassBoost: 15, reverb: 40 },
+  { name: 'Bass Boost', icon: <Zap className="w-4 h-4" />, bands: [10, 8, 5, 2, 0, -1, -2, -2], bassBoost: 75, reverb: 0 },
+  { name: 'Treble Boost', icon: <Sparkles className="w-4 h-4" />, bands: [-3, -2, 0, 2, 4, 7, 9, 10], bassBoost: 0, reverb: 0 },
+  { name: 'Vocal', icon: <Volume2 className="w-4 h-4" />, bands: [-4, -2, 2, 6, 7, 4, 1, 0], bassBoost: 0, reverb: 30 },
+  { name: '8D Audio', icon: <Globe className="w-4 h-4" />, bands: [3, 2, 0, -1, 0, 2, 3, 4], bassBoost: 25, reverb: 50 },
+  { name: 'Phonk', icon: <Radio className="w-4 h-4" />, bands: [10, 7, 4, 0, -3, 2, 4, 5], bassBoost: 85, reverb: 20 },
+  { name: 'Deep Bass', icon: <Headphones className="w-4 h-4" />, bands: [12, 10, 7, 3, 0, -2, -3, -4], bassBoost: 100, reverb: 15 },
+  { name: 'Concert', icon: <Sparkles className="w-4 h-4" />, bands: [4, 2, 0, 3, 5, 4, 3, 2], bassBoost: 20, reverb: 55 },
 ];
 
 const defaultBands: EQBand[] = [
@@ -96,25 +96,28 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     } catch {}
   }, [bands, bassBoost, reverb, playbackSpeed, activePreset]);
 
-  // When modal opens: just resume context and push settings. NEVER re-bind.
-  // The audio engine is already bound in PlayerContext BEFORE play starts.
+  // When modal opens: resume context, bind if needed, push settings
   useEffect(() => {
     if (!isOpen) return;
     
     (async () => {
-      // Resume for user gesture requirement
       await audioEngine.resume();
+      
+      // If not connected and we have an audio element, bind now (user gesture context)
+      if (!audioEngine.connected && audioElement) {
+        await audioEngine.bind(audioElement);
+      }
+      
       const isConnected = audioEngine.connected;
       setConnected(isConnected);
       
-      // Push current settings
       if (isConnected) {
         audioEngine.setBands(bands.map(b => b.gain));
         audioEngine.setBassBoost(bassBoost, bands.map(b => b.gain));
         audioEngine.setReverb(reverb);
       }
     })();
-  }, [isOpen]);
+  }, [isOpen, audioElement]);
 
   // Push changes to engine
   useEffect(() => {
