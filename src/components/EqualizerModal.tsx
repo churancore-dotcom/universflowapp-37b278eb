@@ -108,11 +108,9 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
       if (cancelled) return;
       setConnected(ok);
       if (ok) {
-        // Apply all current settings immediately
         audioEngine.setBands(bands.map(b => b.gain));
         audioEngine.setBassBoost(bassBoost, bands.map(b => b.gain));
         audioEngine.setReverb(reverb);
-        audioEngine.set8D(spatialAudio);
       }
     })();
     return () => { cancelled = true; };
