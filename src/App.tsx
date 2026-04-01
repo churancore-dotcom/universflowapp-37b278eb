@@ -130,6 +130,7 @@ const AnimatedRoutes = forwardRef<HTMLDivElement>((_props, ref) => {
           <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
           <Route path="/offline" element={<ProtectedRoute><Offline /></ProtectedRoute>} />
           <Route path="/widgets" element={<ProtectedRoute><WidgetPreview /></ProtectedRoute>} />
+          <Route path="/request-song" element={<ProtectedRoute><RequestSong /></ProtectedRoute>} />
           
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route index element={<AdminDashboard />} />
