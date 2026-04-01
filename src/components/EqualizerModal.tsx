@@ -134,7 +134,6 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     setBands(prev => prev.map((b, i) => ({ ...b, gain: preset.bands[i] ?? 0 })));
     setBassBoost(preset.bassBoost);
     setReverb(preset.reverb);
-    setSpatialAudio(preset.spatialAudio);
     setActivePreset(preset.name);
     toast.success(`${preset.name} preset applied`);
   }, []);
