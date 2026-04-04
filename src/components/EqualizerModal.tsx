@@ -101,12 +101,58 @@ function createReverbIR(ctx: AudioContext, duration = 2.5, decay = 2.5) {
   return impulse;
 }
 
+function buildChain(ctx: AudioContext, source: MediaElementAudioSourceNode) {
+  // Create 8 peaking filters - use Q=0.7 for wide, musical bands
+  const filters = defaultBands.map((band) => {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'peaking';
+    filter.frequency.value = band.frequency;
+    filter.Q.value = 0.7;
+    filter.gain.value = 0;
+    return filter;
+  });
+
+  const gainNode = ctx.createGain();
+  gainNode.gain.value = 1;
+
+  const dryGain = ctx.createGain();
+  dryGain.gain.value = 1;
+  const wetGain = ctx.createGain();
+  wetGain.gain.value = 0;
+  const convolver = ctx.createConvolver();
+  convolver.buffer = createReverbIR(ctx);
+
+  const pannerNode = ctx.createStereoPanner();
+  pannerNode.pan.value = 0;
+
+  // Wire: source -> filters -> gain -> [dry + convolver->wet] -> panner -> destination
+  source.connect(filters[0]);
+  for (let i = 0; i < filters.length - 1; i++) {
+    filters[i].connect(filters[i + 1]);
+  }
+  filters[filters.length - 1].connect(gainNode);
+  gainNode.connect(dryGain);
+  gainNode.connect(convolver);
+  convolver.connect(wetGain);
+  dryGain.connect(pannerNode);
+  wetGain.connect(pannerNode);
+  pannerNode.connect(ctx.destination);
+
+  eqState.source = source;
+  eqState.filters = filters;
+  eqState.gainNode = gainNode;
+  eqState.dryGain = dryGain;
+  eqState.wetGain = wetGain;
+  eqState.convolver = convolver;
+  eqState.pannerNode = pannerNode;
+}
+
+// Keep a WeakMap so we never call createMediaElementSource twice on the same element
+const sourceMap = new WeakMap<HTMLAudioElement, MediaElementAudioSourceNode>();
+
 function initEQGraph(audioElement: HTMLAudioElement): boolean {
-  if (eqState.connectedElement === audioElement && eqState.ctx) {
-    // Already connected to this element
-    if (eqState.ctx.state === 'suspended') {
-      eqState.ctx.resume();
-    }
+  if (eqState.connectedElement === audioElement && eqState.ctx && eqState.filters.length) {
+    if (eqState.ctx.state === 'suspended') eqState.ctx.resume();
     return true;
   }
 
@@ -117,86 +163,31 @@ function initEQGraph(audioElement: HTMLAudioElement): boolean {
       if (!AC) return false;
       eqState.ctx = new AC();
     }
-
     const ctx = eqState.ctx;
 
-    // Disconnect old chain if switching elements
-    if (eqState.connectedElement && eqState.connectedElement !== audioElement) {
-      try {
-        eqState.source?.disconnect();
-        eqState.filters.forEach(f => f.disconnect());
-        eqState.gainNode?.disconnect();
-        eqState.dryGain?.disconnect();
-        eqState.wetGain?.disconnect();
-        eqState.convolver?.disconnect();
-        eqState.pannerNode?.disconnect();
-      } catch {}
-    }
-
-    // Create media source - this can only be done once per element
-    let source: MediaElementAudioSourceNode;
+    // Disconnect old chain cleanly
     try {
+      eqState.source?.disconnect();
+      eqState.filters.forEach(f => { try { f.disconnect(); } catch {} });
+      eqState.gainNode?.disconnect();
+      eqState.dryGain?.disconnect();
+      eqState.wetGain?.disconnect();
+      eqState.convolver?.disconnect();
+      eqState.pannerNode?.disconnect();
+    } catch {}
+    eqState.filters = [];
+
+    // Get or create source for this element
+    let source = sourceMap.get(audioElement);
+    if (!source) {
       source = ctx.createMediaElementSource(audioElement);
-    } catch {
-      // Already created for this element - audio is still routed through existing graph
-      eqState.connectedElement = audioElement;
-      return true;
+      sourceMap.set(audioElement, source);
     }
 
-    // Create 8 peaking filters with higher Q for more pronounced effect
-    const filters = defaultBands.map((band) => {
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'peaking';
-      filter.frequency.value = band.frequency;
-      filter.Q.value = 1.0; // Lower Q = wider bandwidth = more audible effect
-      filter.gain.value = 0;
-      return filter;
-    });
-
-    // Bass boost gain
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = 1;
-
-    // Reverb: dry/wet mix
-    const dryGain = ctx.createGain();
-    dryGain.gain.value = 1;
-    const wetGain = ctx.createGain();
-    wetGain.gain.value = 0;
-    const convolver = ctx.createConvolver();
-    convolver.buffer = createReverbIR(ctx);
-
-    // Spatial panner
-    const pannerNode = ctx.createStereoPanner();
-    pannerNode.pan.value = 0;
-
-    // Wire: source -> filters -> gainNode -> [dryGain + convolver->wetGain] -> pannerNode -> destination
-    source.connect(filters[0]);
-    for (let i = 0; i < filters.length - 1; i++) {
-      filters[i].connect(filters[i + 1]);
-    }
-    filters[filters.length - 1].connect(gainNode);
-
-    gainNode.connect(dryGain);
-    gainNode.connect(convolver);
-    convolver.connect(wetGain);
-
-    dryGain.connect(pannerNode);
-    wetGain.connect(pannerNode);
-    pannerNode.connect(ctx.destination);
-
-    eqState.source = source;
-    eqState.filters = filters;
-    eqState.gainNode = gainNode;
-    eqState.dryGain = dryGain;
-    eqState.wetGain = wetGain;
-    eqState.convolver = convolver;
-    eqState.pannerNode = pannerNode;
+    buildChain(ctx, source);
     eqState.connectedElement = audioElement;
 
-    if (ctx.state === 'suspended') {
-      ctx.resume();
-    }
-
+    if (ctx.state === 'suspended') ctx.resume();
     return true;
   } catch (error) {
     console.error('EQ init error:', error);

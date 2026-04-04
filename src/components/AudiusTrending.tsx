@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Headphones, TrendingUp } from 'lucide-react';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 
-const AUDIUS_BASE = 'https://discovery-us-01.audius.openplayer.org/v1';
+const AUDIUS_BASE = 'https://audius-discovery-1.the-standard.io/v1';
 const APP_NAME = 'univers_flow_official';
 
 interface AudiusTrack {
@@ -22,7 +22,9 @@ const AudiusTrending = memo(() => {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const res = await fetch(`${AUDIUS_BASE}/tracks/trending?app_name=${APP_NAME}`);
+        const res = await fetch(`${AUDIUS_BASE}/tracks/trending?app_name=${APP_NAME}`, {
+          headers: { 'Accept': 'application/json' },
+        });
         if (!res.ok) throw new Error('Audius API error');
         const json = await res.json();
         setTracks((json.data || []).slice(0, 20));
