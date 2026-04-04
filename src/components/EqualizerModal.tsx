@@ -57,8 +57,8 @@ const presets: Preset[] = [
   { id: 'treble-boost', name: 'Treble Boost', icon: Sparkles, bands: [-2, -1, 0, 0, 1, 3, 4, 5], bassBoost: 0 },
   { id: 'vocal', name: 'Vocal', icon: Volume2, bands: [-3, -1, 0, 3, 4, 3, 1, 0], bassBoost: 0 },
   { id: '3d-audio', name: '3D Audio', icon: Globe, bands: [1, 0, -1, 0, 0, 1, 2, 1], bassBoost: 20 },
-  { id: 'phonk', name: 'Phonk', icon: Headphones, bands: [7, 5, 3, 0, -1, 1, 3, 4], bassBoost: 60 },
-  { id: 'deep-bass', name: 'Deep Bass', icon: Waves, bands: [8, 7, 5, 2, 0, -2, -3, -3], bassBoost: 80 },
+  { id: 'phonk', name: 'Phonk', icon: Headphones, bands: [5, 4, 2, 0, -1, 1, 2, 3], bassBoost: 50 },
+  { id: 'deep-bass', name: 'Deep Bass', icon: Waves, bands: [6, 5, 3, 1, 0, -1, -2, -2], bassBoost: 60 },
   { id: 'concert', name: 'Concert', icon: Sparkles, bands: [3, 2, 0, 1, 2, 3, 3, 2], bassBoost: 10 },
 ];
 
