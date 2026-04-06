@@ -13,6 +13,8 @@ interface Stats {
   totalAlbums: number;
   totalDownloads: number;
   storageUsed: number;
+  pendingRequests: number;
+  activeUsers: number;
 }
 
 interface PlayData {
@@ -30,7 +32,7 @@ const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#22c55e', '#
 const AdminDashboard = () => {
   const [stats, setStats] = useState<Stats>({ 
     totalSongs: 0, totalUsers: 0, totalPlays: 0, 
-    totalAlbums: 0, totalDownloads: 0, storageUsed: 0
+    totalAlbums: 0, totalDownloads: 0, storageUsed: 0, pendingRequests: 0, activeUsers: 0
   });
   const [playData, setPlayData] = useState<PlayData[]>([]);
   const [genreData, setGenreData] = useState<GenreData[]>([]);
@@ -84,15 +86,20 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [songsRes, usersRes, albumsRes] = await Promise.all([
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+      const [songsRes, usersRes, albumsRes, pendingRequestsRes, activeUsersRes] = await Promise.all([
         supabase.from('songs').select('id, play_count, download_count, file_size, cover_size'),
         supabase.from('profiles').select('id'),
         supabase.from('albums').select('id'),
+        supabase.from('song_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('recently_played').select('user_id, played_at').gte('played_at', fifteenMinutesAgo),
       ]);
 
       if (songsRes.error || usersRes.error) throw new Error('fetch failed');
 
       const songs = songsRes.data || [];
+      const activeUsers = new Set((activeUsersRes.data || []).map((entry) => entry.user_id)).size;
       const totalPlays = songs.reduce((acc, s) => acc + (s.play_count || 0), 0);
       const totalDownloads = songs.reduce((acc, s) => acc + (s.download_count || 0), 0);
       const storageUsed = songs.reduce((acc, s) => acc + (s.file_size || 0) + (s.cover_size || 0), 0);
@@ -104,6 +111,8 @@ const AdminDashboard = () => {
         totalAlbums: albumsRes.data?.length || 0,
         totalDownloads,
         storageUsed,
+        pendingRequests: pendingRequestsRes.count || 0,
+        activeUsers,
       });
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -194,6 +203,8 @@ const AdminDashboard = () => {
     { icon: PlayCircle, label: 'Total Plays', value: stats.totalPlays, color: 'from-green-500 to-emerald-400' },
     { icon: Disc, label: 'Albums', value: stats.totalAlbums, color: 'from-orange-500 to-amber-400' },
     { icon: Download, label: 'Downloads', value: stats.totalDownloads, color: 'from-purple-500 to-violet-400' },
+    { icon: Clock, label: 'Pending Requests', value: stats.pendingRequests, color: 'from-sky-500 to-cyan-400' },
+    { icon: Activity, label: 'Online Now', value: stats.activeUsers, color: 'from-emerald-500 to-lime-400' },
     { icon: Activity, label: 'Storage', value: formatBytes(stats.storageUsed), color: 'from-rose-500 to-pink-400', isString: true },
   ];
 
@@ -229,7 +240,7 @@ const AdminDashboard = () => {
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-4 mb-8">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (

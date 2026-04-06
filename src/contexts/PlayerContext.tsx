@@ -121,7 +121,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const audio = new Audio();
     audio.volume = volume;
     audio.preload = 'auto';
-    audio.crossOrigin = 'anonymous';
     audio.setAttribute('playsinline', 'true');
     audio.setAttribute('webkit-playsinline', 'true');
     
@@ -132,7 +131,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextAudio = new Audio();
     nextAudio.volume = 0;
     nextAudio.preload = 'auto';
-    nextAudio.crossOrigin = 'anonymous';
     nextAudio.setAttribute('playsinline', 'true');
     nextAudio.setAttribute('webkit-playsinline', 'true');
     nextAudioRef.current = nextAudio;

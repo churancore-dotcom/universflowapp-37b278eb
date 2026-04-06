@@ -53,13 +53,13 @@ const eqState: {
 
 const presets: Preset[] = [
   { id: 'flat', name: 'Flat', icon: Music2, bands: [0, 0, 0, 0, 0, 0, 0, 0], bassBoost: 0 },
-  { id: 'bass-boost', name: 'Bass Boost', icon: Zap, bands: [4, 3, 2, 1, 0, -1, -1, -1], bassBoost: 40 },
-  { id: 'treble-boost', name: 'Treble Boost', icon: Sparkles, bands: [-2, -1, 0, 0, 1, 3, 4, 5], bassBoost: 0 },
-  { id: 'vocal', name: 'Vocal', icon: Volume2, bands: [-3, -1, 0, 3, 4, 3, 1, 0], bassBoost: 0 },
-  { id: '3d-audio', name: '3D Audio', icon: Globe, bands: [1, 0, -1, 0, 0, 1, 2, 1], bassBoost: 20 },
-  { id: 'phonk', name: 'Phonk', icon: Headphones, bands: [5, 4, 2, 0, -1, 1, 2, 3], bassBoost: 50 },
-  { id: 'deep-bass', name: 'Deep Bass', icon: Waves, bands: [6, 5, 3, 1, 0, -1, -2, -2], bassBoost: 60 },
-  { id: 'concert', name: 'Concert', icon: Sparkles, bands: [3, 2, 0, 1, 2, 3, 3, 2], bassBoost: 10 },
+  { id: 'bass-boost', name: 'Bass Boost', icon: Zap, bands: [2, 2, 1, 0, 0, -1, -1, -1], bassBoost: 20 },
+  { id: 'treble-boost', name: 'Treble Boost', icon: Sparkles, bands: [-1, -1, 0, 0, 1, 2, 3, 3], bassBoost: 0 },
+  { id: 'vocal', name: 'Vocal', icon: Volume2, bands: [-2, -1, 0, 2, 3, 2, 1, 0], bassBoost: 0 },
+  { id: '3d-audio', name: '3D Audio', icon: Globe, bands: [1, 0, -1, 0, 0, 1, 1, 1], bassBoost: 10 },
+  { id: 'phonk', name: 'Phonk', icon: Headphones, bands: [3, 2, 1, 0, -1, 1, 1, 2], bassBoost: 25 },
+  { id: 'deep-bass', name: 'Deep Bass', icon: Waves, bands: [3, 3, 2, 0, 0, -1, -1, -1], bassBoost: 30 },
+  { id: 'concert', name: 'Concert', icon: Sparkles, bands: [2, 1, 0, 1, 1, 2, 2, 1], bassBoost: 5 },
 ];
 
 const defaultBands: EQBand[] = [
@@ -247,17 +247,20 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   // Helper functions that directly manipulate the audio graph
   function applyBands(currentBands: EQBand[], currentBassBoost: number) {
     if (!eqState.filters.length) return;
-    // Gentle bass boost: max +6dB at 100%, scaled subtly
-    const boost = (currentBassBoost / 100) * 6;
+    const ctx = eqState.ctx;
+    const boost = (currentBassBoost / 100) * 3.5;
     currentBands.forEach((band, i) => {
       if (eqState.filters[i]) {
         let gain = band.gain;
-        // Only add bass boost to the 3 lowest bands
         if (i === 0) gain += boost;
-        else if (i === 1) gain += boost * 0.6;
-        else if (i === 2) gain += boost * 0.3;
-        // Clamp to safe range
-        eqState.filters[i].gain.value = Math.max(-12, Math.min(12, gain));
+        else if (i === 1) gain += boost * 0.5;
+        else if (i === 2) gain += boost * 0.2;
+        const safeGain = Math.max(-8, Math.min(8, gain));
+        if (ctx) {
+          eqState.filters[i].gain.setTargetAtTime(safeGain, ctx.currentTime, 0.04);
+        } else {
+          eqState.filters[i].gain.value = safeGain;
+        }
       }
     });
   }
@@ -265,8 +268,8 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   function applyReverb(reverbLevel: number) {
     if (!eqState.dryGain || !eqState.wetGain) return;
     const wet = reverbLevel / 100;
-    eqState.dryGain.gain.value = 1 - (wet * 0.4);
-    eqState.wetGain.gain.value = wet * 0.7;
+    eqState.dryGain.gain.value = 1 - (wet * 0.25);
+    eqState.wetGain.gain.value = wet * 0.22;
   }
 
   function applySpeed(speed: number, el?: HTMLAudioElement | null) {
@@ -283,11 +286,11 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     if (enabled && eqState.pannerNode) {
       let angle = 0;
       eqState.spatialInterval = window.setInterval(() => {
-        angle += 0.05;
+        angle += 0.025;
         if (eqState.pannerNode) {
-          eqState.pannerNode.pan.value = Math.sin(angle) * 0.8;
+          eqState.pannerNode.pan.value = Math.sin(angle) * 0.25;
         }
-      }, 50);
+      }, 80);
     } else if (eqState.pannerNode) {
       eqState.pannerNode.pan.value = 0;
     }
