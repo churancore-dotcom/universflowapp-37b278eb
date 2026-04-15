@@ -233,9 +233,9 @@ const AllSongsSection = memo(({ songs }: AllSongsSectionProps) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-[16px] font-bold tracking-tight text-foreground">All Songs</h2>
+            <h2 className="text-[16px] font-bold tracking-tight text-foreground">Your Collection</h2>
             <p className="text-[11px] text-muted-foreground/40 mt-0.5 font-medium tracking-wide">
-              {songs.length} tracks
+              Curated for you
             </p>
           </div>
           <button
@@ -297,7 +297,7 @@ const AllSongsSection = memo(({ songs }: AllSongsSectionProps) => {
             }}
             whileTap={{ scale: 0.97 }}
           >
-            {showAll ? 'Show Less' : `Show All ${songs.length} Songs`}
+            {showAll ? 'Show Less' : 'Show All'}
           </motion.button>
         )}
       </div>

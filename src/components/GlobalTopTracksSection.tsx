@@ -96,7 +96,7 @@ const GlobalTopTracksSection = () => {
           <Radio className="w-4 h-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Global Top 30</h2>
         </div>
-        <span className="text-[11px] text-muted-foreground">Live metadata + instant stream lookup</span>
+        <span className="text-[11px] text-muted-foreground">Updated live</span>
       </div>
 
       <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
@@ -131,13 +131,15 @@ const GlobalTopTracksSection = () => {
                   #{track.rank || index + 1}
                 </div>
 
-                <div className="absolute bottom-2 right-2 rounded-full border border-border/60 bg-background/85 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                  {isResolving ? 'Loading' : isActive && isPlaying ? 'Playing' : 'Play'}
-                </div>
+                {(isResolving || (isActive && isPlaying)) && (
+                  <div className="absolute bottom-2 right-2 rounded-full border border-border/60 bg-background/85 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    {isResolving ? '...' : '▶'}
+                  </div>
+                )}
               </div>
 
               <p className={`truncate text-[13px] font-semibold ${isActive ? 'text-primary' : 'text-foreground'}`}>
-                {isResolving ? 'Resolving stream...' : track.title}
+                {track.title}
               </p>
               <p className="mt-1 truncate text-[11px] text-muted-foreground">{track.artist}</p>
               <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">

@@ -274,6 +274,71 @@ export type Database = {
         }
         Relationships: []
       }
+      listening_session_members: {
+        Row: {
+          id: string
+          joined_at: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listening_session_members_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "listening_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listening_sessions: {
+        Row: {
+          created_at: string
+          current_song_data: Json | null
+          host_user_id: string
+          id: string
+          is_active: boolean
+          is_playing: boolean
+          playback_position: number
+          session_code: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_song_data?: Json | null
+          host_user_id: string
+          id?: string
+          is_active?: boolean
+          is_playing?: boolean
+          playback_position?: number
+          session_code: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_song_data?: Json | null
+          host_user_id?: string
+          id?: string
+          is_active?: boolean
+          is_playing?: boolean
+          playback_position?: number
+          session_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       playlist_songs: {
         Row: {
           added_at: string

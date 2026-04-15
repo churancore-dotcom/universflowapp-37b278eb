@@ -186,7 +186,7 @@ const Home = () => {
               <div>
                 <p className="text-[16px] font-bold text-foreground tracking-tight">{greeting()}</p>
                 <p className="text-[11px] text-muted-foreground/50 font-medium tracking-wide">
-                  {songs.length} tracks available
+                  Your music, anytime
                 </p>
               </div>
             </div>
@@ -294,13 +294,11 @@ const Home = () => {
                 </motion.div>
               )}
 
-               <GlobalTopTracksSection />
-
-               {/* Audius Trending */}
-              <AudiusTrending />
-
               {/* Featured Artists */}
               <FeaturedArtistsSection />
+
+              {/* Global Top Tracks */}
+              <GlobalTopTracksSection />
 
               {/* New Releases */}
               {newReleases.length > 0 && (
@@ -315,6 +313,9 @@ const Home = () => {
               {allSongs.length > 0 && (
                 <AllSongsSection songs={allSongs} />
               )}
+
+              {/* Audius Trending */}
+              <AudiusTrending />
             </div>
           )}
         </main>
