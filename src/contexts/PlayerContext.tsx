@@ -442,6 +442,120 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return null;
   }, [isPlayableUrl]);
 
+  // ── YouTube IFrame fallback helpers ──
+  const stopYouTubeProgressLoop = useCallback(() => {
+    if (youtubeProgressRef.current) {
+      window.clearInterval(youtubeProgressRef.current);
+      youtubeProgressRef.current = null;
+    }
+  }, []);
+
+  const startYouTubeProgressLoop = useCallback(() => {
+    stopYouTubeProgressLoop();
+    youtubeProgressRef.current = window.setInterval(() => {
+      const player = youtubePlayerRef.current;
+      if (!player || !youtubeActiveRef.current) return;
+      try {
+        setProgress(player.getCurrentTime() || 0);
+        const dur = player.getDuration?.();
+        if (dur && Number.isFinite(dur) && dur > 0) setDuration(dur);
+      } catch { /* ignore */ }
+    }, 500);
+  }, [stopYouTubeProgressLoop]);
+
+  const teardownYouTubePlayback = useCallback(() => {
+    stopYouTubeProgressLoop();
+    youtubeActiveRef.current = false;
+    youtubeEndCallbackRef.current = null;
+    try { youtubePlayerRef.current?.pauseVideo?.(); } catch { /* ignore */ }
+  }, [stopYouTubeProgressLoop]);
+
+  const ensureYouTubeContainer = useCallback(() => {
+    let host = document.getElementById('uf-yt-fallback-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'uf-yt-fallback-host';
+      host.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;';
+      document.body.appendChild(host);
+    }
+    let mount = document.getElementById('uf-yt-fallback-mount');
+    if (!mount) {
+      mount = document.createElement('div');
+      mount.id = 'uf-yt-fallback-mount';
+      host.appendChild(mount);
+    }
+    return mount;
+  }, []);
+
+  const playYouTubeFallback = useCallback(async (videoId: string, onEnded: () => void) => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+      }
+
+      const YT = await loadYouTubeIframeApi();
+      if (!YT) throw new Error('YouTube API unavailable');
+
+      youtubeActiveRef.current = true;
+      youtubeEndCallbackRef.current = onEnded;
+
+      if (youtubePlayerRef.current) {
+        try {
+          youtubePlayerRef.current.loadVideoById(videoId);
+          youtubePlayerRef.current.setVolume?.(Math.round(volume * 100));
+          startYouTubeProgressLoop();
+          setIsPlaying(true);
+          return;
+        } catch { /* recreate below */ }
+      }
+
+      const mount = ensureYouTubeContainer();
+      mount.innerHTML = '';
+      const playerEl = document.createElement('div');
+      playerEl.id = `uf-yt-player-${Date.now()}`;
+      mount.appendChild(playerEl);
+
+      youtubePlayerRef.current = new YT.Player(playerEl.id, {
+        height: '1',
+        width: '1',
+        videoId,
+        playerVars: { autoplay: 1, controls: 0, modestbranding: 1, playsinline: 1, rel: 0 },
+        events: {
+          onReady: (e: { target: YouTubePlayer }) => {
+            try {
+              e.target.setVolume?.(Math.round(volume * 100));
+              e.target.playVideo();
+              const dur = e.target.getDuration?.();
+              if (dur && Number.isFinite(dur)) setDuration(dur);
+            } catch { /* ignore */ }
+            startYouTubeProgressLoop();
+            setIsPlaying(true);
+          },
+          onStateChange: (e: { data: number }) => {
+            const states = YT.PlayerState;
+            if (e.data === states.PLAYING) setIsPlaying(true);
+            else if (e.data === states.PAUSED) setIsPlaying(false);
+            else if (e.data === states.ENDED) {
+              setIsPlaying(false);
+              youtubeEndCallbackRef.current?.();
+            }
+          },
+          onError: () => {
+            toast.error('Video source unavailable — skipping');
+            youtubeEndCallbackRef.current?.();
+          },
+        },
+      } as Record<string, unknown>);
+    } catch (err) {
+      console.warn('YouTube fallback failed:', err);
+      youtubeActiveRef.current = false;
+      setIsPlaying(false);
+      toast.error('Could not load this track from any source.');
+    }
+  }, [ensureYouTubeContainer, startYouTubeProgressLoop, volume]);
+
   // Play a song at specific index - with lazy URL resolution
   const playSongAtIndex = useCallback(async (index: number, songQueue: Song[]) => {
     const song = songQueue[index];
