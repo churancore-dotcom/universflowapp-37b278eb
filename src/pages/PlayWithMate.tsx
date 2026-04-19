@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Heart, Users, Copy, Share2, Crown, Music, Loader2, LogOut,
-  Radio, Disc3, Sparkles, Minimize2, Link2, UserMinus, QrCode,
+  Radio, Disc3, Sparkles, Minimize2, Link2, UserMinus, QrCode, Lightbulb, Check, X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '@/components/PageTransition';
@@ -24,8 +24,9 @@ const PlayWithMate = () => {
   const { isPremium } = usePremium();
   const { currentSong } = usePlayer();
   const {
-    isConnected, loading, room, participants, reactions, inviteUrl,
+    isConnected, loading, room, participants, reactions, inviteUrl, suggestions,
     createSession, joinSession, leaveSession, sendReaction, kickParticipant,
+    suggestTrack, acceptSuggestion, dismissSuggestion,
   } = usePlayWithMate();
   const [joinCode, setJoinCode] = useState('');
 
