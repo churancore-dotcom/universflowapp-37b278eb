@@ -38,6 +38,18 @@ export interface MateReaction {
   createdAt: number;
 }
 
+export interface MateSuggestion {
+  id: string;
+  userId: string;
+  username: string;
+  title: string;
+  artist: string;
+  cover_url?: string;
+  audio_url?: string;
+  source?: string;
+  createdAt: number;
+}
+
 interface ActiveRoom {
   sessionId: string;
   sessionCode: string;
@@ -51,12 +63,16 @@ interface PlayWithMateContextValue {
   room: ActiveRoom | null;
   participants: MateParticipant[];
   reactions: MateReaction[];
+  suggestions: MateSuggestion[];
   isMinimized: boolean;
   setMinimized: (minimized: boolean) => void;
   createSession: () => Promise<void>;
   joinSession: (code: string) => Promise<void>;
   leaveSession: () => Promise<void>;
   sendReaction: (emoji: string) => Promise<void>;
+  suggestTrack: (track: { title: string; artist: string; cover_url?: string; audio_url?: string; source?: string }) => Promise<void>;
+  acceptSuggestion: (suggestionId: string) => Promise<void>;
+  dismissSuggestion: (suggestionId: string) => void;
   kickParticipant: (userId: string) => Promise<void>;
   inviteUrl: string | null;
 }
