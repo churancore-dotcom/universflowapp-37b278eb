@@ -126,7 +126,7 @@ const ReviewModal = ({ isOpen, onClose, onSubmitted }: Props) => {
                   {[1, 2, 3, 4, 5].map(n => (
                     <button
                       key={n}
-                      onClick={() => { triggerHaptic('light'); setRating(n); }}
+                      onClick={() => { triggerHaptic('impactLight'); setRating(n); }}
                       onMouseEnter={() => setHover(n)}
                       onMouseLeave={() => setHover(0)}
                     >

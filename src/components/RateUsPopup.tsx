@@ -28,7 +28,7 @@ const RateUsPopup = ({ onOpenReview }: Props) => {
   };
 
   const doIt = () => {
-    triggerHaptic('medium');
+    triggerHaptic('impactMedium');
     localStorage.setItem(STORAGE_KEY, String(Date.now()));
     setShow(false);
     setTimeout(onOpenReview, 250);

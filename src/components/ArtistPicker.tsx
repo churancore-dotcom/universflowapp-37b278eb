@@ -108,7 +108,7 @@ const ArtistPicker = ({ onComplete }: Props) => {
   }, [artists, activeCat, search]);
 
   const toggle = (name: string) => {
-    triggerHaptic('light');
+    triggerHaptic('impactLight');
     setPicks(prev => {
       const next = new Set(prev);
       if (next.has(name)) {
@@ -203,7 +203,7 @@ const ArtistPicker = ({ onComplete }: Props) => {
         {categories.map(cat => (
           <button
             key={cat}
-            onClick={() => { triggerHaptic('light'); setActiveCat(cat); }}
+            onClick={() => { triggerHaptic('impactLight'); setActiveCat(cat); }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
               activeCat === cat ? 'bg-primary text-primary-foreground' : 'bg-card/70 text-muted-foreground border border-border/50'
             }`}
