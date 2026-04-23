@@ -191,7 +191,7 @@ const AllArtists = () => {
     if (!tags.length) return;
     Promise.all(tags.map((tag) => getTopArtistsByTag(tag, 40).catch(() => [])))
       .then((buckets) => {
-        const incoming: IndexedArtistInfoLike[] = buckets.flat();
+        const incoming = buckets.flat();
         if (!incoming.length) return;
         setAllArtists((prev) => {
           const map = new Map(prev.map((a) => [a.name.toLowerCase(), a]));
