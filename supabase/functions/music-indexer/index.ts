@@ -253,7 +253,7 @@ async function getItunesArtwork(artist: string, title: string): Promise<string |
     const results = Array.isArray(data?.results) ? data.results : [];
     const best = results
       .map((item: Record<string, unknown>) => ({ item, score: scoreMetadataCandidate(item, artist, title) }))
-      .sort((a, b) => b.score - a.score)[0]?.item;
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)[0]?.item;
 
     const artwork = sanitizeArtwork(upscaleItunesArtwork(String(best?.artworkUrl100 || '')));
     setCached(cacheKey, artwork || null, 12 * 60 * 60 * 1000);
@@ -288,7 +288,7 @@ async function getDeezerArtwork(artist: string, title: string): Promise<string |
           title,
         ),
       }))
-      .sort((a, b) => b.score - a.score)[0]?.item;
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)[0]?.item;
 
     const artwork = sanitizeArtwork(String(best?.album?.cover_xl || best?.album?.cover_big || best?.album?.cover_medium || ''));
     setCached(cacheKey, artwork || null, 12 * 60 * 60 * 1000);
