@@ -786,7 +786,7 @@ function isAllowedAudioProxyUrl(value: string) {
   try {
     const parsed = new URL(value);
     if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-    return AUDIO_PROXY_ALLOWED_HOST_SNIPPETS.some((snippet) => parsed.hostname.includes(snippet));
+    return hostnameMatchesAllowedSuffix(parsed.hostname);
   } catch {
     return false;
   }
