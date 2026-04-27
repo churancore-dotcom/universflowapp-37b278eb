@@ -223,8 +223,12 @@ const Profile = () => {
                   <Mail className="w-3 h-3" />
                   {user?.email}
                 </p>
-                {!isEditingUsername && profileData.username && (
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">Tap pencil to change name</p>
+                {!isEditingUsername && (
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                    {profileData.username_changed
+                      ? 'Username is locked (can only be set once)'
+                      : 'Tap pencil to set your username (one-time only)'}
+                  </p>
                 )}
                 {isAdmin && (
                   <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'hsl(211 100% 50% / 0.2)', color: 'hsl(211 100% 60%)' }}>
