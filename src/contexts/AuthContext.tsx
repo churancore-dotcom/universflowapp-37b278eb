@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getAuthError } from '@/lib/errorMessages';
+import { setSentryUser } from '@/lib/sentry';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -60,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
+      setSentryUser(nextSession?.user ? { id: nextSession.user.id, email: nextSession.user.email } : null);
 
       if (nextSession?.user) {
         setTimeout(async () => {

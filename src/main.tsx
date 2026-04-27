@@ -8,9 +8,12 @@ import "@/lib/themeBoot";
 // Initialize Median detection globals
 import "@/lib/median";
 
+// Initialize Sentry error monitoring (must run before React mounts)
+import { initSentry } from "@/lib/sentry";
+initSentry();
+
 const rootElement = document.getElementById("root");
 
 if (rootElement) {
   createRoot(rootElement).render(<App />);
 }
-
