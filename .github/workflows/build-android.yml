@@ -80,27 +80,37 @@ jobs:
 
       - name: Integrate Android widgets
         run: |
+          # Package must match capacitor.config.prod.ts appId
+          PKG="app.lovable.id5acaae55bbc847a7bd32f3924d8ef986"
+          PKG_PATH="app/lovable/id5acaae55bbc847a7bd32f3924d8ef986"
+
           # Create widget package directory
-          mkdir -p android/app/src/main/java/app/lovable/universflow/widgets
-          
-          # Copy Java widget files
-          cp android-widgets/java/*.java android/app/src/main/java/app/lovable/universflow/widgets/
-          
-          # Fix the import for R class in all Java files
-          for file in android/app/src/main/java/app/lovable/universflow/widgets/*.java; do
-            sed -i 's/package app.lovable.universflow.widgets;/package app.lovable.universflow.widgets;\n\nimport app.lovable.universflow.R;/' "$file"
+          mkdir -p "android/app/src/main/java/${PKG_PATH}/widgets"
+
+          # Copy Java widget files, rewriting the package name to match new appId
+          for f in android-widgets/java/*.java; do
+            base=$(basename "$f")
+            sed \
+              -e "s/app\\.lovable\\.universflow\\.widgets/${PKG}.widgets/g" \
+              -e "s/app\\.lovable\\.universflow/${PKG}/g" \
+              "$f" > "android/app/src/main/java/${PKG_PATH}/widgets/${base}"
           done
-          
+
+          # Add R class import to all widget Java files
+          for file in android/app/src/main/java/${PKG_PATH}/widgets/*.java; do
+            sed -i "s|^package ${PKG}\\.widgets;|package ${PKG}.widgets;\\nimport ${PKG}.R;|" "$file"
+          done
+
           # Copy drawable resources
           cp android-widgets/res/drawable/*.xml android/app/src/main/res/drawable/
-          
+
           # Copy layout resources
           cp android-widgets/res/layout/*.xml android/app/src/main/res/layout/
-          
+
           # Copy xml resources (widget info)
           mkdir -p android/app/src/main/res/xml
           cp android-widgets/res/xml/*.xml android/app/src/main/res/xml/
-          
+
           # Merge string resources properly
           sed -i '/<\/resources>/d' android/app/src/main/res/values/strings.xml
           grep '<string name=' android-widgets/res/values/strings_widgets.xml >> android/app/src/main/res/values/strings.xml
@@ -161,11 +171,13 @@ jobs:
 
       - name: Register WidgetBridgePlugin in MainActivity
         run: |
-          MAIN_ACTIVITY="android/app/src/main/java/app/lovable/universflow/MainActivity.java"
-          
+          PKG="app.lovable.id5acaae55bbc847a7bd32f3924d8ef986"
+          PKG_PATH="app/lovable/id5acaae55bbc847a7bd32f3924d8ef986"
+          MAIN_ACTIVITY="android/app/src/main/java/${PKG_PATH}/MainActivity.java"
+
           # Add import for the WidgetBridgePlugin
-          sed -i 's/import com.getcapacitor.BridgeActivity;/import com.getcapacitor.BridgeActivity;\nimport app.lovable.universflow.widgets.WidgetBridgePlugin;/' "$MAIN_ACTIVITY"
-          
+          sed -i "s|import com.getcapacitor.BridgeActivity;|import com.getcapacitor.BridgeActivity;\\nimport ${PKG}.widgets.WidgetBridgePlugin;|" "$MAIN_ACTIVITY"
+
           # Override onCreate to register the plugin
           sed -i 's/public class MainActivity extends BridgeActivity {/public class MainActivity extends BridgeActivity {\n\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(WidgetBridgePlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n/' "$MAIN_ACTIVITY"
 
