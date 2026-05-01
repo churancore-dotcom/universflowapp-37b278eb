@@ -492,8 +492,8 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
 
     // Animated stage advancement (visual progress while verifying)
     const stageTimers: number[] = [];
-    stageTimers.push(window.setTimeout(() => setVerifyStage(s => Math.max(s, 2)), 1500));
-    stageTimers.push(window.setTimeout(() => setVerifyStage(s => Math.max(s, 3)), 3500));
+    stageTimers.push(window.setTimeout(() => setVerifyStage(s => (s < 2 ? 2 : s)), 1500));
+    stageTimers.push(window.setTimeout(() => setVerifyStage(s => (s < 3 ? 3 : s)), 3500));
 
     // Realtime: payment_requests row changes (admin approving)
     const prChannel = paymentRequestId
