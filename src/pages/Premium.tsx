@@ -37,14 +37,24 @@ const FEATURES = [
   { icon: ShieldCheck, title: 'Priority Support',        desc: 'Skip the line — we answer first.' },
 ];
 
+interface PendingPayment {
+  id: string;
+  utr_number: string;
+  amount_paise: number;
+  plan: string;
+  created_at: string;
+}
+
 const PremiumPage = memo(function PremiumPage() {
   const navigate = useNavigate();
-  const { isPremium, subscription } = usePremium();
+  const { isPremium, subscription, refetch: refetchPremium } = usePremium();
+  const { user } = useAuth();
   const haptics = useHaptics();
   const [showRedeem, setShowRedeem] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('quarterly');
   const [settings, setSettings] = useState<UpiSettings | null>(null);
+  const [pending, setPending] = useState<PendingPayment | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -65,6 +75,47 @@ const PremiumPage = memo(function PremiumPage() {
       });
     })();
   }, []);
+
+  // Detect any pending payment request for this user
+  useEffect(() => {
+    if (!user || isPremium) { setPending(null); return; }
+    let cancelled = false;
+    const fetchPending = async () => {
+      const { data } = await supabase
+        .from('payment_requests')
+        .select('id, utr_number, amount_paise, plan, created_at')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setPending(data ?? null);
+    };
+    fetchPending();
+
+    // Realtime: react to status updates on payment_requests + subscriptions
+    const prChannel = supabase
+      .channel(`user-pr-${user.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'payment_requests',
+        filter: `user_id=eq.${user.id}`,
+      }, () => { fetchPending(); refetchPremium(); })
+      .subscribe();
+
+    const subChannel = supabase
+      .channel(`user-sub-${user.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'user_subscriptions',
+        filter: `user_id=eq.${user.id}`,
+      }, () => { refetchPremium(); fetchPending(); })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(prChannel);
+      supabase.removeChannel(subChannel);
+    };
+  }, [user, isPremium, refetchPremium]);
 
   const monthly = settings?.monthlyPrice ?? 49;
   const quarterly = settings?.quarterlyPrice ?? 120;
