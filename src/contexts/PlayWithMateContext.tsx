@@ -151,6 +151,11 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
   const persistIntervalRef = useRef<number | null>(null);
   const restoringRef = useRef(false);
   const applyingRemoteStateRef = useRef(false);
+  const progressRef = useRef(progress);
+
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
 
   const clearRealtime = useCallback(() => {
     if (broadcastIntervalRef.current) {
@@ -230,10 +235,10 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
     (): PlaybackStatePayload => ({
       song: buildSongPayload(currentSong),
       isPlaying,
-      playbackPosition: Math.max(audioElement?.currentTime ?? 0, progress),
+      playbackPosition: Math.max(audioElement?.currentTime ?? 0, progressRef.current),
       syncedAt: Date.now(),
     }),
-    [audioElement, buildSongPayload, currentSong, isPlaying, progress],
+    [audioElement, buildSongPayload, currentSong, isPlaying],
   );
 
   const applyRemoteState = useCallback(
