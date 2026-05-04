@@ -3,6 +3,7 @@ import { useMediaSession } from '@/hooks/useMediaSession';
 import { useGlobalAudioEngine } from '@/hooks/useGlobalAudioEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { resolveIndexedTrack, prefetchIndexedTrack } from '@/lib/musicIndexer';
+import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { toast } from 'sonner';
 
 interface YouTubePlayer {
