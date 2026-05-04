@@ -1394,8 +1394,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <PlayerContext.Provider value={{
       currentSong,
       isPlaying,
-      progress,
-      duration,
       volume,
       queue,
       shuffle,
