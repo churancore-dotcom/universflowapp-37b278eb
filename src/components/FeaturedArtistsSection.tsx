@@ -121,17 +121,15 @@ const FeaturedArtistsSection = () => {
             >
               <Sparkles className="w-3.5 h-3.5 text-primary" />
             </div>
-            <h2 className="text-[16px] font-bold tracking-tight text-foreground">
-              {isUserPicks ? 'Your Artists' : 'Featured Artists'}
-            </h2>
+            <h2 className="text-[16px] font-bold tracking-tight text-foreground">Featured Artists</h2>
           </div>
           <motion.button
             className="flex items-center gap-1 text-xs font-medium text-primary"
             onClick={() => { triggerHaptic('selection'); navigate('/artists'); }}
             whileTap={{ scale: 0.95 }}
           >
-            {isUserPicks ? 'Add' : 'View All'}
-            {isUserPicks ? <Plus className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            View All
+            <ChevronRight className="w-3.5 h-3.5" />
           </motion.button>
         </div>
 
