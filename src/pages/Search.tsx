@@ -11,6 +11,7 @@ import { TabTransition } from '@/components/PageTransition';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { prefetchIndexedTrack, searchIndexedTracks, type IndexedTrack } from '@/lib/musicIndexer';
+import { isCatalogSongId } from '@/lib/songSupport';
 import {
   getSongHistory,
   removeSongFromHistory,
@@ -19,7 +20,7 @@ import {
 } from '@/lib/songHistory';
 import { getCached, setCached } from '@/lib/searchCache';
 
-type SearchSource = 'all' | 'library' | 'indexer';
+type SearchSource = 'all' | 'indexer';
 
 const mapSongRow = (s: any): Song => ({
   id: s.id,
@@ -41,13 +42,13 @@ const Search = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [source, setSource] = useState<SearchSource>('all');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [searchHistory, setSearchHistory] = useState<SongHistoryEntry[]>(() => getSongHistory());
+  const [searchHistory, setSearchHistory] = useState<SongHistoryEntry[]>(() => getSongHistory().filter(entry => !isCatalogSongId(entry.id)));
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
 
   // Refresh history snapshot whenever the currently playing song changes
   useEffect(() => {
-    if (currentSong) setSearchHistory(getSongHistory());
+    if (currentSong) setSearchHistory(getSongHistory().filter(entry => !isCatalogSongId(entry.id)));
   }, [currentSong?.id]);
 
   useEffect(() => {
@@ -64,7 +65,7 @@ const Search = () => {
       setSearching(true);
 
       const [libraryResponse, indexedResponse] = await Promise.allSettled([
-        searchSongs(trimmedQuery),
+        Promise.resolve([] as Song[]),
         searchIndexedTracks(trimmedQuery, 50),
       ]);
 
@@ -73,7 +74,7 @@ const Search = () => {
       setResults(libraryResponse.status === 'fulfilled' ? libraryResponse.value : []);
       setIndexedResults(indexedResponse.status === 'fulfilled' ? indexedResponse.value : []);
       setSearching(false);
-      setSearchHistory(getSongHistory());
+      setSearchHistory(getSongHistory().filter(entry => !isCatalogSongId(entry.id)));
     }, 300);
 
     return () => {
