@@ -41,6 +41,7 @@ const Search = () => {
 
     if (trimmedQuery.length < 2) {
       setIndexedResults([]);
+      setSearching(false);
       return;
     }
 
