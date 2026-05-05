@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Crown, Check, Sparkles, Download, Headphones,
   Zap, Gift, Copy, Loader2, ShieldCheck, Users, Sliders, Music2, Infinity as InfinityIcon, Clock,
+  Radio, Wand2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
@@ -26,9 +27,11 @@ interface UpiSettings {
 
 const FEATURES = [
   { icon: Zap,         title: 'Zero Ads',                desc: 'No pre-rolls, banners or interruptions.' },
+  { icon: Radio,       title: 'Lossless HiFi Audio',     desc: 'Studio-master 320kbps streaming, full-range.' },
   { icon: Sliders,     title: '8-Band Equalizer',        desc: 'Studio-grade tuning with crafted presets.' },
   { icon: Headphones,  title: 'Advanced Audio Lab',      desc: 'Compressor, bass boost and vocal clarity.' },
   { icon: Download,    title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
+  { icon: Wand2,       title: 'Smart Recommendations',   desc: 'AI tuned to your taste — discover daily.' },
   { icon: Users,       title: 'Listen Together',         desc: 'Sync rooms with friends in real time.' },
   { icon: Music2,      title: 'AI Playlist Generator',   desc: 'Mood-matched playlists, made instantly.' },
   { icon: InfinityIcon, title: 'Crossfade & Gapless',     desc: 'Seamless transitions, end to end.' },
