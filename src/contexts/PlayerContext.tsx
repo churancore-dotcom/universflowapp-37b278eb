@@ -404,11 +404,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const handle = await mod.App.addListener('appStateChange', (state: { isActive: boolean }) => {
           if (!state?.isActive) return;
           // Returning to foreground from native background:
-          // 1) clear any stale 'error' UI state by re-checking the audio element
-          // 2) resume if we were playing
+          // 1) resume the Web Audio context (Android suspends it while backgrounded)
+          // 2) clear any stale 'error' UI state by re-checking the audio element
+          // 3) resume if we were playing
+          resumeAudioEngine();
           const a = audioRef.current;
           if (!a) return;
-          // If readyState dropped below HAVE_CURRENT_DATA, re-prime by reassigning currentTime
           if (a.src && a.readyState < 2) {
             try { a.currentTime = a.currentTime; } catch {}
           }
