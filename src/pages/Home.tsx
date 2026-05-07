@@ -288,17 +288,16 @@ const Home = () => {
           ) : isOffline && songs.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-6">
-              {/* Online-only discovery sections — hidden when offline */}
+            <div className="space-y-7">
               {!isOffline && (
                 <>
+                  <ArtistsRail />
                   <QuickPicksGrid />
                   <FollowedArtistSongsSection songs={allSongs} />
                   <GlobalTopTracksSection />
                 </>
               )}
 
-              {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
               {isOffline && allSongs.length > 0 && (
                 <AllSongsSection songs={allSongs} />
               )}
