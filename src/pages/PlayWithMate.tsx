@@ -435,6 +435,7 @@ const PlayWithMate = () => {
             )}
           </AnimatePresence>
         </main>
+        )}
 
         <BottomNav />
       </div>
