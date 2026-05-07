@@ -149,7 +149,7 @@ export async function searchIndexedTracks(query: string, limit = 50): Promise<In
 // the user navigates back to Home. Survives across mounts during the session;
 // localStorage layer survives across reloads (TTL 30 minutes).
 const TOP_TRACKS_TTL = 30 * 60 * 1000;
-const TOP_TRACKS_LS_KEY = 'uf_top_tracks_v1';
+const TOP_TRACKS_LS_KEY = 'uf_top_tracks_v2';
 const topTracksMemCache = new Map<string, { data: IndexedTrack[]; expiresAt: number }>();
 let topTracksInflight = new Map<string, Promise<IndexedTrack[]>>();
 
@@ -212,8 +212,9 @@ function persistTopTracksCache() {
 }
 
 export async function getTopIndexedTracks(limit = 30, country?: string): Promise<IndexedTrack[]> {
-  const cc = (country ?? detectCountry() ?? '').toUpperCase().slice(0, 2);
-  const key = `${limit}::${cc}`;
+  // Pass empty country by default → edge function detects from request IP (respects VPNs).
+  const cc = (country ?? '').toUpperCase().slice(0, 2);
+  const key = `${limit}::${cc || 'auto'}`;
   const cached = topTracksMemCache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data;

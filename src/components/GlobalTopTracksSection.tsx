@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Music2, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
-import { detectCountry, getTopIndexedTracks, prefetchIndexedTrack, resolveIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
+import { getTopIndexedTracks, prefetchIndexedTrack, resolveIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
 
 
 const GlobalTopTracksSection = () => {
@@ -10,7 +10,6 @@ const GlobalTopTracksSection = () => {
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const { playSong, currentSong, isPlaying } = usePlayer();
-  const country = useMemo(() => detectCountry(), []);
   const regionLabel = 'Top Charts';
 
   useEffect(() => {
@@ -18,7 +17,7 @@ const GlobalTopTracksSection = () => {
 
     const loadTopTracks = async () => {
       try {
-        const data = await getTopIndexedTracks(30, country);
+        const data = await getTopIndexedTracks(30);
         if (!cancelled) {
           setTracks(data);
         }

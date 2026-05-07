@@ -1153,10 +1153,26 @@ serve(async (req) => {
 
     if (action === 'top') {
       const limit = Math.max(1, Math.min(50, typeof body.limit === 'number' ? body.limit : 30));
-      const country = typeof body.country === 'string' ? body.country : '';
+      let country = typeof body.country === 'string' ? body.country.toUpperCase().slice(0, 2) : '';
+      // Server-side geo from request IP — overrides client when client didn't supply one.
+      if (!country) {
+        country = (req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || '').toUpperCase().slice(0, 2);
+      }
+      if (!country) {
+        try {
+          const ip = (req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '').split(',')[0].trim();
+          if (ip && !/^(10\.|192\.168\.|127\.|::1)/.test(ip)) {
+            const geo = await fetch(`https://ipapi.co/${ip}/country/`, { signal: AbortSignal.timeout(2500) });
+            if (geo.ok) {
+              const txt = (await geo.text()).trim().toUpperCase();
+              if (/^[A-Z]{2}$/.test(txt)) country = txt;
+            }
+          }
+        } catch { /* ignore */ }
+      }
       try {
         const results = await getTopTracks(limit, country);
-        return new Response(JSON.stringify({ success: true, results }), {
+        return new Response(JSON.stringify({ success: true, results, country }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (error) {
