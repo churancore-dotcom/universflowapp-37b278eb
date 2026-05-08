@@ -4,16 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, MailCheck, RefreshCw } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, MailCheck, RefreshCw, User as UserIcon, Globe2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FadeTransition } from '@/components/PageTransition';
 import { supabase } from '@/integrations/supabase/client';
 import appLogo from '@/assets/app-logo.png';
+import { COUNTRIES } from '@/lib/countries';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [country, setCountry] = useState('IN');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verifySent, setVerifySent] = useState<string | null>(null);
@@ -47,7 +50,18 @@ const Auth = () => {
           navigate(isAdmin ? '/admin' : '/home');
         }
       } else {
-        const { error } = await signUp(email, password);
+        const cleanUser = username.trim();
+        if (cleanUser.length < 3 || cleanUser.length > 20) {
+          toast.error('Username must be 3–20 characters');
+          setLoading(false);
+          return;
+        }
+        if (!/^[a-zA-Z0-9_.]+$/.test(cleanUser)) {
+          toast.error('Username: letters, numbers, underscore or dot only');
+          setLoading(false);
+          return;
+        }
+        const { error } = await signUp(email, password, { username: cleanUser, country_code: country });
         if (error) {
           const msg = error.message.toLowerCase();
           if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
@@ -57,8 +71,6 @@ const Auth = () => {
             toast.error(error.message);
           }
         } else {
-          // Mark for picker after they verify and sign in for the first time
-          localStorage.setItem('uf_pending_picker_email', email.toLowerCase());
           setVerifySent(email);
         }
       }
@@ -243,6 +255,40 @@ const Auth = () => {
             </div>
 
             <div className="space-y-3">
+              {!isLogin && (
+                <>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Username (locked once set)"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ''))}
+                      className="pl-10 h-12 text-sm rounded-xl border-0"
+                      style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+                      maxLength={20}
+                      required
+                    />
+                  </div>
+                  <div className="relative">
+                    <Globe2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full pl-10 pr-3 h-12 text-sm rounded-xl border-0 appearance-none text-foreground"
+                      style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+                      required
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code} className="bg-neutral-900">
+                          {c.flag}  {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
