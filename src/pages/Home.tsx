@@ -295,8 +295,11 @@ const Home = () => {
             <div className="space-y-7">
               {!isOffline && (
                 <>
-                  <ArtistsRail />
+                  <HeroCarousel />
                   <ViralByCountrySection />
+                  <CuratedCollections />
+                  <NewForYouBanner />
+                  <ArtistsRail />
                   <QuickPicksGrid />
                   <FollowedArtistSongsSection songs={allSongs} />
                   <GlobalTopTracksSection />
