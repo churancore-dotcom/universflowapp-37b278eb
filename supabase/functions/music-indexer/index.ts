@@ -316,6 +316,23 @@ async function getDeezerArtwork(artist: string, title: string): Promise<string |
   }
 }
 
+async function getAudioDbArtwork(artist: string, title: string): Promise<string | undefined> {
+  const cacheKey = `audiodb-art:${artist}:${title}`;
+  const cached = getCached<string | null>(cacheKey);
+  if (cached !== null) return cached || undefined;
+  try {
+    const url = `https://www.theaudiodb.com/api/v1/json/2/searchtrack.php?s=${encodeURIComponent(artist)}&t=${encodeURIComponent(title)}`;
+    const data = await fetchJson(url, 5000);
+    const t = Array.isArray(data?.track) ? data.track[0] : null;
+    const art = sanitizeArtwork(String(t?.strTrackThumb || t?.strAlbumThumb || ''));
+    setCached(cacheKey, art || null, 12 * 60 * 60 * 1000);
+    return art;
+  } catch {
+    setCached(cacheKey, null, 30 * 60 * 1000);
+    return undefined;
+  }
+}
+
 async function resolveArtwork(artist: string, title: string, preferred?: string) {
   const safePreferred = sanitizeArtwork(preferred);
   if (safePreferred) return safePreferred;
@@ -323,7 +340,10 @@ async function resolveArtwork(artist: string, title: string, preferred?: string)
   const deezerArtwork = await getDeezerArtwork(artist, title);
   if (deezerArtwork) return deezerArtwork;
 
-  return getItunesArtwork(artist, title);
+  const itunes = await getItunesArtwork(artist, title);
+  if (itunes) return itunes;
+
+  return getAudioDbArtwork(artist, title);
 }
 
 async function fetchJson(url: string, timeoutMs = 6000) {
