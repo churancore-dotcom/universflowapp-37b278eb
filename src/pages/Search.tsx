@@ -9,7 +9,7 @@ import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
-import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, type IndexedTrack } from '@/lib/musicIndexer';
+import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, searchYouTubeMusicTracks, type IndexedTrack } from '@/lib/musicIndexer';
 import { isCatalogSongId } from '@/lib/songSupport';
 import { detectMoodAndLanguage } from '@/lib/moodKeywords';
 import FollowedArtistsRail from '@/components/FollowedArtistsRail';
@@ -56,16 +56,18 @@ const Search = () => {
         // intersect by artist (or rank by overlap) so users actually get sad
         // Hindi tracks, not English songs whose title contains "sad".
         const { mood, language, pureBrowse } = detectMoodAndLanguage(trimmedQuery);
+        const smartQuery = [language, mood, 'song'].filter(Boolean).join(' ') || trimmedQuery;
         const tagJobs: Promise<IndexedTrack[]>[] = [];
-        if (language) tagJobs.push(getTagTopTracks(language, 100));
-        if (mood) tagJobs.push(getTagTopTracks(mood, 100));
+        if (language) tagJobs.push(getTagTopTracks(language, 150));
+        if (mood) tagJobs.push(getTagTopTracks(mood, 150));
         // Skip the literal text search when the query is just mood/language
         // words (e.g. "hindi sad song") — it would just return English title hits.
         const literalJob = pureBrowse
           ? Promise.resolve([] as IndexedTrack[])
           : searchIndexedTracks(trimmedQuery, 200);
+        const youtubeJob = searchYouTubeMusicTracks(smartQuery, 50);
 
-        const [literal, ...tagSets] = await Promise.all([literalJob, ...tagJobs]);
+        const [youtube, literal, ...tagSets] = await Promise.all([youtubeJob, literalJob, ...tagJobs]);
         if (cancelled) return;
 
         // Score each track by how many of the requested tags it appeared in.
@@ -90,7 +92,7 @@ const Search = () => {
 
         const merged: IndexedTrack[] = [];
         const seen = new Set<string>();
-        const ordered = (mood || language) ? [...tagMerged, ...literal] : [...literal, ...tagMerged];
+        const ordered = (mood || language) ? [...youtube, ...tagMerged, ...literal] : [...youtube, ...literal, ...tagMerged];
         for (const t of ordered) {
           const key = norm(t);
           if (!key || seen.has(key)) continue;
