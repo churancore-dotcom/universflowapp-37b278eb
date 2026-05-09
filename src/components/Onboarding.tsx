@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Sparkles, ArrowRight } from 'lucide-react';
+import appLogo from '@/assets/app-logo.png';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -110,7 +111,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             dragElastic={0.3}
             onDragEnd={handleDragEnd}
           >
-            {/* Icon container — static glow, no rotation */}
+            {/* Brand animation */}
             <motion.div
               className="relative mb-8"
               initial={{ scale: 0.5, opacity: 0 }}
@@ -118,10 +119,22 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.1 }}
             >
               <div
-                className={`w-28 h-28 rounded-3xl flex items-center justify-center relative bg-gradient-to-br ${slide.gradient}`}
+                className={`w-36 h-36 rounded-[2rem] flex items-center justify-center relative overflow-hidden bg-gradient-to-br ${slide.gradient}`}
                 style={{ boxShadow: '0 15px 40px rgba(0,0,0,0.3)' }}
               >
-                <span className="text-5xl">{slide.emoji}</span>
+                <video
+                  src="/logo-anim.mp4"
+                  poster={appLogo}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <span className="absolute bottom-2 right-2 text-2xl rounded-full bg-background/70 px-2 py-1 backdrop-blur-md">
+                  {slide.emoji}
+                </span>
               </div>
             </motion.div>
 
