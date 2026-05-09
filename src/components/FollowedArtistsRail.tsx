@@ -23,7 +23,7 @@ const FollowedArtistsRail = memo(function FollowedArtistsRail({
   songs,
   compact = false,
   title = 'From Your Artists',
-  limit = 18,
+  limit = 60,
 }: Props) {
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
