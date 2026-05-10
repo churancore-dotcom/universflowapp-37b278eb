@@ -5,9 +5,8 @@ import { toast } from 'sonner';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserArtistPrefs } from '@/lib/userArtistPrefs';
-import { getTopIndexedTracks, prefetchIndexedTrack, resolveIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
-
-const normalize = (v?: string | null) => v?.trim().toLowerCase() || '';
+import { prefetchIndexedTrack, resolveIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Top 30 from the user's followed artists.
@@ -27,15 +26,30 @@ const GlobalTopTracksSection = () => {
     (async () => {
       const prefs = await getUserArtistPrefs(user.id);
       if (cancelled) return;
-      const followed = new Set(prefs.map(p => normalize(p.artist_name)));
       setFollowedCount(prefs.length);
       if (prefs.length === 0) { setLoading(false); return; }
 
+      const names = prefs.map(p => p.artist_name).filter(Boolean);
+
       try {
-        const top = await getTopIndexedTracks(200);
+        // Query stream_songs directly by followed-artist names (case-insensitive).
+        const { data, error } = await supabase
+          .from('stream_songs')
+          .select('track_id, title, artist, album, cover_url, duration')
+          .in('artist', names)
+          .order('last_seen_at', { ascending: false })
+          .limit(30);
+        if (error) throw error;
         if (cancelled) return;
-        const filtered = top.filter(t => followed.has(normalize(t.artist))).slice(0, 30);
-        setTracks(filtered);
+        const mapped: IndexedTrack[] = (data || []).map((r: any) => ({
+          id: r.track_id,
+          title: r.title,
+          artist: r.artist,
+          album: r.album ?? undefined,
+          cover_url: r.cover_url ?? undefined,
+          duration: r.duration ?? undefined,
+        }));
+        setTracks(mapped);
       } catch (e) {
         console.error('top-30 followed load failed', e);
       } finally {
