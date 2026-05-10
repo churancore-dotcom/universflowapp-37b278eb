@@ -65,6 +65,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       setBands(s.bands ?? [0, 0, 0, 0, 0, 0, 0, 0], s.bassBoost ?? 0);
       setReverb(s.reverb ?? 0);
       setSpatial(!!s.spatialAudio);
+      setLateNight(!!s.lateNight);
       if (typeof s.playbackSpeed === 'number') audioElement.playbackRate = s.playbackSpeed;
     };
 
