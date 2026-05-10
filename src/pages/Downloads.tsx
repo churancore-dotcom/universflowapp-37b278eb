@@ -56,7 +56,7 @@ const DownloadsPage = memo(function DownloadsPage() {
     if (!song) return;
     const url = getDownloadedUrl(songId) || song.audio_url;
     haptics.light();
-    playSong({ ...song, audio_url: url }, downloads);
+    playSong(song, url, downloads);
   };
 
   const handleRemove = (songId: string, title: string) => {
