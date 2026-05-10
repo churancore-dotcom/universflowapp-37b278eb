@@ -346,7 +346,16 @@ const Library = () => {
 
               <TabsContent value="downloads" className="mt-0">
                 {downloads.length === 0 ? (
-                  <EmptyState icon={CloudOff} text="No downloads yet" />
+                  <div className="space-y-3">
+                    <EmptyState icon={CloudOff} text="No downloads yet" />
+                    <button
+                      onClick={() => navigate('/downloads')}
+                      className="w-full py-3 rounded-xl text-xs font-semibold text-primary"
+                      style={{ background: 'hsl(var(--primary) / 0.1)' }}
+                    >
+                      Open Downloads Manager
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-2.5">
                     <div
@@ -360,13 +369,22 @@ const Library = () => {
                         <p className="text-xs font-semibold">{downloads.length} songs</p>
                         <p className="text-[10px] text-muted-foreground">{formatBytes(totalStorageUsed)}</p>
                       </div>
-                      <button
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-destructive"
-                        style={{ background: 'hsl(var(--destructive) / 0.1)' }}
-                        onClick={clearAllDownloads}
-                      >
-                        Clear All
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary"
+                          style={{ background: 'hsl(var(--primary) / 0.12)' }}
+                          onClick={() => navigate('/downloads')}
+                        >
+                          Manage
+                        </button>
+                        <button
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-destructive"
+                          style={{ background: 'hsl(var(--destructive) / 0.1)' }}
+                          onClick={clearAllDownloads}
+                        >
+                          Clear All
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-0.5">
                       {downloads.map((song, i) => (
