@@ -444,6 +444,54 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               </div>
             </div>
 
+            {/* Studio Spaces — Premium-exclusive acoustic environments */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-medium flex items-center gap-2">
+                    Studio Spaces
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-rose-500 to-pink-600 text-white">EXCLUSIVE</span>
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Hear songs in real acoustic environments</p>
+                </div>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+                {STUDIO_SPACES.map((space) => {
+                  const Icon = space.icon;
+                  const isSelected = studioSpace === space.id;
+                  return (
+                    <motion.button
+                      key={space.id}
+                      onClick={() => handleSpaceSelect(space.id)}
+                      className="relative flex-shrink-0 flex flex-col items-center gap-1.5 py-3 px-3 rounded-xl min-w-[88px] transition-all"
+                      style={{
+                        background: isSelected
+                          ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(330 80% 55%))'
+                          : 'rgba(28, 28, 30, 0.8)',
+                        border: isSelected
+                          ? '1px solid hsl(var(--primary) / 0.6)'
+                          : '1px solid rgba(255, 255, 255, 0.06)',
+                      }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Icon className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
+                      <span className={`text-[11px] font-medium ${isSelected ? 'text-white' : 'text-foreground'}`}>
+                        {space.name}
+                      </span>
+                      <span className={`text-[9px] leading-tight ${isSelected ? 'text-white/80' : 'text-muted-foreground/70'}`}>
+                        {space.desc}
+                      </span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+              {studioSpace !== 'off' && (
+                <p className="text-[10px] text-muted-foreground/70 mt-1 px-1">
+                  Reverb slider is overridden while a Studio Space is active.
+                </p>
+              )}
+            </div>
+
             {/* 8D Spatial Audio */}
             <div
               className="flex items-center justify-between p-4 rounded-2xl"
