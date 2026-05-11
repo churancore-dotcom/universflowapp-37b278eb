@@ -268,6 +268,8 @@ serve(async (req) => {
             data = candidateData;
             break;
           }
+          lastErr = 'No matching fresh videos';
+          continue;
         }
         lastErr = await response.text().catch(() => 'No matching videos');
         console.warn(`YouTube key/search window failed (${response.status}), trying next...`, lastErr.slice(0, 200));
