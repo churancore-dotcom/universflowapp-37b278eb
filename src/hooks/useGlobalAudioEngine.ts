@@ -46,10 +46,16 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       localStorage.setItem('uf_audio_fx_allowed', isPremium ? '1' : '0');
     } catch {}
 
+    // Track whether processed chain is "wanted" so we can switch to direct
+    // when backgrounded (to avoid Android throttling glitches) and restore
+    // when foregrounded.
+    let processedWanted = false;
+
     const reapply = () => {
       if (!isPremium) {
         bypassAudioElement(audioElement);
         audioElement.playbackRate = 1;
+        processedWanted = false;
         return;
       }
 
@@ -57,6 +63,16 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       if (!hasActiveProcessing(s)) {
         bypassAudioElement(audioElement);
         audioElement.playbackRate = 1;
+        processedWanted = false;
+        return;
+      }
+
+      processedWanted = true;
+
+      // While backgrounded, keep the cheap direct path to avoid stutters.
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        bypassAudioElement(audioElement);
+        if (typeof s.playbackSpeed === 'number') audioElement.playbackRate = s.playbackSpeed;
         return;
       }
 
@@ -73,17 +89,32 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     const onPlay = () => resume();
     const onPointer = () => resume();
 
+    // Background → bypass effects to prevent Android JS throttling glitches.
+    // Foreground → restore the processed chain if the user had it on.
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (processedWanted) {
+          bypassAudioElement(audioElement);
+        }
+      } else {
+        resume();
+        reapply();
+      }
+    };
+
     if (!isLoading) reapply();
     audioElement.addEventListener('loadedmetadata', reapply);
     audioElement.addEventListener('canplay', reapply);
     audioElement.addEventListener('play', onPlay);
     document.addEventListener('pointerdown', onPointer, { once: true });
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       audioElement.removeEventListener('loadedmetadata', reapply);
       audioElement.removeEventListener('canplay', reapply);
       audioElement.removeEventListener('play', onPlay);
       document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [audioElement, isPremium, isLoading]);
 }
