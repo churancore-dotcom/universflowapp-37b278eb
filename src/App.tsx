@@ -201,6 +201,7 @@ const AnimatedRoutes = () => {
             <Route path="settings" element={<AdminSettings />} />
             <Route path="api" element={<APIManagement />} />
             <Route path="notifications" element={<PushNotifications />} />
+            <Route path="devices" element={<RegisteredDevices />} />
             <Route path="engagement" element={<UserEngagement />} />
             <Route path="ab-testing" element={<ABTesting />} />
             <Route path="security" element={<SecurityCenter />} />
