@@ -11,6 +11,7 @@ import AllSongsSection from '@/components/AllSongsSection';
 
 import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
+import PremiumFirstSection from '@/components/PremiumFirstSection';
 
 
 import CountryViralSection from '@/components/CountryViralSection';
