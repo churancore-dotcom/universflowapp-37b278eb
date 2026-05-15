@@ -5,7 +5,7 @@
 // Each theme defines a COMPLETE token set so no element renders unstyled
 // in any mode (Pearl/white especially).
 
-type ThemeMode = 'default' | 'light' | 'black' | 'sunset' | 'ocean' | 'midnight-gold';
+type ThemeMode = 'default' | 'light' | 'black' | 'sunset' | 'ocean' | 'midnight-gold' | 'crimson';
 
 interface ThemeTokens {
   background: string; foreground: string;
