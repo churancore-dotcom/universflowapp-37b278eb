@@ -306,7 +306,14 @@ const Home = () => {
         <main 
           className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-4 pb-36 relative z-10"
           style={{ WebkitOverflowScrolling: 'touch' }}
+          {...pullToRefresh.handlers}
         >
+        <PullToRefreshIndicator
+          pullDistance={pullToRefresh.pullDistance}
+          isRefreshing={pullToRefresh.isRefreshing}
+          progress={pullToRefresh.progress}
+          isTriggered={pullToRefresh.isTriggered}
+        />
         {loading ? (
             <HomeSkeleton />
           ) : isOffline && songs.length === 0 ? (
