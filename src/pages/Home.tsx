@@ -209,6 +209,15 @@ const Home = () => {
     return 'Good evening';
   }, []);
 
+  // Pull-to-refresh — re-fetches home feed on overscroll
+  const pullToRefresh = usePullToRefresh({
+    onRefresh: async () => {
+      triggerHaptic('medium');
+      await queryClient.invalidateQueries({ queryKey: HOME_SONGS_QUERY_KEY });
+      await queryClient.refetchQueries({ queryKey: HOME_SONGS_QUERY_KEY });
+    },
+  });
+
   return (
     <TabTransition>
       <div className="h-[100dvh] bg-background relative flex flex-col overflow-hidden">
