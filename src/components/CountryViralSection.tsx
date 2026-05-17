@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { getGeoTopTracks, prefetchIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import ChartSection from '@/components/ChartSection';
 
 // ISO-3166 alpha-2 → English country name (limited to common Last.fm-supported names)
 const COUNTRY_NAMES: Record<string, string> = {
