@@ -26,6 +26,16 @@ function dbCacheKey(artist: string, title: string) {
   return `resolve:${artist.toLowerCase().trim()}::${title.toLowerCase().trim()}`.slice(0, 200);
 }
 
+function isKnownBrokenStreamUrl(url?: string | null) {
+  if (!url || url.startsWith('yt-video:')) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host.startsWith('proxy.piped.');
+  } catch {
+    return false;
+  }
+}
+
 async function getDbCachedStream(artist: string, title: string): Promise<{ streamUrl: string; videoId?: string; cover_url?: string; duration?: number } | null> {
   const client = getAdminClient();
   if (!client) return null;
@@ -37,6 +47,7 @@ async function getDbCachedStream(artist: string, title: string): Promise<{ strea
       .eq('track_id', trackId)
       .maybeSingle();
     if (!data?.audio_url) return null;
+    if (isKnownBrokenStreamUrl(data.audio_url as string)) return null;
     const ageMs = Date.now() - new Date(data.last_seen_at as string).getTime();
     if (ageMs > STREAM_DB_CACHE_TTL_MS) return null;
     const meta = (data.metadata as Record<string, unknown>) || {};
@@ -873,17 +884,41 @@ function pickBestStream(data: Record<string, any>, instance: string) {
   return raw;
 }
 
-function pickBestPipedStream(data: Record<string, any>, instance: string) {
+async function probePlayableStream(url: string, timeoutMs = 5000) {
+  if (isKnownBrokenStreamUrl(url)) return false;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: { range: 'bytes=0-1', 'user-agent': 'Mozilla/5.0 (UniversFlow Audio Probe)', accept: '*/*' },
+    });
+    const type = response.headers.get('content-type') || '';
+    await response.body?.cancel().catch(() => undefined);
+    return (response.ok || response.status === 206) && type.startsWith('audio/');
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function pickBestPipedStream(data: Record<string, any>, instance: string) {
   const streams = Array.isArray(data.audioStreams) ? data.audioStreams : [];
-  const best = streams
+  const ranked = streams
     .filter((s: any) => typeof s?.url === 'string')
     .sort((a: any, b: any) => {
       const am = a.mimeType?.includes('mp4') || a.format === 'm4a' ? 1 : 0;
       const bm = b.mimeType?.includes('mp4') || b.format === 'm4a' ? 1 : 0;
       if (am !== bm) return bm - am;
       return (b.bitrate || 0) - (a.bitrate || 0);
-    })[0];
-  return normalizeUrl(best?.proxyUrl || best?.url, instance);
+    });
+  for (const stream of ranked) {
+    const url = normalizeUrl(stream?.proxyUrl || stream?.url, instance);
+    if (url && await probePlayableStream(url)) return url;
+  }
+  return undefined;
 }
 
 async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
@@ -898,12 +933,14 @@ async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; dur
   // Try primary first (fast path)
   try {
     const data = await fetchJson(`${primaryPiped}/streams/${videoId}`, 8000);
-    const url = pickBestPipedStream(data, primaryPiped);
+    const url = await pickBestPipedStream(data, primaryPiped);
     if (url) {
       console.log(`[resolve] ✓ ${videoId} via ${primaryPiped}`);
       return { streamUrl: url, duration: Number(data.duration || 0) || undefined };
     }
+    markFailed(primaryPiped);
   } catch (e) {
+    markFailed(primaryPiped);
     console.warn(`[resolve] primary failed for ${videoId}:`, (e as Error).message);
   }
 
@@ -912,7 +949,7 @@ async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; dur
     ...orderedPiped.slice(1).map(async (inst) => {
       try {
         const data = await fetchJson(`${inst}/streams/${videoId}`, 7000);
-        const url = pickBestPipedStream(data, inst);
+        const url = await pickBestPipedStream(data, inst);
         if (!url) throw new Error('no audio stream');
         console.log(`[resolve] ✓ ${videoId} via ${inst}`);
         return { streamUrl: url, duration: Number(data.duration || 0) || undefined };
@@ -947,13 +984,13 @@ async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; dur
   }
 }
 
-async function resolveStream(artist: string, title: string): Promise<ResolveResult> {
+async function resolveStream(artist: string, title: string, forceRefresh = false): Promise<ResolveResult> {
   const ck = `resolve:${artist}:${title}`;
   const cached = getCached<ResolveResult>(ck);
-  if (cached) return cached;
+  if (!forceRefresh && cached) return cached;
 
   // ── Persistent DB cache (survives cold starts; shared across users) ──
-  const dbCached = await getDbCachedStream(artist, title);
+  const dbCached = forceRefresh ? null : await getDbCachedStream(artist, title);
   if (dbCached?.streamUrl) {
     const result: ResolveResult = {
       success: true,
@@ -1291,12 +1328,13 @@ serve(async (req) => {
     if (action === 'resolve') {
       const artist = typeof body.artist === 'string' ? body.artist.trim() : '';
       const title = typeof body.title === 'string' ? body.title.trim() : '';
+      const forceRefresh = body.forceRefresh === true;
       if (!artist || !title) {
         return new Response(JSON.stringify({ success: false, error: 'Artist and title are required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const result = await resolveStream(artist, title);
+      const result = await resolveStream(artist, title, forceRefresh);
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

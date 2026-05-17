@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { useGlobalAudioEngine } from '@/hooks/useGlobalAudioEngine';
 import { supabase } from '@/integrations/supabase/client';
-import { resolveIndexedTrack, prefetchIndexedTrack, invalidateStreamCache } from '@/lib/musicIndexer';
+import { resolveIndexedTrack, prefetchIndexedTrack } from '@/lib/musicIndexer';
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { getRuntimePremium } from '@/lib/premiumState';
@@ -214,6 +214,15 @@ const isYouTubeFallbackUrl = (url?: string | null) => Boolean(url?.startsWith('y
 const getYouTubeFallbackVideoId = (url?: string | null) => {
   if (!isYouTubeFallbackUrl(url)) return null;
   return url?.replace('yt-video:', '').trim() || null;
+};
+
+const isKnownBrokenStreamUrl = (url?: string | null) => {
+  if (!url || isYouTubeFallbackUrl(url)) return false;
+  try {
+    return new URL(url, window.location.href).hostname.toLowerCase().startsWith('proxy.piped.');
+  } catch {
+    return false;
+  }
 };
 
 let youtubeIframeApiPromise: Promise<typeof window.YT> | null = null;
@@ -531,6 +540,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isPlayableUrl = useCallback((url?: string) => {
     if (!url) return false;
     if (url === '' || url === 'pending' || url === 'resolving') return false;
+    if (isKnownBrokenStreamUrl(url)) return false;
     if (isYouTubeFallbackUrl(url)) return true;
     return url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:');
   }, []);
@@ -926,6 +936,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             newQueue[currentIndex] = refreshed;
             setQueueState(newQueue);
             setCurrentSong(refreshed);
+            if (isYouTubeFallbackUrl(fresh)) {
+              const videoId = getYouTubeFallbackVideoId(fresh);
+              if (videoId) {
+                await playYouTubeFallback(videoId, () => {
+                  try { audioRef.current?.dispatchEvent(new Event('ended')); } catch { /* ignore */ }
+                });
+                return;
+              }
+            }
             configureAudioElementSource(audio, buildStreamProxyUrl(fresh));
             audio.load();
             await audio.play().catch(() => { /* will fall through to skip below on next error */ });
@@ -967,7 +986,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('error', handleAudioError);
     };
-  }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, getNextIndex, playSongAtIndex, resolveAudioUrl]);
+  }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, getNextIndex, playSongAtIndex, resolveAudioUrl, playYouTubeFallback]);
 
   // Crossfade implementation
   const startCrossfade = useCallback(() => {
