@@ -868,9 +868,14 @@ function pickBestStream(data: Record<string, any>, instance: string) {
       return (b.bitrate || 0) - (a.bitrate || 0);
     });
   const chosen = audio[0] || (Array.isArray(data.formatStreams) ? data.formatStreams[0] : null);
-  // ALWAYS prefer proxyUrl for CORS compatibility in browser
-  const raw = normalizeUrl(chosen?.proxyUrl, instance) || normalizeUrl(chosen?.url, instance);
-  return raw;
+  if (!chosen) return undefined;
+  // Use Invidious's local proxy (/latest_version?local=true) — bypasses IP-bound googlevideo signing.
+  const itag = chosen?.itag;
+  const videoId = data?.videoId;
+  if (itag && videoId) {
+    return `${instance.replace(/\/$/, '')}/latest_version?id=${encodeURIComponent(String(videoId))}&itag=${encodeURIComponent(String(itag))}&local=true`;
+  }
+  return normalizeUrl(chosen?.url, instance);
 }
 
 async function probePlayableStream(url: string, timeoutMs = 4000) {
