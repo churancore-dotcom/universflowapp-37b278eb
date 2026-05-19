@@ -15,7 +15,7 @@ import PremiumFirstSection from '@/components/PremiumFirstSection';
 
 
 import CountryViralSection from '@/components/CountryViralSection';
-import ChartSection from '@/components/ChartSection';
+
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import BottomNav from '@/components/BottomNav';
