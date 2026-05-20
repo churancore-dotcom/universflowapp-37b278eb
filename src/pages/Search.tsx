@@ -12,6 +12,7 @@ import SEOHead from '@/components/SEOHead';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, searchYouTubeMusicTracks, type IndexedTrack } from '@/lib/musicIndexer';
+import { searchSongsAsTracks as searchJioSaavnTracks } from '@/lib/jiosaavn';
 import { isCatalogSongId } from '@/lib/songSupport';
 import { detectMoodAndLanguage } from '@/lib/moodKeywords';
 import FollowedArtistsRail from '@/components/FollowedArtistsRail';
