@@ -126,6 +126,7 @@ const configureAudioElementSource = (audio: HTMLAudioElement, sourceUrl: string)
 // so the EQ / Web Audio graph can process it without tainting the audio.
 const DIRECT_PLAYABLE_HOST_SNIPPETS = [
   'supabase.co',
+  'saavncdn.com',
 ];
 
 const shouldProxyStreamUrl = (sourceUrl: string) => {
