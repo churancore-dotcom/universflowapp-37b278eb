@@ -7,13 +7,13 @@ const SEARCH_TIMEOUT_MS = 8000;
 
 async function fetchJson(url: string) {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
+  const timeout = globalThis.setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
   try {
     const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     return await res.json();
   } finally {
-    window.clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
   }
 }
 
