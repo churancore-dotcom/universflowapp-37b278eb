@@ -78,98 +78,7 @@ jobs:
           echo "=== app build.gradle ==="
           grep -n "google-services\|firebase" "$APP_GRADLE" || true
 
-      - name: Integrate Android widgets
-        run: |
-          # Package must match capacitor.config.prod.ts appId
-          PKG="app.lovable.id5acaae55bbc847a7bd32f3924d8ef986"
-          PKG_PATH="app/lovable/id5acaae55bbc847a7bd32f3924d8ef986"
-
-          # Create widget package directory
-          mkdir -p "android/app/src/main/java/${PKG_PATH}/widgets"
-
-          # Copy Java widget files, rewriting the package name to match new appId
-          for f in android-widgets/java/*.java; do
-            base=$(basename "$f")
-            sed \
-              -e "s/app\\.lovable\\.universflow\\.widgets/${PKG}.widgets/g" \
-              -e "s/app\\.lovable\\.universflow/${PKG}/g" \
-              "$f" > "android/app/src/main/java/${PKG_PATH}/widgets/${base}"
-          done
-
-          # Add R class import to all widget Java files
-          for file in android/app/src/main/java/${PKG_PATH}/widgets/*.java; do
-            sed -i "s|^package ${PKG}\\.widgets;|package ${PKG}.widgets;\\nimport ${PKG}.R;|" "$file"
-          done
-
-          # Copy drawable resources
-          cp android-widgets/res/drawable/*.xml android/app/src/main/res/drawable/
-
-          # Copy layout resources
-          cp android-widgets/res/layout/*.xml android/app/src/main/res/layout/
-
-          # Copy xml resources (widget info)
-          mkdir -p android/app/src/main/res/xml
-          cp android-widgets/res/xml/*.xml android/app/src/main/res/xml/
-
-          # Merge string resources properly
-          sed -i '/<\/resources>/d' android/app/src/main/res/values/strings.xml
-          grep '<string name=' android-widgets/res/values/strings_widgets.xml >> android/app/src/main/res/values/strings.xml
-          echo '</resources>' >> android/app/src/main/res/values/strings.xml
-
-      - name: Update AndroidManifest.xml for widgets
-        run: |
-          # Add deep link intent filter to the main activity
-          sed -i 's/<\/activity>/\
-                  <intent-filter>\
-                      <action android:name="android.intent.action.VIEW" \/>\
-                      <category android:name="android.intent.category.DEFAULT" \/>\
-                      <category android:name="android.intent.category.BROWSABLE" \/>\
-                      <data android:scheme="universflow" \/>\
-                  <\/intent-filter>\
-              <\/activity>/g' android/app/src/main/AndroidManifest.xml
-
-          # Add widget receivers and services before closing </application> tag
-          sed -i 's/<\/application>/\
-              <!-- Now Playing Widget -->\
-              <receiver android:name=".widgets.NowPlayingWidget" android:exported="false">\
-                  <intent-filter>\
-                      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
-                  <\/intent-filter>\
-                  <meta-data android:name="android.appwidget.provider" android:resource="@xml\/now_playing_widget_info" \/>\
-              <\/receiver>\
-              <!-- Favorites Widget -->\
-              <receiver android:name=".widgets.FavoritesWidget" android:exported="false">\
-                  <intent-filter>\
-                      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
-                  <\/intent-filter>\
-                  <meta-data android:name="android.appwidget.provider" android:resource="@xml\/favorites_widget_info" \/>\
-              <\/receiver>\
-              <!-- Quick Actions Widget -->\
-              <receiver android:name=".widgets.QuickActionsWidget" android:exported="false">\
-                  <intent-filter>\
-                      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
-                  <\/intent-filter>\
-                  <meta-data android:name="android.appwidget.provider" android:resource="@xml\/quick_actions_widget_info" \/>\
-              <\/receiver>\
-              <!-- Recently Played Widget -->\
-              <receiver android:name=".widgets.RecentlyPlayedWidget" android:exported="false">\
-                  <intent-filter>\
-                      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
-                  <\/intent-filter>\
-                  <meta-data android:name="android.appwidget.provider" android:resource="@xml\/recently_played_widget_info" \/>\
-              <\/receiver>\
-              <!-- Music Search Widget -->\
-              <receiver android:name=".widgets.MusicSearchWidget" android:exported="false">\
-                  <intent-filter>\
-                      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" \/>\
-                  <\/intent-filter>\
-                  <meta-data android:name="android.appwidget.provider" android:resource="@xml\/music_search_widget_info" \/>\
-              <\/receiver>\
-              <!-- Widget Update Service -->\
-              <service android:name=".widgets.WidgetUpdateService" android:exported="false" \/>\
-          <\/application>/g' android/app/src/main/AndroidManifest.xml
-
-      - name: Register WidgetBridgePlugin in MainActivity
+      - name: Write MainActivity (registers MediaNotificationPlugin)
         run: |
           PKG="app.lovable.id5acaae55bbc847a7bd32f3924d8ef986"
           PKG_PATH="app/lovable/id5acaae55bbc847a7bd32f3924d8ef986"
@@ -181,13 +90,11 @@ jobs:
 
           import android.os.Bundle;
           import com.getcapacitor.BridgeActivity;
-          import ${PKG}.widgets.WidgetBridgePlugin;
           import ${PKG}.media.MediaNotificationPlugin;
 
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
-                  registerPlugin(WidgetBridgePlugin.class);
                   registerPlugin(MediaNotificationPlugin.class);
                   super.onCreate(savedInstanceState);
               }
@@ -195,6 +102,7 @@ jobs:
           EOF
 
           echo "MainActivity registered at: $MAIN_ACTIVITY"
+
 
       - name: Integrate MediaNotification plugin (lockscreen + notification controls)
         run: |
