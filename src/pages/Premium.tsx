@@ -142,6 +142,32 @@ const PremiumPage = memo(function PremiumPage() {
         title="Univers Flow Premium — Ad-Free Music & Spatial Audio"
         description="Upgrade to Univers Flow Premium for zero ads, spatial 3D audio, studio EQ, unlimited downloads and exclusive tracks."
         keywords="Univers Flow Premium, premium music, ad-free streaming, spatial audio, music download"
+        path="/premium"
+        jsonLdId="premium-jsonld"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: 'Univers Flow Premium',
+            description: 'Ad-free streaming, spatial audio, studio EQ, and unlimited offline downloads.',
+            brand: { '@type': 'Brand', name: 'Univers Flow' },
+            offers: {
+              '@type': 'Offer',
+              priceCurrency: 'INR',
+              price: '99',
+              url: 'https://universflow.in/premium',
+              availability: 'https://schema.org/InStock',
+            },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://universflow.in/' },
+              { '@type': 'ListItem', position: 2, name: 'Premium', item: 'https://universflow.in/premium' },
+            ],
+          },
+        ]}
       />
       <motion.div
         className="min-h-screen bg-background pb-44 relative overflow-hidden"

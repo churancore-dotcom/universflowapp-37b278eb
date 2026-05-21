@@ -103,7 +103,22 @@ const StructuredData = () => {
       }
     };
 
-    const schemas = [organizationSchema, webAppSchema, musicServiceSchema, softwareAppSchema];
+    const websiteSchema = {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Univers Flow",
+      "url": SITE_URL,
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": `${SITE_URL}/search?q={search_term_string}`
+        },
+        "query-input": "required name=search_term_string"
+      }
+    };
+
+    const schemas = [organizationSchema, webAppSchema, musicServiceSchema, softwareAppSchema, websiteSchema];
     
     schemas.forEach(schema => {
       const script = document.createElement('script');

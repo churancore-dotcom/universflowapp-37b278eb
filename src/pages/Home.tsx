@@ -223,9 +223,18 @@ const Home = () => {
     <TabTransition>
       <div className="h-[100dvh] bg-background relative flex flex-col overflow-hidden">
         <SEOHead
-          title="Music Player — Univers Flow"
-          description="Your personalized music feed: trending tracks, featured artists, auto-generated mixes, and your now-playing card."
+          title="Univers Flow — Free Music Streaming, Playlists & Offline Downloads"
+          description="Your personalized music feed: trending tracks, featured artists, auto-generated mixes, and your now-playing card. Stream and download free."
           path="/home"
+          jsonLdId="home-jsonld"
+          jsonLd={{
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: 'Univers Flow — Home',
+            url: 'https://universflow.in/home',
+            description: 'Personalized music feed with trending tracks, featured artists, and auto-generated mixes.',
+            isPartOf: { '@type': 'WebSite', name: 'Univers Flow', url: 'https://universflow.in' },
+          }}
         />
         <h1 className="sr-only">Univers Flow Music Player</h1>
         {/* Ambient background — cinematic */}

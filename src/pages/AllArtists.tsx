@@ -16,6 +16,7 @@ import {
 import { followArtist, unfollowArtist, getUserArtistPrefs } from '@/lib/userArtistPrefs';
 import { CURATED_ARTISTS, ARTIST_CATEGORIES, type ArtistCategory } from '@/lib/curatedArtists';
 import BottomNav from '@/components/BottomNav';
+import SEOHead from '@/components/SEOHead';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/hooks/useHaptics';
 
@@ -347,6 +348,19 @@ const AllArtists = () => {
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
+      <SEOHead
+        title="Browse Artists — Discover Music | Univers Flow"
+        description="Browse and follow artists across every genre on Univers Flow. Stream songs, explore discographies, and download for offline listening."
+        path="/artists"
+        jsonLdId="artists-jsonld"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          name: 'Browse Artists — Univers Flow',
+          url: 'https://universflow.in/artists',
+          isPartOf: { '@type': 'WebSite', name: 'Univers Flow', url: 'https://universflow.in' },
+        }}
+      />
       <header className="flex-shrink-0 z-30 px-4 pt-3 pb-3 safe-area-pt" style={{
         background: 'rgba(0,0,0,0.7)',
         backdropFilter: 'blur(40px) saturate(180%)',
