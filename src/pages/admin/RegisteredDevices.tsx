@@ -202,9 +202,11 @@ const RegisteredDevices = () => {
           {filtered.map((d) => {
             const isOnline = Date.now() - new Date(d.updated_at).getTime() < ONLINE_THRESHOLD;
             const info = d.device_info ?? {};
-            const model = info.model || 'Unknown device';
-            const mfr = info.manufacturer || '';
-            const os = info.os ? `${info.os} ${info.os_version ?? ''}`.trim() : d.platform || 'unknown';
+            const model = typeof info.model === 'string' ? info.model : 'Unknown device';
+            const mfr = typeof info.manufacturer === 'string' ? info.manufacturer : '';
+            const osName = typeof info.os === 'string' ? info.os : '';
+            const osVersion = typeof info.os_version === 'string' ? info.os_version : '';
+            const os = osName ? `${osName} ${osVersion}`.trim() : d.platform || 'unknown';
             return (
               <motion.div
                 key={d.id}
