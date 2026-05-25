@@ -931,12 +931,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       //    once with a forced cache-bust, then retry the same song. Only skip
       //    if the refreshed URL also fails. ──
       const cur = queue[currentIndex];
+      const activeIdentity = activeSongIdentityRef.current;
+      const errorBelongsToActiveSong = cur && activeIdentity === getSongIdentity(cur);
       const looksStale =
         errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ||
         errorCode === MediaError.MEDIA_ERR_NETWORK ||
         errorCode === MediaError.MEDIA_ERR_DECODE;
       if (
         cur &&
+        errorBelongsToActiveSong &&
         looksStale &&
         cur.artist &&
         cur.title &&
@@ -944,7 +947,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ) {
         recoveryAttempted.add(cur.id);
         try {
+          const seqAtRecoveryStart = playRequestSeqRef.current;
           const fresh = await resolveAudioUrl(cur, { forceRefresh: true });
+          if (seqAtRecoveryStart !== playRequestSeqRef.current || activeSongIdentityRef.current !== activeIdentity) return;
           if (fresh && fresh !== cur.audio_url) {
             const refreshed = { ...cur, audio_url: fresh };
             const newQueue = [...queue];
@@ -977,10 +982,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (nextIdx === null && repeat === 'all') nextIdx = 0;
       if (nextIdx === null && queue.length > 1) nextIdx = (currentIndex + 1) % queue.length;
 
-      if (nextIdx !== null && nextIdx !== currentIndex) {
+      if (errorBelongsToActiveSong && nextIdx !== null && nextIdx !== currentIndex) {
         toast.info('Trying another source…');
         playSongAtIndex(nextIdx, queue);
-      } else {
+      } else if (errorBelongsToActiveSong) {
         setIsPlaying(false);
         toast.error('This song could not start right now.');
       }
