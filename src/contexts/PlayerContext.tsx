@@ -714,6 +714,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Claim this play request — any earlier in-flight playback must abort.
     const mySeq = ++playRequestSeqRef.current;
+    const intendedIdentity = getSongIdentity(song);
+    activeSongIdentityRef.current = intendedIdentity;
 
     // Stop whatever is currently playing IMMEDIATELY so we never have two
     // <audio> elements racing to set src and emit events.
@@ -732,7 +734,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (needsResolution) {
       try {
         const resolved = await resolveAudioUrl(song);
-        if (mySeq !== playRequestSeqRef.current) return; // user tapped another song
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return; // user tapped another song
         if (!resolved) {
           toast.error('This song is still preparing. Try again in a second.');
           setIsPlaying(false);
@@ -740,7 +742,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         songQueue[index] = { ...song, audio_url: resolved };
       } catch {
-        if (mySeq !== playRequestSeqRef.current) return;
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return;
         setIsPlaying(false);
         toast.error('This song could not be prepared for playback.');
         return;
@@ -774,7 +776,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!isPlayableUrl(audioUrl)) {
       try {
         const resolved = await resolveAudioUrl(song);
-        if (mySeq !== playRequestSeqRef.current) return; // superseded by newer tap
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return; // superseded by newer tap
         if (resolved) {
           audioUrl = resolved;
           // Update the song in queue with resolved URL
@@ -788,14 +790,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return;
         }
       } catch {
-        if (mySeq !== playRequestSeqRef.current) return;
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return;
         setIsPlaying(false);
         return;
       }
     }
 
     // Final race guard before we actually touch the <audio> element.
-    if (mySeq !== playRequestSeqRef.current) return;
+    if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return;
 
     // ── YouTube IFrame fallback path ──
     if (isYouTubeFallbackUrl(audioUrl)) {
