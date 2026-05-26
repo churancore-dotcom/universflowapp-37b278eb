@@ -19,6 +19,23 @@ interface PaymentRequest {
 
 const STATUS_TABS: Array<PaymentRequest['status'] | 'all'> = ['pending', 'approved', 'rejected', 'all'];
 
+const getPremiumGrant = (plan: string, currentExpiresAt?: string | null) => {
+  const base = currentExpiresAt && new Date(currentExpiresAt) > new Date()
+    ? new Date(currentExpiresAt)
+    : new Date();
+
+  if (plan === 'lifetime') {
+    return { subscription_type: 'premium_yearly' as const, expires_at: '2099-12-31T23:59:59.000Z' };
+  }
+
+  const days = plan === 'quarterly' ? 90 : 30;
+  const expires = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  return {
+    subscription_type: plan === 'quarterly' ? 'premium_yearly' as const : 'premium_monthly' as const,
+    expires_at: expires.toISOString(),
+  };
+};
+
 export default function PaymentRequests() {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,11 +86,39 @@ export default function PaymentRequests() {
       .from('payment_requests')
       .update({ status, reviewed_at: new Date().toISOString() })
       .eq('id', id);
-    setBusyId(null);
     if (error) {
+      setBusyId(null);
       toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
       return;
     }
+
+    if (status === 'approved' && req) {
+      const { data: existing } = await supabase
+        .from('user_subscriptions')
+        .select('expires_at')
+        .eq('user_id', req.user_id)
+        .maybeSingle();
+
+      const grant = getPremiumGrant(req.plan, existing?.expires_at ?? null);
+      const { error: grantError } = await supabase
+        .from('user_subscriptions')
+        .upsert({
+          user_id: req.user_id,
+          subscription_type: grant.subscription_type,
+          status: 'active',
+          expires_at: grant.expires_at,
+          platform: 'web',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (grantError) {
+        setBusyId(null);
+        toast({ title: 'Approved, but Premium grant failed', description: grantError.message, variant: 'destructive' });
+        return;
+      }
+    }
+
+    setBusyId(null);
     toast({ title: status === 'approved' ? '✓ Premium granted' : 'Rejected' });
     // Telegram notify
     if (req) {
