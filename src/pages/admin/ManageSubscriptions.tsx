@@ -14,7 +14,8 @@ import {
   MoreVertical,
   Ban,
   Gift,
-  Smartphone
+  Smartphone,
+  Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -174,6 +175,24 @@ const ManageSubscriptions = () => {
     } catch (error) {
       console.error('Error granting premium:', error);
       toast.error('Failed to grant premium');
+    }
+  };
+
+  const deleteSubscription = async (sub: Subscription) => {
+    const label = sub.user_email || sub.username || sub.user_id;
+    if (!window.confirm(`Delete subscription record for ${label}? This removes the plan record only.`)) return;
+    try {
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .delete()
+        .eq('id', sub.id);
+
+      if (error) throw error;
+      toast.success('Subscription record deleted');
+      fetchSubscriptions();
+    } catch (error) {
+      console.error('Error deleting subscription:', error);
+      toast.error('Failed to delete subscription');
     }
   };
 
@@ -399,6 +418,13 @@ const ManageSubscriptions = () => {
                             Activate
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem 
+                          onClick={() => deleteSubscription(sub)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Record
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

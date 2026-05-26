@@ -393,18 +393,20 @@ export function connectAudioElement(el: HTMLAudioElement): boolean {
   }
 
   disconnectAll();
-  const source = getOrCreateSource(ctx, el);
-  if (!source) return false;
-
   engine.el = el;
   engine.signature = sig;
 
   if (!isCorsSafe(el)) {
-    buildDirectChain(source, ctx);
+    // Critical for Android background playback: do NOT create a
+    // MediaElementSource for unsafe remote streams. Once created, audio is
+    // routed through AudioContext; Android often suspends that in background,
+    // causing lag/pause. Leave the <audio> element on its native direct path.
     setMode('direct');
-    if (ctx.state === 'suspended') ctx.resume().catch(() => { });
     return false;
   }
+
+  const source = getOrCreateSource(ctx, el);
+  if (!source) return false;
 
   try {
     buildProcessedChain(ctx, source);

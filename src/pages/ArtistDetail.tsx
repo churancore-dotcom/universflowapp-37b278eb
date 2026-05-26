@@ -80,7 +80,7 @@ const ArtistDetail = () => {
     if (songs.length === 0) return;
     setQueue(songs);
     const offlineUrl = getDownloadedUrl(songs[0].id);
-    playSong(songs[0], offlineUrl);
+    playSong(songs[0], offlineUrl, songs);
   };
 
   const handleShufflePlay = () => {
@@ -88,14 +88,14 @@ const ArtistDetail = () => {
     const shuffled = [...songs].sort(() => Math.random() - 0.5);
     setQueue(shuffled);
     const offlineUrl = getDownloadedUrl(shuffled[0].id);
-    playSong(shuffled[0], offlineUrl);
+    playSong(shuffled[0], offlineUrl, shuffled);
   };
 
   const handlePlaySong = (song: Song, index: number) => {
     const reorderedQueue = [...songs.slice(index), ...songs.slice(0, index)];
     setQueue(reorderedQueue);
     const offlineUrl = getDownloadedUrl(song.id);
-    playSong(song, offlineUrl);
+    playSong(song, offlineUrl, reorderedQueue);
   };
 
   const formatDuration = (seconds?: number) => {

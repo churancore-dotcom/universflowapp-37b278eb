@@ -55,7 +55,8 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     let processedWanted = false;
 
     const reapply = () => {
-      if (!isPremium) {
+      const allowOfflineEq = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (!isPremium && !allowOfflineEq) {
         bypassAudioElement(audioElement);
         audioElement.playbackRate = 1;
         processedWanted = false;
@@ -72,9 +73,9 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
       processedWanted = true;
 
-      // While backgrounded, keep the cheap direct path to avoid stutters.
+      // Do not reconnect the Web Audio graph while backgrounded: on Android
+      // WebView this can suspend the AudioContext and make streams pause/lag.
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        bypassAudioElement(audioElement);
         if (typeof s.playbackSpeed === 'number') audioElement.playbackRate = s.playbackSpeed;
         return;
       }
@@ -97,9 +98,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     // Foreground → restore the processed chain if the user had it on.
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        if (processedWanted) {
-          bypassAudioElement(audioElement);
-        }
+        if (processedWanted) resume();
       } else {
         resume();
         reapply();
