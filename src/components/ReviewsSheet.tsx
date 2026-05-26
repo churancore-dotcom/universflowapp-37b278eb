@@ -12,7 +12,6 @@ interface Review {
   comment: string | null;
   display_name: string;
   created_at: string;
-  user_id: string;
 }
 
 interface ReactionState {
