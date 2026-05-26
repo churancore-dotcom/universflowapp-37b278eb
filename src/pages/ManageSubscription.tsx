@@ -21,6 +21,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePremium } from '@/hooks/usePremium';
 import SEOHead from '@/components/SEOHead';
 
+const formatDebugTime = (iso: string | null) => {
+  if (!iso) return 'Waiting…';
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: 'short',
+    });
+  } catch {
+    return iso;
+  }
+};
+
 const formatDate = (iso: string | null) => {
   if (!iso) return 'Lifetime';
   try {
@@ -46,7 +61,28 @@ const planLabel = (type?: string) => {
 const ManageSubscription = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isPremium, subscription, isLoading } = usePremium();
+  const {
+    isPremium,
+    subscription,
+    verifiedStatus,
+    subscriptionRow,
+    lastRealtimeUpdate,
+    lastCheckedAt,
+    isLoading,
+    error,
+    refetch,
+  } = usePremium();
+
+  const debugPanel = (
+    <PremiumDebugPanel
+      verifiedStatus={verifiedStatus}
+      subscriptionRow={subscriptionRow}
+      lastRealtimeUpdate={lastRealtimeUpdate}
+      lastCheckedAt={lastCheckedAt}
+      errorMessage={error?.message ?? null}
+      onRefresh={refetch}
+    />
+  );
 
   const memberSince = subscription?.expires_at
     ? null
@@ -88,7 +124,8 @@ const ManageSubscription = () => {
             </button>
             <h1 className="text-[17px] font-semibold absolute left-1/2 -translate-x-1/2">Subscription</h1>
           </header>
-          <main className="px-5 pt-8 text-center">
+          <main className="px-5 pt-8 space-y-5">
+            <div className="text-center">
             <div className="w-20 h-20 mx-auto mb-4 rounded-3xl flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}>
               <Crown className="w-10 h-10 text-primary-foreground" />
@@ -101,6 +138,8 @@ const ManageSubscription = () => {
             >
               Upgrade to Premium
             </button>
+            </div>
+            {debugPanel}
           </main>
           <BottomNav />
         </div>
@@ -276,6 +315,8 @@ const ManageSubscription = () => {
             </div>
           </section>
 
+          {debugPanel}
+
           {/* CTA strip */}
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
@@ -308,6 +349,49 @@ const Row = ({ label, value, valueClass = '' }: { label: string; value: string; 
     <span className="text-[13px] text-muted-foreground">{label}</span>
     <span className={`text-[13px] font-semibold ${valueClass}`}>{value}</span>
   </div>
+);
+
+const PremiumDebugPanel = ({
+  verifiedStatus,
+  subscriptionRow,
+  lastRealtimeUpdate,
+  lastCheckedAt,
+  errorMessage,
+  onRefresh,
+}: {
+  verifiedStatus: boolean;
+  subscriptionRow: Record<string, unknown> | null;
+  lastRealtimeUpdate: string | null;
+  lastCheckedAt: string | null;
+  errorMessage: string | null;
+  onRefresh: () => Promise<void>;
+}) => (
+  <section className="rounded-2xl overflow-hidden bg-card border border-border/60 text-left">
+    <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">Premium status debug</p>
+        <p className="text-[11px] text-muted-foreground">Live server verification details</p>
+      </div>
+      <button
+        onClick={() => { void onRefresh(); }}
+        className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground"
+      >
+        Refresh
+      </button>
+    </div>
+    <div className="divide-y divide-border/60">
+      <Row label="Verified status" value={verifiedStatus ? 'Premium verified' : 'Not verified'} valueClass={verifiedStatus ? 'text-emerald-400' : 'text-amber-400'} />
+      <Row label="Last realtime update" value={formatDebugTime(lastRealtimeUpdate)} />
+      <Row label="Last server check" value={formatDebugTime(lastCheckedAt)} />
+      {errorMessage && <Row label="Last error" value={errorMessage} valueClass="text-red-400" />}
+    </div>
+    <div className="p-4 border-t border-border/60">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Subscription row</p>
+      <pre className="max-h-44 overflow-auto rounded-xl bg-background/70 border border-border/50 p-3 text-[11px] leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
+        {subscriptionRow ? JSON.stringify(subscriptionRow, null, 2) : 'No subscription row returned by the server.'}
+      </pre>
+    </div>
+  </section>
 );
 
 export default ManageSubscription;
