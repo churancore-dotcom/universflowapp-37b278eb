@@ -18,14 +18,21 @@ import { useEmailVerified } from '@/hooks/useEmailVerified';
 import { toast } from '@/hooks/use-toast';
 import SEOHead from '@/components/SEOHead';
 
-type PlanId = 'monthly' | 'quarterly';
+type PlanId = 'monthly' | 'bimonthly' | 'quarterly';
 
 interface UpiSettings {
   monthlyPrice: number;
+  bimonthlyPrice: number;
   quarterlyPrice: number;
   upiId: string;
   payeeName: string;
 }
+
+const PLAN_LABEL: Record<PlanId, string> = {
+  monthly: '1 Month',
+  bimonthly: '2 Months',
+  quarterly: '3 Months',
+};
 
 const FEATURES = [
   { icon: Zap,         title: 'Zero Ads',                desc: 'No pre-rolls, banners or interruptions. Ever.' },
@@ -57,7 +64,7 @@ const PremiumPage = memo(function PremiumPage() {
   const haptics = useHaptics();
   const [showRedeem, setShowRedeem] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>('quarterly');
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>('bimonthly');
   const [settings, setSettings] = useState<UpiSettings | null>(null);
   const [pending, setPending] = useState<PendingPayment | null>(null);
 
@@ -66,15 +73,16 @@ const PremiumPage = memo(function PremiumPage() {
       const { data } = await supabase
         .from('app_settings')
         .select('key, value')
-        .in('key', ['premium_price_monthly_inr', 'premium_price_quarterly_inr', 'upi_id', 'upi_payee_name']);
+        .in('key', ['premium_price_monthly_inr', 'premium_price_bimonthly_inr', 'premium_price_quarterly_inr', 'upi_id', 'upi_payee_name']);
       const map: Record<string, any> = {};
       data?.forEach(r => {
         try { map[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value; }
         catch { map[r.key] = r.value; }
       });
       setSettings({
-        monthlyPrice: Number(map.premium_price_monthly_inr ?? 49),
-        quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 120),
+        monthlyPrice: Number(map.premium_price_monthly_inr ?? 59),
+        bimonthlyPrice: Number(map.premium_price_bimonthly_inr ?? 100),
+        quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 149),
         upiId: String(map.upi_id ?? 'yourupi@okaxis'),
         payeeName: String(map.upi_payee_name ?? 'UniversFlow'),
       });
@@ -122,10 +130,14 @@ const PremiumPage = memo(function PremiumPage() {
     };
   }, [user, isPremium, refetchPremium]);
 
-  const monthly = settings?.monthlyPrice ?? 49;
-  const quarterly = settings?.quarterlyPrice ?? 120;
-  const monthlyEquivalent = (quarterly / 3).toFixed(0);
-  const savePercent = Math.round((1 - (quarterly / 3) / monthly) * 100);
+  const monthly = settings?.monthlyPrice ?? 59;
+  const bimonthly = settings?.bimonthlyPrice ?? 100;
+  const quarterly = settings?.quarterlyPrice ?? 149;
+  const bimonthlyPerMo = (bimonthly / 2).toFixed(0);
+  const quarterlyPerMo = (quarterly / 3).toFixed(0);
+  const bimonthlySave = Math.max(0, Math.round((1 - (bimonthly / 2) / monthly) * 100));
+  const quarterlySave = Math.max(0, Math.round((1 - (quarterly / 3) / monthly) * 100));
+  const selectedPrice = selectedPlan === 'quarterly' ? quarterly : selectedPlan === 'bimonthly' ? bimonthly : monthly;
 
   const handleUpgrade = useCallback(() => {
     haptics.medium();
@@ -273,17 +285,29 @@ const PremiumPage = memo(function PremiumPage() {
               transition={{ ...iosSpring, delay: 0.15 }}
               className="space-y-3"
             >
-              {/* 3-month — recommended */}
+              {/* 2-month — sweet spot (recommended) */}
+              <PlanCard
+                planId="bimonthly"
+                selected={selectedPlan === 'bimonthly'}
+                onSelect={() => { haptics.light(); setSelectedPlan('bimonthly'); }}
+                badge={`Most popular · Save ${bimonthlySave}%`}
+                title="2 Months"
+                price={bimonthly}
+                perMonth={`₹${bimonthlyPerMo}/mo`}
+                tagline="The sweet spot · 60 days of premium"
+                recommended
+              />
+
+              {/* 3-month */}
               <PlanCard
                 planId="quarterly"
                 selected={selectedPlan === 'quarterly'}
                 onSelect={() => { haptics.light(); setSelectedPlan('quarterly'); }}
-                badge={`Save ${savePercent}%`}
+                badge={`Save ${quarterlySave}%`}
                 title="3 Months"
                 price={quarterly}
-                perMonth={`₹${monthlyEquivalent}/mo`}
-                tagline="Best value · 90 days of premium"
-                recommended
+                perMonth={`₹${quarterlyPerMo}/mo`}
+                tagline="Longer commitment · 90 days"
               />
 
               {/* Monthly */}
@@ -307,9 +331,10 @@ const PremiumPage = memo(function PremiumPage() {
                   boxShadow: '0 18px 45px -10px hsl(var(--primary) / 0.6)',
                 }}
               >
-                Continue · ₹{selectedPlan === 'quarterly' ? quarterly : monthly}
+                Continue · ₹{selectedPrice}
                 <Sparkles className="w-5 h-5" fill="currentColor" />
               </motion.button>
+
 
             </motion.section>
           )}
@@ -518,8 +543,8 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
   const [verifyStage, setVerifyStage] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [activated, setActivated] = useState(false);
 
-  const basePrice = plan === 'quarterly' ? settings.quarterlyPrice : settings.monthlyPrice;
-  const planLabel = plan === 'quarterly' ? '3 Months' : '1 Month';
+  const basePrice = plan === 'quarterly' ? settings.quarterlyPrice : plan === 'bimonthly' ? settings.bimonthlyPrice : settings.monthlyPrice;
+  const planLabel = PLAN_LABEL[plan];
 
   // Unique paise per user (1–99) for auto-matching
   const userPaise = user?.id
@@ -916,7 +941,7 @@ const PendingProgressBanner = memo(function PendingProgressBanner({ pending }: P
   }, [pending.created_at]);
 
   const amountInr = (pending.amount_paise / 100).toFixed(2);
-  const planLabel = pending.plan === 'quarterly' ? '3 Months' : '1 Month';
+  const planLabel = (PLAN_LABEL as Record<string, string>)[pending.plan] ?? pending.plan;
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
 
