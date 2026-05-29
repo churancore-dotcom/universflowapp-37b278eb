@@ -192,6 +192,11 @@ public class MediaNotificationService extends Service {
             case ACTION_PREV:  MediaNotificationPlugin.emitControlEvent("music-controls-previous"); break;
             case ACTION_STOP:
                 MediaNotificationPlugin.emitControlEvent("music-controls-destroy");
+                // CRITICAL: When started via startForegroundService(), Android requires
+                // startForeground() to be called within ~5s OR the app crashes with
+                // ForegroundServiceDidNotStartInTimeException. Post a minimal
+                // notification first, then immediately tear it down.
+                ensureForegroundBeforeStop();
                 stopForegroundCompat();
                 stopSelf();
                 return START_NOT_STICKY;
@@ -374,6 +379,32 @@ public class MediaNotificationService extends Service {
             session.setActive(false);
             session.release();
             session = null;
+        }
+    }
+
+    /**
+     * Satisfy Android's startForegroundService → startForeground contract when
+     * we're tearing down. Posts a transient notification so the system doesn't
+     * crash the process with ForegroundServiceDidNotStartInTimeException.
+     */
+    private void ensureForegroundBeforeStop() {
+        try {
+            int smallIconRes = getResources().getIdentifier("ic_stat_notify", "drawable", getPackageName());
+            if (smallIconRes == 0) smallIconRes = getApplicationInfo().icon;
+            Notification stub = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(smallIconRes)
+                .setContentTitle("UniversFlow")
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setOnlyAlertOnce(true)
+                .build();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, stub,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+            } else {
+                startForeground(NOTIFICATION_ID, stub);
+            }
+        } catch (Exception ignored) {
+            // If even the stub fails we'd rather attempt the stop than crash.
         }
     }
 
