@@ -124,7 +124,17 @@ function saveSettings(data: any) {
 const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const { audioElement, currentSong } = usePlayer();
   const { isPremium, isLoading: premiumLoading } = usePremium();
-  const eqAllowed = isPremium;
+  // Browser users get full EQ access. On native APK we still gate by premium
+  // because EQ processing is bypassed there for background-playback reliability.
+  const isNativeApk = (() => {
+    try {
+      // Lazy require keeps this safe on web bundles
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { Capacitor } = require('@capacitor/core');
+      return Capacitor?.isNativePlatform?.() === true;
+    } catch { return false; }
+  })();
+  const eqAllowed = !isNativeApk || isPremium;
   const engineMode = useEngineState();
   const isConnected = engineMode === 'processed';
 
