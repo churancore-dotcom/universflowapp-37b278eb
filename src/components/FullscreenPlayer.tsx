@@ -477,6 +477,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
       {showPlaylistModal && <AddToPlaylistModal isOpen={showPlaylistModal} onClose={() => setShowPlaylistModal(false)} song={currentSong} onCreateNew={() => { setShowPlaylistModal(false); setShowCreatePlaylist(true); }} />}
       {showCreatePlaylist && <CreatePlaylistModal isOpen={showCreatePlaylist} onClose={() => setShowCreatePlaylist(false)} initialSong={currentSong} onCreated={() => setShowCreatePlaylist(false)} />}
       {showEqualizer && <EqualizerModal isOpen={showEqualizer} onClose={() => setShowEqualizer(false)} />}
+      <QueueDrawer isOpen={showQueue} onClose={() => setShowQueue(false)} />
     </>
   );
 });
