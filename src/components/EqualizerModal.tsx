@@ -124,7 +124,17 @@ function saveSettings(data: any) {
 const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const { audioElement, currentSong } = usePlayer();
   const { isPremium, isLoading: premiumLoading } = usePremium();
-  const eqAllowed = isPremium;
+  // Browser users get full EQ access. On native APK we still gate by premium
+  // because EQ processing is bypassed there for background-playback reliability.
+  const isNativeApk = (() => {
+    try {
+      // Lazy require keeps this safe on web bundles
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { Capacitor } = require('@capacitor/core');
+      return Capacitor?.isNativePlatform?.() === true;
+    } catch { return false; }
+  })();
+  const eqAllowed = !isNativeApk || isPremium;
   const engineMode = useEngineState();
   const isConnected = engineMode === 'processed';
 
@@ -132,7 +142,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const [bands, setBandsState] = useState<EQBand[]>(
     saved?.bands ? defaultBands.map((b, i) => ({ ...b, gain: saved.bands[i] ?? 0 })) : defaultBands
   );
-  const [bassBoost, setBassBoost] = useState(Math.min(saved?.bassBoost ?? 0, 60));
+  const [bassBoost, setBassBoost] = useState(Math.min(saved?.bassBoost ?? 0, 100));
   const [reverb, setReverb] = useState(Math.min(saved?.reverb ?? 0, 45));
   const [playbackSpeed, setPlaybackSpeed] = useState(saved?.playbackSpeed ?? 1);
   const [spatialAudio, setSpatialAudio] = useState(saved?.spatialAudio ?? false);
@@ -410,7 +420,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                   <Slider
                     value={[bassBoost]}
                     min={0}
-                    max={60}
+                    max={100}
                     step={5}
                     onValueChange={([value]) => { setBassBoost(value); setActivePreset('custom'); }}
                     className="w-full [&_[role=slider]]:bg-rose-500 [&_[role=slider]]:border-rose-400 [&_[data-radix-slider-range]]:bg-rose-500/60"

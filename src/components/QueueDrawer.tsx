@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useState } from 'react';
-import { motion, AnimatePresence, Reorder, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { motion, AnimatePresence, Reorder, useMotionValue, useTransform, useDragControls, PanInfo } from 'framer-motion';
 import { X, GripVertical, Play, Pause, Trash2 } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { iosSpring } from '@/lib/animations';
@@ -25,6 +25,7 @@ const QueueItem = memo(({ song, index, isActive, isPlaying, onPlay, onRemove }: 
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-SWIPE_DELETE_THRESHOLD, -40], [1, 0]);
   const deleteScale = useTransform(x, [-SWIPE_DELETE_THRESHOLD, -40], [1, 0.6]);
+  const dragControls = useDragControls();
 
   const handleDragEnd = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.x < -SWIPE_DELETE_THRESHOLD) {
@@ -52,6 +53,7 @@ const QueueItem = memo(({ song, index, isActive, isPlaying, onPlay, onRemove }: 
       id={song.id}
       className="relative overflow-hidden rounded-2xl"
       dragListener={false}
+      dragControls={dragControls}
     >
       {/* Delete action background */}
       <motion.div 
@@ -75,7 +77,14 @@ const QueueItem = memo(({ song, index, isActive, isPlaying, onPlay, onRemove }: 
         dragDirectionLock
         onDragEnd={handleDragEnd}
       >
-        <GripVertical className="w-5 h-5 text-muted-foreground/50 flex-shrink-0" />
+        {/* Drag handle — long-press or hold to reorder vertically */}
+        <div
+          className="p-1 -ml-1 touch-none cursor-grab active:cursor-grabbing"
+          onPointerDown={(e) => { triggerHaptic('selection'); dragControls.start(e); }}
+          aria-label="Reorder"
+        >
+          <GripVertical className="w-5 h-5 text-muted-foreground/60 flex-shrink-0" />
+        </div>
         
         <span className="w-6 text-center text-sm text-muted-foreground flex-shrink-0">
           {index + 1}

@@ -71,7 +71,9 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
         return;
       }
 
-      if (!isPremium) {
+      // Browser EQ is available to ALL users (not just premium). On APK we
+      // still bypass for background-playback reliability above.
+      if (false && !isPremium) {
         bypassAudioElement(audioElement);
         audioElement.playbackRate = 1;
         processedWanted = false;

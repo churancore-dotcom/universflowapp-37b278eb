@@ -1,6 +1,6 @@
 import { useState, memo, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Repeat1, ChevronDown, ListMusic, Share2, Sliders } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Repeat1, ChevronDown, ListMusic, Share2, Sliders, ListOrdered } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { usePlayerProgress } from '@/lib/playerProgressStore';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +12,7 @@ import SocialShareModal from './SocialShareModal';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import CreatePlaylistModal from './CreatePlaylistModal';
 import EqualizerModal from './EqualizerModal';
+import QueueDrawer from './QueueDrawer';
 import FollowArtistButton from './FollowArtistButton';
 import type { Song } from '@/contexts/PlayerContext';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -84,6 +85,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [showEqualizer, setShowEqualizer] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
   const [direction, setDirection] = useState(0);
   // Local seek-drag state — prevents the live `progress` updates from snapping
   // the slider thumb back while the user is dragging it.
@@ -215,9 +217,10 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               
               <button 
                 className="w-10 h-10 flex items-center justify-center -mr-2 active:scale-90 transition-transform" 
-                onClick={() => { triggerHaptic('impactLight'); setShowPlaylistModal(true); }}
+                onClick={() => { triggerHaptic('impactLight'); setShowQueue(true); }}
+                aria-label="Open queue"
               >
-                <ListMusic className="w-5 h-5 text-white/80" />
+                <ListOrdered className="w-5 h-5 text-white/80" />
               </button>
             </div>
 
@@ -474,6 +477,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
       {showPlaylistModal && <AddToPlaylistModal isOpen={showPlaylistModal} onClose={() => setShowPlaylistModal(false)} song={currentSong} onCreateNew={() => { setShowPlaylistModal(false); setShowCreatePlaylist(true); }} />}
       {showCreatePlaylist && <CreatePlaylistModal isOpen={showCreatePlaylist} onClose={() => setShowCreatePlaylist(false)} initialSong={currentSong} onCreated={() => setShowCreatePlaylist(false)} />}
       {showEqualizer && <EqualizerModal isOpen={showEqualizer} onClose={() => setShowEqualizer(false)} />}
+      <QueueDrawer isOpen={showQueue} onClose={() => setShowQueue(false)} />
     </>
   );
 });
