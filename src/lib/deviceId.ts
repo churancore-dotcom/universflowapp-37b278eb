@@ -38,7 +38,7 @@ function detectLabel(): string {
     // Try to grab the model from "Android 14; SM-A546B"
     const m = /Android[^;]*;\s*([^;]+?)\s+Build/i.exec(ua) || /Android[^;]*;\s*([^;]+?)[;)]/i.exec(ua);
     if (m) {
-      const model = m[1].split(';').pop()?.trim();
+      const model = m[1].trim();
       if (model && model.length < 32) return model;
     }
     return 'Android phone';
