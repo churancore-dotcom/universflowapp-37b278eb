@@ -49,7 +49,7 @@ const CrossDeviceResumeCard = () => {
       .select('song, queue, position_seconds, device_id, device_label, updated_at')
       .eq('user_id', user.id)
       .maybeSingle();
-    setRow((data as PlaybackRow) || null);
+    setRow((data as unknown as PlaybackRow) || null);
     setLoading(false);
   };
 
