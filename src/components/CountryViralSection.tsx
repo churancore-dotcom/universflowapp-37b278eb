@@ -52,33 +52,31 @@ async function getDeezerChart(limit = 30): Promise<IndexedTrack[]> {
 const CountryViralSection = memo(function CountryViralSection() {
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
-  const [country, setCountry] = useState<string | null>(null);
-  const [tracks, setTracks] = useState<IndexedTrack[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Resolve user country (profile first, then locale fallback)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  // Country resolution is cached forever per user — it never changes mid-session.
+  const { data: country } = useQuery({
+    queryKey: ['viral-country', user?.id ?? 'anon'],
+    queryFn: async () => {
       let cc: string | null = null;
       if (user) {
         const { data } = await supabase.from('profiles').select('country_code').eq('user_id', user.id).maybeSingle();
         cc = (data?.country_code || '').toUpperCase() || null;
       }
-      if (cancelled) return;
-      setCountry(cc || detectFallbackCountry());
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id]);
+      return cc || detectFallbackCountry();
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
 
-  useEffect(() => {
-    if (!country) return;
-    let cancelled = false;
-    setLoading(true);
-    const TARGET = 24;
-
-    (async () => {
-      // 1) Admin-curated picks (global) come first
+  // Viral tracks: cached 10 min, no refetch on remount → no more re-loading when
+  // user navigates back to Home.
+  const { data: tracks = [], isLoading: loading } = useQuery({
+    queryKey: ['viral-tracks', country ?? ''],
+    enabled: !!country,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const TARGET = 24;
       const { data: picks } = await supabase
         .from('viral_picks')
         .select('track_id, title, artist, cover_url, audio_url, source, position')
@@ -97,9 +95,8 @@ const CountryViralSection = memo(function CountryViralSection() {
       const seen = new Set(pinned.map((t) => t.id));
       const need = Math.max(0, TARGET - pinned.length);
 
-      // 2) Fill remainder by racing Last.fm (geo) + Deezer (global) in parallel
       let filler: IndexedTrack[] = [];
-      if (need > 0) {
+      if (need > 0 && country) {
         const name = COUNTRY_NAMES[country] || COUNTRY_NAMES.IN;
         const [lastfmRes, deezerRes] = await Promise.allSettled([
           getGeoTopTracks(name, need + pinned.length),
@@ -108,7 +105,6 @@ const CountryViralSection = memo(function CountryViralSection() {
         const lastfm = lastfmRes.status === 'fulfilled' ? lastfmRes.value : [];
         const deezer = deezerRes.status === 'fulfilled' ? deezerRes.value : [];
 
-        // Interleave: prioritize Last.fm (geo-targeted) but mix in Deezer for freshness
         const merged: IndexedTrack[] = [];
         const seenKeys = new Set<string>();
         const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 60);
@@ -126,14 +122,9 @@ const CountryViralSection = memo(function CountryViralSection() {
         filler = merged;
       }
 
-      if (!cancelled) {
-        setTracks([...pinned, ...filler]);
-        setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [country]);
+      return [...pinned, ...filler];
+    },
+  });
 
   // Pre-resolve top 6 streams so taps feel instant
   useEffect(() => {
