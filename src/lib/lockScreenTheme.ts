@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
 export type LockScreenThemeId =
-  | 'classic'
-  | 'vinyl'
-  | 'pulse'
-  | 'prism'
-  | 'orbit'
-  | 'stage';
+  | 'classic'  // free
+  | 'fluid'    // Apple Music morphing metaballs
+  | 'canvas'   // Spotify Canvas full-bleed cinematic cover
+  | 'galaxy'   // depth particles, parallax nebula
+  | 'vinyl'    // photoreal vinyl, tonearm, grooves
+  | 'stage';   // synthwave neon stage
 
 export interface LockScreenTheme {
   id: LockScreenThemeId;
@@ -23,66 +23,70 @@ export const LOCK_SCREEN_THEMES: LockScreenTheme[] = [
   {
     id: 'classic',
     label: 'Classic',
-    description: 'Square cover • blurred art background',
+    description: 'Clean square cover with a soft sheen',
     premium: false,
     preview: 'linear-gradient(135deg, #1f1f25 0%, #3a3a45 100%)',
-    badge: 'Square art',
+    badge: 'Free',
+  },
+  {
+    id: 'fluid',
+    label: 'Fluid',
+    description: 'Morphing liquid metaballs reacting to the beat',
+    premium: true,
+    preview:
+      'radial-gradient(circle at 30% 30%, #ff2d55 0%, transparent 55%), radial-gradient(circle at 75% 70%, #5e5ce6 0%, transparent 55%), radial-gradient(circle at 50% 50%, #ff9500 0%, transparent 60%), #06030f',
+    badge: 'Apple-style fluid',
+  },
+  {
+    id: 'canvas',
+    label: 'Canvas',
+    description: 'Full-bleed cinematic cover, parallax & Ken Burns',
+    premium: true,
+    preview:
+      'linear-gradient(160deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.85) 100%), radial-gradient(circle at 30% 30%, #4a1a5a, #06030f 70%)',
+    badge: 'Cinematic',
+  },
+  {
+    id: 'galaxy',
+    label: 'Galaxy',
+    description: 'Depth particles, parallax stars, audio-reactive nebula',
+    premium: true,
+    preview:
+      'radial-gradient(ellipse at 30% 30%, #2a2563 0%, transparent 55%), radial-gradient(ellipse at 75% 75%, #5b2a8c 0%, transparent 55%), #04020c',
+    badge: 'Particles',
   },
   {
     id: 'vinyl',
-    label: 'Vinyl',
-    description: 'Spinning record • aurora glow',
+    label: 'Vinyl Pro',
+    description: 'Photoreal spinning record with tonearm & grooves',
     premium: true,
     preview:
-      'radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000 70%), conic-gradient(from 0deg, #0b1e3f, #1f7a6a, #b833a8, #0b1e3f)',
+      'radial-gradient(circle at 50% 50%, #1a1a1a 30%, #000 75%), conic-gradient(from 0deg, #1f1f1f, #0a0a0a, #1f1f1f)',
     badge: 'Spinning disc',
   },
   {
-    id: 'pulse',
-    label: 'Pulse',
-    description: 'Cover with beat-driven rings',
-    premium: true,
-    preview:
-      'radial-gradient(circle at 50% 50%, #ff2d55 0%, #5e5ce6 40%, #06030f 90%)',
-    badge: 'Pulse waves',
-  },
-  {
-    id: 'prism',
-    label: 'Prism',
-    description: 'Rotating gradient frame • liquid glow',
-    premium: true,
-    preview:
-      'conic-gradient(from 0deg, #ff2d55, #5e5ce6, #ff9500, #ff2d55), radial-gradient(circle, #06030f 0%, transparent 60%)',
-    badge: 'Gradient ring',
-  },
-  {
-    id: 'orbit',
-    label: 'Orbit',
-    description: 'Cover with orbiting particles • starfield',
-    premium: true,
-    preview:
-      'radial-gradient(circle at 30% 30%, #2a2563 0%, #06030f 70%), radial-gradient(circle at 70% 70%, #5b2a8c 0%, transparent 50%)',
-    badge: 'Orbiting stars',
-  },
-  {
     id: 'stage',
-    label: 'Stage',
-    description: 'Spotlight cover • neon synthwave grid',
+    label: 'Neon Stage',
+    description: 'Synthwave grid, swinging spotlights, fog',
     premium: true,
-    preview: 'linear-gradient(180deg, #1b0633 0%, #4a0e6e 50%, #ff2d8a 100%)',
-    badge: 'Neon spotlight',
+    preview:
+      'linear-gradient(180deg, #1b0633 0%, #4a0e6e 55%, #ff2d8a 100%)',
+    badge: 'Synthwave',
   },
 ];
 
 const STORAGE_KEY = 'uf_lockscreen_theme';
 
-// Legacy ids -> new ids (backwards compat for users who picked one already)
+// Legacy ids -> new ids
 const LEGACY_MAP: Record<string, LockScreenThemeId> = {
   album: 'classic',
-  aurora: 'vinyl',
-  liquid: 'prism',
-  waves: 'pulse',
-  starfield: 'orbit',
+  aurora: 'fluid',
+  liquid: 'fluid',
+  waves: 'fluid',
+  pulse: 'fluid',
+  prism: 'canvas',
+  starfield: 'galaxy',
+  orbit: 'galaxy',
   neon: 'stage',
 };
 
