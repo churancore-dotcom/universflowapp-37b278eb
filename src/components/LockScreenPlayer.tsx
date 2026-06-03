@@ -457,9 +457,10 @@ const LockScreenPlayer = ({ isOpen, onClose }: LockScreenPlayerProps) => {
             )}
           </AnimatePresence>
         </motion.div>
-
+        </motion.div>
       )}
     </AnimatePresence>
+
   );
 };
 
