@@ -632,92 +632,95 @@ const PlanCard = memo(function PlanCard({
     <motion.button
       onClick={onSelect}
       whileTap={{ scale: 0.99 }}
-      className="w-full text-left rounded-3xl p-[1.5px] relative transition-all"
+      className="w-full text-left rounded-[20px] p-[1px] relative transition-colors"
       style={{
         background: selected
-          ? 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%)'
+          ? 'linear-gradient(135deg, #c4b5fd 0%, #67e8f9 50%, #c4b5fd 100%)'
           : recommended
-          ? 'linear-gradient(135deg, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.4), hsl(var(--primary) / 0.5))'
-          : 'hsl(var(--border) / 0.6)',
+          ? 'linear-gradient(135deg, rgba(196,181,253,0.4), rgba(103,232,249,0.3))'
+          : 'rgba(196,181,253,0.12)',
         boxShadow: selected
-          ? '0 22px 55px -15px hsl(var(--primary) / 0.55)'
-          : recommended
-          ? '0 12px 35px -15px hsl(var(--primary) / 0.35)'
+          ? '0 18px 45px -18px rgba(196,181,253,0.5)'
           : 'none',
       }}
     >
       {recommended && (
         <div
-          className="absolute -top-2.5 right-5 px-2.5 py-1 rounded-full text-[9px] font-bold tracking-[0.18em] uppercase z-10 flex items-center gap-1"
+          className="absolute -top-2.5 left-5 px-2.5 py-1 rounded-full text-[8.5px] tracking-[0.22em] uppercase z-10 flex items-center gap-1"
           style={{
-            background: 'linear-gradient(135deg, #f5c542, #e8a317)',
-            color: '#1a0f00',
-            boxShadow: '0 6px 18px -4px rgba(245, 197, 66, 0.6)',
+            background: 'linear-gradient(135deg, #c4b5fd 0%, #67e8f9 100%)',
+            color: '#0b0b14',
+            fontWeight: 700,
+            boxShadow: '0 6px 18px -4px rgba(196,181,253,0.5)',
           }}
         >
-          <Sparkles className="w-2.5 h-2.5" fill="currentColor" />
-          Most Popular
+          Editor's Pick
         </div>
       )}
 
       <div
-        className="rounded-[22px] p-5 relative overflow-hidden"
+        className="rounded-[19px] px-5 py-5 relative overflow-hidden flex items-center gap-4"
         style={{
           background: selected
-            ? 'linear-gradient(160deg, hsl(var(--primary) / 0.18) 0%, hsl(var(--card)) 55%, hsl(var(--accent) / 0.15) 100%)'
-            : 'linear-gradient(135deg, hsl(var(--card) / 0.85), hsl(var(--card) / 0.55))',
-          backdropFilter: 'blur(12px)',
+            ? 'linear-gradient(135deg, rgba(196,181,253,0.14) 0%, rgba(11,11,20,0.95) 50%, rgba(103,232,249,0.1) 100%)'
+            : 'linear-gradient(135deg, rgba(20,20,32,0.85), rgba(11,11,20,0.95))',
         }}
       >
-        {selected && (
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: 'linear-gradient(115deg, transparent 40%, hsl(0 0% 100% / 0.06) 50%, transparent 60%)' }}
-            animate={{ x: ['-100%', '100%'] }}
-            transition={{ duration: 3.5, repeat: Infinity, ease: 'linear' }}
-          />
-        )}
+        {/* Selection indicator — minimal radio dot */}
+        <div
+          className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+          style={{
+            border: selected ? 'none' : '1px solid rgba(196,181,253,0.35)',
+            background: selected ? 'linear-gradient(135deg, #c4b5fd, #67e8f9)' : 'transparent',
+          }}
+        >
+          {selected && <Check className="w-3 h-3" style={{ color: '#0b0b14' }} strokeWidth={3.5} />}
+        </div>
 
-        <div className="flex items-center justify-between gap-3 relative">
-          <div className="flex items-center gap-3 min-w-0">
-            <motion.div
-              animate={selected ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-              transition={{ duration: 1.6, repeat: selected ? Infinity : 0, ease: 'easeInOut' }}
-              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-              style={{
-                background: selected
-                  ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))'
-                  : 'transparent',
-                border: selected ? 'none' : '1.5px solid hsl(var(--muted-foreground) / 0.4)',
-                boxShadow: selected ? '0 6px 18px -4px hsl(var(--primary) / 0.5)' : 'none',
-              }}
+        {/* Title & tagline */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <p
+              className="text-[20px] leading-none"
+              style={{ fontFamily: "'Instrument Serif', serif", color: '#f2f0ff' }}
             >
-              {selected && <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3.5} />}
-            </motion.div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[17px] font-bold">{title}</p>
-                {badge && (
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
-                    style={{
-                      background: 'linear-gradient(135deg, hsl(var(--accent) / 0.25), hsl(var(--primary) / 0.18))',
-                      color: 'hsl(var(--accent))',
-                      border: '0.5px solid hsl(var(--accent) / 0.35)',
-                    }}
-                  >
-                    {badge}
-                  </span>
-                )}
-              </div>
-              <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{tagline}</p>
-            </div>
+              {title}
+            </p>
+            {badge && (
+              <span
+                className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5 rounded"
+                style={{
+                  background: 'rgba(103,232,249,0.12)',
+                  color: '#67e8f9',
+                  border: '0.5px solid rgba(103,232,249,0.3)',
+                  fontWeight: 600,
+                }}
+              >
+                {badge}
+              </span>
+            )}
           </div>
+          <p className="text-[11.5px] mt-1 tracking-wide" style={{ color: 'rgba(232,232,240,0.5)' }}>
+            {tagline}
+          </p>
+        </div>
 
-          <div className="text-right shrink-0">
-            <p className="text-[26px] font-bold leading-none tracking-tight">₹{price}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">{perMonth}</p>
-          </div>
+        {/* Price — serif numerals */}
+        <div className="text-right shrink-0">
+          <p
+            className="leading-none"
+            style={{
+              fontFamily: "'Instrument Serif', serif",
+              fontSize: '32px',
+              color: '#f2f0ff',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            ₹{price}
+          </p>
+          <p className="text-[10px] mt-1 tracking-[0.1em] uppercase" style={{ color: 'rgba(232,232,240,0.45)' }}>
+            {perMonth}
+          </p>
         </div>
       </div>
     </motion.button>
