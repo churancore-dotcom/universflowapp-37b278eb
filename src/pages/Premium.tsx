@@ -182,149 +182,160 @@ const PremiumPage = memo(function PremiumPage() {
         ]}
       />
       <motion.div
-        className="min-h-screen bg-background pb-44 relative overflow-hidden"
+        className="min-h-screen pb-44 relative overflow-hidden"
+        style={{
+          background: 'radial-gradient(120% 80% at 50% -10%, #1a1a2e 0%, #0b0b14 55%, #050509 100%)',
+          fontFamily: "'Work Sans', system-ui, sans-serif",
+          color: '#e8e8f0',
+        }}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
       >
-        {/* ─── Aurora gradient mesh backdrop ─── */}
+        {/* ─── Static iridescent backdrop (NO heavy moving blurs — perf) ─── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <motion.div
-            className="absolute -top-40 left-1/2 -translate-x-1/2 w-[820px] h-[820px] rounded-full"
-            style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 65%)', filter: 'blur(110px)' }}
-            animate={{ scale: [1, 1.08, 1], opacity: [0.45, 0.6, 0.45] }}
-            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+          <div
+            className="absolute -top-32 -left-24 w-[520px] h-[520px] rounded-full opacity-50"
+            style={{ background: 'radial-gradient(circle, #c4b5fd 0%, transparent 65%)', filter: 'blur(120px)' }}
           />
-          <motion.div
-            className="absolute top-[35%] -right-32 w-[460px] h-[460px] rounded-full"
-            style={{ background: 'radial-gradient(circle, hsl(var(--accent) / 0.55), transparent 65%)', filter: 'blur(90px)' }}
-            animate={{ scale: [1.05, 1, 1.05], opacity: [0.3, 0.45, 0.3] }}
-            transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
+          <div
+            className="absolute top-[42%] -right-32 w-[440px] h-[440px] rounded-full opacity-40"
+            style={{ background: 'radial-gradient(circle, #67e8f9 0%, transparent 65%)', filter: 'blur(110px)' }}
           />
-          <motion.div
-            className="absolute top-[55%] -left-24 w-[380px] h-[380px] rounded-full"
-            style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', filter: 'blur(100px)' }}
-            animate={{ scale: [1, 1.1, 1], opacity: [0.25, 0.4, 0.25] }}
-            transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
+          {/* Fine film grain */}
+          <div
+            className="absolute inset-0 opacity-[0.05] mix-blend-overlay"
+            style={{
+              backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"160\\" height=\\"160\\"><filter id=\\"n\\"><feTurbulence type=\\"fractalNoise\\" baseFrequency=\\"0.9\\" numOctaves=\\"2\\" stitchTiles=\\"stitch\\"/></filter><rect width=\\"100%25\\" height=\\"100%25\\" filter=\\"url(%23n)\\"/></svg>")',
+            }}
           />
         </div>
 
         {/* Header */}
         <motion.header
-          className="sticky top-0 z-30 px-2 pt-4 pb-3 flex items-center safe-area-pt"
+          className="sticky top-0 z-30 px-2 pt-4 pb-3 flex items-center justify-between"
           style={{
-            background: 'hsl(var(--background) / 0.7)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            background: 'linear-gradient(to bottom, rgba(11,11,20,0.85) 0%, rgba(11,11,20,0.55) 100%)',
+            backdropFilter: 'blur(30px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+            paddingTop: 'max(16px, env(safe-area-inset-top))',
           }}
-          initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={iosSpring}
+          initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={iosSpring}
         >
           <motion.button
             onClick={() => { haptics.light(); navigate(-1); }}
-            className="flex items-center gap-1 px-2 py-2 -ml-1 text-primary"
+            className="flex items-center gap-1 px-2 py-2 -ml-1"
+            style={{ color: '#c4b5fd' }}
             whileTap={{ scale: 0.95, opacity: 0.7 }} transition={iosBounce}
           >
-            <ChevronLeft className="w-6 h-6" />
-            <span className="text-[17px]">Back</span>
+            <ChevronLeft className="w-5 h-5" />
+            <span className="text-[15px]" style={{ fontFamily: "'Work Sans', sans-serif", fontWeight: 500 }}>Back</span>
           </motion.button>
+          <div
+            className="text-[10px] tracking-[0.3em] uppercase pr-3"
+            style={{ color: 'rgba(232,232,240,0.55)', fontWeight: 500 }}
+          >
+            Issue 01 · Premium
+          </div>
         </motion.header>
 
-        <main className="relative px-5 pt-2 space-y-8">
-          {/* ─── Cinematic hero ─── */}
+        <main className="relative px-5 pt-2">
+          {/* ─── EDITORIAL HERO ─── */}
           <motion.section
-            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ ...iosSpring, delay: 0.05 }}
-            className="text-center pt-8 pb-2 relative"
+            className="pt-10 pb-10 relative"
           >
-            {/* Animated crown with sheen */}
-            <motion.div
-              initial={{ scale: 0, y: 20 }} animate={{ scale: 1, y: 0 }}
-              transition={{ ...iosBounce, delay: 0.1 }}
-              className="relative inline-flex items-center justify-center mb-6"
-            >
-              <motion.div
-                className="absolute inset-0 rounded-full"
-                style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.5), transparent 70%)', filter: 'blur(30px)' }}
-                animate={{ scale: [1, 1.3, 1], opacity: [0.6, 1, 0.6] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <div
-                className="relative w-[72px] h-[72px] rounded-[22px] flex items-center justify-center overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-                  boxShadow: '0 25px 60px -15px hsl(var(--primary) / 0.7), inset 0 1px 0 hsl(0 0% 100% / 0.3)',
-                }}
+            {/* Eyebrow rule */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(196,181,253,0.5), transparent)' }} />
+              <span
+                className="text-[10px] tracking-[0.35em] uppercase"
+                style={{ color: '#c4b5fd', fontWeight: 600 }}
               >
-                <Crown className="w-9 h-9 text-primary-foreground relative z-10" fill="currentColor" />
-                <motion.div
-                  className="absolute inset-0"
-                  style={{ background: 'linear-gradient(115deg, transparent 35%, hsl(0 0% 100% / 0.45) 50%, transparent 65%)' }}
-                  animate={{ x: ['-100%', '120%'] }}
-                  transition={{ duration: 2.8, repeat: Infinity, repeatDelay: 1.6, ease: 'easeInOut' }}
-                />
-              </div>
-            </motion.div>
+                A Listening Manifesto
+              </span>
+              <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(196,181,253,0.5), transparent)' }} />
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.18, ...iosSpring }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-5"
+            {/* Magazine headline — Instrument Serif italic */}
+            <h1
+              className="text-center leading-[0.92] tracking-tight mb-6"
               style={{
-                background: 'hsl(var(--primary) / 0.1)',
-                border: '0.5px solid hsl(var(--primary) / 0.35)',
-                backdropFilter: 'blur(12px)',
+                fontFamily: "'Instrument Serif', Georgia, serif",
+                fontSize: 'clamp(56px, 16vw, 84px)',
+                fontWeight: 400,
+                color: '#f2f0ff',
               }}
             >
-              <Sparkles className="w-3 h-3 text-primary" fill="currentColor" />
-              <span className="text-[10px] font-bold tracking-[0.25em] text-primary uppercase">
-                Universflow Premium
-              </span>
-            </motion.div>
-
-            <h1 className="text-[44px] font-bold leading-[0.92] tracking-tight mb-4">
-              Sound, the way<br />
-              <span
-                className="inline-block"
+              The way music
+              <br />
+              <em
                 style={{
-                  background: 'linear-gradient(120deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%)',
-                  backgroundSize: '200% 100%',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-                  animation: 'auroraShift 6s ease-in-out infinite',
+                  fontStyle: 'italic',
+                  background: 'linear-gradient(105deg, #c4b5fd 0%, #67e8f9 50%, #c4b5fd 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
                 }}
               >
-                it deserves.
-              </span>
+                was meant
+              </em>
+              <br />
+              to be heard.
             </h1>
-            <p className="text-muted-foreground text-[15px] max-w-[320px] mx-auto leading-relaxed">
-              Studio-grade audio. Zero interruptions. Built for people who really listen.
+
+            <p
+              className="text-center mx-auto max-w-[300px] text-[14px] leading-[1.55]"
+              style={{ color: 'rgba(232,232,240,0.65)', fontWeight: 400 }}
+            >
+              Studio-grade audio. Zero interruptions.
+              <br />
+              Built for people who actually listen.
             </p>
+
+            {/* Byline-style trust row */}
+            <div className="flex items-center justify-center gap-4 mt-7 text-[10px] tracking-[0.18em] uppercase"
+              style={{ color: 'rgba(232,232,240,0.45)' }}
+            >
+              <span>UPI Secure</span>
+              <span style={{ color: '#c4b5fd' }}>•</span>
+              <span>Activates in minutes</span>
+              <span style={{ color: '#67e8f9' }}>•</span>
+              <span>Cancel anytime</span>
+            </div>
           </motion.section>
 
           {/* Active premium banner */}
           {isPremium && (
             <motion.section
-              initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
               transition={iosSpring}
-              className="rounded-3xl p-7 text-center relative overflow-hidden"
+              className="rounded-[28px] p-8 text-center relative overflow-hidden mb-10"
               style={{
-                background: 'linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--accent) / 0.18))',
-                border: '1px solid hsl(var(--primary) / 0.45)',
-                boxShadow: '0 25px 70px -20px hsl(var(--primary) / 0.55)',
+                background: 'linear-gradient(135deg, rgba(196,181,253,0.12) 0%, rgba(103,232,249,0.08) 100%)',
+                border: '0.5px solid rgba(196,181,253,0.35)',
               }}
             >
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                style={{ background: 'linear-gradient(115deg, transparent 40%, hsl(0 0% 100% / 0.08) 50%, transparent 60%)' }}
-                animate={{ x: ['-100%', '100%'] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-              />
-              <Crown className="w-12 h-12 text-primary mx-auto mb-3 relative" fill="currentColor" />
-              <p className="text-[22px] font-bold mb-1 relative">You're Premium</p>
+              <Crown className="w-10 h-10 mx-auto mb-3" style={{ color: '#c4b5fd' }} fill="currentColor" />
+              <p
+                className="text-[32px] leading-none mb-2"
+                style={{ fontFamily: "'Instrument Serif', serif", fontStyle: 'italic', color: '#f2f0ff' }}
+              >
+                You're Premium.
+              </p>
               {expiryText && (
-                <p className="text-[13px] text-muted-foreground relative">Active until {expiryText}</p>
+                <p className="text-[12px] tracking-[0.15em] uppercase" style={{ color: 'rgba(232,232,240,0.55)' }}>
+                  Active until {expiryText}
+                </p>
               )}
               <button
                 onClick={handleUpgrade}
-                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold relative"
-                style={{ background: 'hsl(var(--primary) / 0.18)', color: 'hsl(var(--primary))' }}
+                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[12px] tracking-[0.15em] uppercase"
+                style={{
+                  background: 'rgba(196,181,253,0.15)',
+                  color: '#c4b5fd',
+                  border: '0.5px solid rgba(196,181,253,0.3)',
+                  fontWeight: 600,
+                }}
               >
                 Extend membership
               </button>
@@ -333,136 +344,202 @@ const PremiumPage = memo(function PremiumPage() {
 
           {/* Pending payment banner */}
           {!isPremium && pending && (
-            <PendingProgressBanner pending={pending} />
+            <div className="mb-8">
+              <PendingProgressBanner pending={pending} />
+            </div>
           )}
 
-          {/* Plan selector */}
+          {/* ─── PLAN SECTION ─── */}
           {!isPremium && !pending && (
             <motion.section
-              initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ ...iosSpring, delay: 0.15 }}
-              className="space-y-3"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ ...iosSpring, delay: 0.12 }}
+              className="mb-12"
             >
-              <PlanCard
-                planId="bimonthly"
-                selected={selectedPlan === 'bimonthly'}
-                onSelect={() => { haptics.light(); setSelectedPlan('bimonthly'); }}
-                badge={`Save ${bimonthlySave}%`}
-                title="2 Months"
-                price={bimonthly}
-                perMonth={`₹${bimonthlyPerMo}/mo`}
-                tagline="The sweet spot · 60 days"
-                recommended
-              />
-              <PlanCard
-                planId="quarterly"
-                selected={selectedPlan === 'quarterly'}
-                onSelect={() => { haptics.light(); setSelectedPlan('quarterly'); }}
-                badge={`Save ${quarterlySave}%`}
-                title="3 Months"
-                price={quarterly}
-                perMonth={`₹${quarterlyPerMo}/mo`}
-                tagline="Best value · 90 days"
-              />
-              <PlanCard
-                planId="monthly"
-                selected={selectedPlan === 'monthly'}
-                onSelect={() => { haptics.light(); setSelectedPlan('monthly'); }}
-                title="Monthly"
-                price={monthly}
-                perMonth="30 days"
-                tagline="Try it for a month"
-              />
+              {/* Section masthead */}
+              <div className="flex items-baseline justify-between mb-5 px-1">
+                <div>
+                  <p className="text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: '#c4b5fd', fontWeight: 600 }}>
+                    Chapter I
+                  </p>
+                  <h2
+                    className="text-[34px] leading-[0.95]"
+                    style={{ fontFamily: "'Instrument Serif', serif", color: '#f2f0ff', fontWeight: 400 }}
+                  >
+                    Choose your <em style={{ fontStyle: 'italic', color: '#c4b5fd' }}>tempo</em>.
+                  </h2>
+                </div>
+                <span className="text-[10px] tracking-[0.2em] uppercase" style={{ color: 'rgba(232,232,240,0.4)' }}>
+                  03 plans
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <PlanCard
+                  planId="bimonthly"
+                  selected={selectedPlan === 'bimonthly'}
+                  onSelect={() => { haptics.light(); setSelectedPlan('bimonthly'); }}
+                  badge={`Save ${bimonthlySave}%`}
+                  title="2 Months"
+                  price={bimonthly}
+                  perMonth={`₹${bimonthlyPerMo}/mo`}
+                  tagline="The sweet spot · 60 days"
+                  recommended
+                />
+                <PlanCard
+                  planId="quarterly"
+                  selected={selectedPlan === 'quarterly'}
+                  onSelect={() => { haptics.light(); setSelectedPlan('quarterly'); }}
+                  badge={`Save ${quarterlySave}%`}
+                  title="3 Months"
+                  price={quarterly}
+                  perMonth={`₹${quarterlyPerMo}/mo`}
+                  tagline="Best value · 90 days"
+                />
+                <PlanCard
+                  planId="monthly"
+                  selected={selectedPlan === 'monthly'}
+                  onSelect={() => { haptics.light(); setSelectedPlan('monthly'); }}
+                  title="Monthly"
+                  price={monthly}
+                  perMonth="30 days"
+                  tagline="Try it for a month"
+                />
+              </div>
             </motion.section>
           )}
 
-          {/* What's inside */}
+          {/* ─── FEATURE EDITORIAL ─── */}
           <motion.section
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ ...iosSpring, delay: 0.25 }}
-            className="pt-2"
+            transition={{ ...iosSpring, delay: 0.2 }}
+            className="mb-10"
           >
-            <div className="mb-5 px-1">
-              <p className="text-[10px] font-bold tracking-[0.25em] text-primary uppercase mb-2">
-                Included
+            <div className="mb-6 px-1">
+              <p className="text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: '#67e8f9', fontWeight: 600 }}>
+                Chapter II
               </p>
-              <h2 className="text-[28px] font-bold tracking-tight leading-[1.05]">
-                Everything you need.<br />
-                <span className="text-muted-foreground">Nothing you don't.</span>
+              <h2
+                className="text-[34px] leading-[0.95]"
+                style={{ fontFamily: "'Instrument Serif', serif", color: '#f2f0ff', fontWeight: 400 }}
+              >
+                Everything <em style={{ fontStyle: 'italic', color: '#67e8f9' }}>included</em>.
               </h2>
             </div>
 
-            <div className="space-y-2">
-              {FEATURES.map((f, i) => (
-                <motion.div
-                  key={f.title}
-                  initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: '-40px' }}
-                  transition={{ delay: i * 0.04, ...iosSpring }}
-                  className="flex items-center gap-4 p-4 rounded-2xl relative overflow-hidden"
-                  style={{
-                    background: 'linear-gradient(135deg, hsl(var(--card) / 0.7), hsl(var(--card) / 0.4))',
-                    border: '0.5px solid hsl(var(--border) / 0.6)',
-                    backdropFilter: 'blur(10px)',
-                  }}
-                >
+            {/* Featured spread — first feature gets hero treatment */}
+            {FEATURES[0] && (
+              <div
+                className="rounded-[24px] p-6 mb-3 relative overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(196,181,253,0.12) 0%, rgba(103,232,249,0.06) 100%)',
+                  border: '0.5px solid rgba(196,181,253,0.25)',
+                }}
+              >
+                <div className="flex items-start gap-4">
                   <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 relative"
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
                     style={{
-                      background: 'linear-gradient(135deg, hsl(var(--primary) / 0.28), hsl(var(--accent) / 0.12))',
-                      boxShadow: 'inset 0 1px 0 hsl(0 0% 100% / 0.08)',
+                      background: 'linear-gradient(135deg, #c4b5fd 0%, #67e8f9 100%)',
+                      boxShadow: '0 10px 30px -10px rgba(196,181,253,0.5)',
                     }}
                   >
-                    <f.icon className="w-5 h-5 text-primary" />
+                    {(() => { const Icon = FEATURES[0].icon; return <Icon className="w-7 h-7" style={{ color: '#0b0b14' }} strokeWidth={2} />; })()}
+                  </div>
+                  <div className="flex-1 min-w-0 pt-1">
+                    <p className="text-[10px] tracking-[0.25em] uppercase mb-1.5" style={{ color: '#c4b5fd', fontWeight: 600 }}>
+                      Featured
+                    </p>
+                    <p
+                      className="text-[26px] leading-[1.05] mb-1.5"
+                      style={{ fontFamily: "'Instrument Serif', serif", color: '#f2f0ff' }}
+                    >
+                      {FEATURES[0].title}
+                    </p>
+                    <p className="text-[13.5px] leading-[1.5]" style={{ color: 'rgba(232,232,240,0.7)' }}>
+                      {FEATURES[0].desc}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Remaining features — magazine 2-column grid on small mobile gets staggered */}
+            <div className="space-y-2">
+              {FEATURES.slice(1).map((f, i) => (
+                <motion.article
+                  key={f.title}
+                  initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-30px' }}
+                  transition={{ delay: i * 0.03, ...iosSpring }}
+                  className="flex items-start gap-4 py-4 px-1 relative"
+                  style={{ borderTop: '0.5px solid rgba(196,181,253,0.12)' }}
+                >
+                  <div
+                    className="text-[10px] tabular-nums pt-1 w-6 shrink-0"
+                    style={{ color: 'rgba(232,232,240,0.4)', fontFamily: "'Work Sans', sans-serif", letterSpacing: '0.1em' }}
+                  >
+                    {String(i + 2).padStart(2, '0')}
+                  </div>
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      background: 'rgba(196,181,253,0.08)',
+                      border: '0.5px solid rgba(196,181,253,0.18)',
+                    }}
+                  >
+                    <f.icon className="w-4.5 h-4.5" style={{ color: '#c4b5fd', width: 18, height: 18 }} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[15px] leading-tight">{f.title}</p>
-                    <p className="text-[12.5px] text-muted-foreground leading-snug mt-0.5">{f.desc}</p>
+                    <p
+                      className="text-[17px] leading-tight mb-1"
+                      style={{ fontFamily: "'Instrument Serif', serif", color: '#f2f0ff' }}
+                    >
+                      {f.title}
+                    </p>
+                    <p className="text-[12.5px] leading-snug" style={{ color: 'rgba(232,232,240,0.6)' }}>
+                      {f.desc}
+                    </p>
                   </div>
-                  <Check className="w-5 h-5 text-primary shrink-0" strokeWidth={3} />
-                </motion.div>
+                </motion.article>
               ))}
             </div>
           </motion.section>
 
-          {/* Trust strip */}
-          <motion.section
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ delay: 0.55 }}
-            className="grid grid-cols-3 gap-2 pt-4"
+          {/* Pull quote */}
+          <motion.blockquote
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="my-10 px-2 text-center"
           >
-            {[
-              { label: 'Secure', value: 'UPI' },
-              { label: 'Activates', value: 'In minutes' },
-              { label: 'Support', value: '24/7' },
-            ].map(t => (
-              <div
-                key={t.label}
-                className="text-center py-3.5 rounded-2xl"
-                style={{
-                  background: 'linear-gradient(135deg, hsl(var(--card) / 0.6), hsl(var(--card) / 0.3))',
-                  border: '0.5px solid hsl(var(--border) / 0.5)',
-                  backdropFilter: 'blur(10px)',
-                }}
-              >
-                <p className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground">{t.label}</p>
-                <p className="text-[13px] font-semibold mt-0.5">{t.value}</p>
-              </div>
-            ))}
-          </motion.section>
+            <p
+              className="text-[28px] leading-[1.15]"
+              style={{ fontFamily: "'Instrument Serif', serif", fontStyle: 'italic', color: '#f2f0ff' }}
+            >
+              <span style={{ color: '#c4b5fd' }}>"</span>
+              Most apps play music.
+              <br />
+              We tried to play it <em style={{ color: '#67e8f9' }}>properly</em>.
+              <span style={{ color: '#c4b5fd' }}>"</span>
+            </p>
+            <p className="text-[10px] tracking-[0.3em] uppercase mt-4" style={{ color: 'rgba(232,232,240,0.45)' }}>
+              — The Universflow Team
+            </p>
+          </motion.blockquote>
 
           {/* Redeem code link */}
           {!isPremium && !pending && (
             <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-              className="text-center pt-2"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+              className="text-center pt-2 pb-4"
             >
               <button
                 onClick={() => { haptics.light(); setShowRedeem(true); }}
-                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary py-2"
+                className="inline-flex items-center gap-2 text-[12px] tracking-[0.2em] uppercase py-3 px-4"
+                style={{ color: '#c4b5fd', fontWeight: 600 }}
               >
-                <Gift className="w-4 h-4" />
-                Have a code? Redeem here
+                <Gift className="w-3.5 h-3.5" />
+                Have a code? Redeem
               </button>
             </motion.div>
           )}
@@ -471,38 +548,45 @@ const PremiumPage = memo(function PremiumPage() {
         {/* ─── Sticky bottom CTA bar ─── */}
         {!isPremium && !pending && settings && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            transition={{ ...iosSpring, delay: 0.4 }}
-            className="fixed bottom-[68px] left-0 right-0 z-40 px-4 pb-2 pointer-events-none safe-area-pb"
+            initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            transition={{ ...iosSpring, delay: 0.3 }}
+            className="fixed bottom-[68px] left-0 right-0 z-40 px-4 pb-2 pointer-events-none"
+            style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
           >
             <div
               className="max-w-md mx-auto rounded-2xl p-3 pointer-events-auto flex items-center gap-3"
               style={{
-                background: 'hsl(var(--background) / 0.78)',
-                border: '0.5px solid hsl(var(--border))',
+                background: 'rgba(11,11,20,0.82)',
+                border: '0.5px solid rgba(196,181,253,0.25)',
                 backdropFilter: 'blur(30px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-                boxShadow: '0 -10px 40px -10px hsl(var(--background) / 0.6)',
+                boxShadow: '0 -20px 50px -10px rgba(0,0,0,0.6)',
               }}
             >
               <div className="min-w-0 flex-1 pl-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                <p className="text-[9px] uppercase tracking-[0.25em]" style={{ color: 'rgba(232,232,240,0.5)' }}>
                   {PLAN_LABEL[selectedPlan]}
                 </p>
-                <p className="text-[18px] font-bold leading-tight">₹{selectedPrice}</p>
+                <p
+                  className="text-[22px] leading-tight"
+                  style={{ fontFamily: "'Instrument Serif', serif", color: '#f2f0ff' }}
+                >
+                  ₹{selectedPrice}
+                </p>
               </div>
               <motion.button
                 onClick={handleUpgrade}
                 whileTap={{ scale: 0.96 }}
-                className="px-6 py-3.5 rounded-xl font-bold text-[15px] flex items-center gap-2"
+                className="px-6 py-3.5 rounded-xl text-[13px] tracking-[0.15em] uppercase flex items-center gap-2"
                 style={{
-                  background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-                  color: 'hsl(var(--primary-foreground))',
-                  boxShadow: '0 12px 30px -8px hsl(var(--primary) / 0.6)',
+                  background: 'linear-gradient(135deg, #c4b5fd 0%, #67e8f9 100%)',
+                  color: '#0b0b14',
+                  fontWeight: 700,
+                  boxShadow: '0 15px 35px -10px rgba(196,181,253,0.55)',
                 }}
               >
-                Get Premium
-                <Sparkles className="w-4 h-4" fill="currentColor" />
+                Subscribe
+                <Sparkles className="w-3.5 h-3.5" fill="currentColor" />
               </motion.button>
             </div>
           </motion.div>
@@ -548,92 +632,95 @@ const PlanCard = memo(function PlanCard({
     <motion.button
       onClick={onSelect}
       whileTap={{ scale: 0.99 }}
-      className="w-full text-left rounded-3xl p-[1.5px] relative transition-all"
+      className="w-full text-left rounded-[20px] p-[1px] relative transition-colors"
       style={{
         background: selected
-          ? 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%)'
+          ? 'linear-gradient(135deg, #c4b5fd 0%, #67e8f9 50%, #c4b5fd 100%)'
           : recommended
-          ? 'linear-gradient(135deg, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.4), hsl(var(--primary) / 0.5))'
-          : 'hsl(var(--border) / 0.6)',
+          ? 'linear-gradient(135deg, rgba(196,181,253,0.4), rgba(103,232,249,0.3))'
+          : 'rgba(196,181,253,0.12)',
         boxShadow: selected
-          ? '0 22px 55px -15px hsl(var(--primary) / 0.55)'
-          : recommended
-          ? '0 12px 35px -15px hsl(var(--primary) / 0.35)'
+          ? '0 18px 45px -18px rgba(196,181,253,0.5)'
           : 'none',
       }}
     >
       {recommended && (
         <div
-          className="absolute -top-2.5 right-5 px-2.5 py-1 rounded-full text-[9px] font-bold tracking-[0.18em] uppercase z-10 flex items-center gap-1"
+          className="absolute -top-2.5 left-5 px-2.5 py-1 rounded-full text-[8.5px] tracking-[0.22em] uppercase z-10 flex items-center gap-1"
           style={{
-            background: 'linear-gradient(135deg, #f5c542, #e8a317)',
-            color: '#1a0f00',
-            boxShadow: '0 6px 18px -4px rgba(245, 197, 66, 0.6)',
+            background: 'linear-gradient(135deg, #c4b5fd 0%, #67e8f9 100%)',
+            color: '#0b0b14',
+            fontWeight: 700,
+            boxShadow: '0 6px 18px -4px rgba(196,181,253,0.5)',
           }}
         >
-          <Sparkles className="w-2.5 h-2.5" fill="currentColor" />
-          Most Popular
+          Editor's Pick
         </div>
       )}
 
       <div
-        className="rounded-[22px] p-5 relative overflow-hidden"
+        className="rounded-[19px] px-5 py-5 relative overflow-hidden flex items-center gap-4"
         style={{
           background: selected
-            ? 'linear-gradient(160deg, hsl(var(--primary) / 0.18) 0%, hsl(var(--card)) 55%, hsl(var(--accent) / 0.15) 100%)'
-            : 'linear-gradient(135deg, hsl(var(--card) / 0.85), hsl(var(--card) / 0.55))',
-          backdropFilter: 'blur(12px)',
+            ? 'linear-gradient(135deg, rgba(196,181,253,0.14) 0%, rgba(11,11,20,0.95) 50%, rgba(103,232,249,0.1) 100%)'
+            : 'linear-gradient(135deg, rgba(20,20,32,0.85), rgba(11,11,20,0.95))',
         }}
       >
-        {selected && (
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: 'linear-gradient(115deg, transparent 40%, hsl(0 0% 100% / 0.06) 50%, transparent 60%)' }}
-            animate={{ x: ['-100%', '100%'] }}
-            transition={{ duration: 3.5, repeat: Infinity, ease: 'linear' }}
-          />
-        )}
+        {/* Selection indicator — minimal radio dot */}
+        <div
+          className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+          style={{
+            border: selected ? 'none' : '1px solid rgba(196,181,253,0.35)',
+            background: selected ? 'linear-gradient(135deg, #c4b5fd, #67e8f9)' : 'transparent',
+          }}
+        >
+          {selected && <Check className="w-3 h-3" style={{ color: '#0b0b14' }} strokeWidth={3.5} />}
+        </div>
 
-        <div className="flex items-center justify-between gap-3 relative">
-          <div className="flex items-center gap-3 min-w-0">
-            <motion.div
-              animate={selected ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-              transition={{ duration: 1.6, repeat: selected ? Infinity : 0, ease: 'easeInOut' }}
-              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-              style={{
-                background: selected
-                  ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))'
-                  : 'transparent',
-                border: selected ? 'none' : '1.5px solid hsl(var(--muted-foreground) / 0.4)',
-                boxShadow: selected ? '0 6px 18px -4px hsl(var(--primary) / 0.5)' : 'none',
-              }}
+        {/* Title & tagline */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <p
+              className="text-[20px] leading-none"
+              style={{ fontFamily: "'Instrument Serif', serif", color: '#f2f0ff' }}
             >
-              {selected && <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3.5} />}
-            </motion.div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[17px] font-bold">{title}</p>
-                {badge && (
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
-                    style={{
-                      background: 'linear-gradient(135deg, hsl(var(--accent) / 0.25), hsl(var(--primary) / 0.18))',
-                      color: 'hsl(var(--accent))',
-                      border: '0.5px solid hsl(var(--accent) / 0.35)',
-                    }}
-                  >
-                    {badge}
-                  </span>
-                )}
-              </div>
-              <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{tagline}</p>
-            </div>
+              {title}
+            </p>
+            {badge && (
+              <span
+                className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5 rounded"
+                style={{
+                  background: 'rgba(103,232,249,0.12)',
+                  color: '#67e8f9',
+                  border: '0.5px solid rgba(103,232,249,0.3)',
+                  fontWeight: 600,
+                }}
+              >
+                {badge}
+              </span>
+            )}
           </div>
+          <p className="text-[11.5px] mt-1 tracking-wide" style={{ color: 'rgba(232,232,240,0.5)' }}>
+            {tagline}
+          </p>
+        </div>
 
-          <div className="text-right shrink-0">
-            <p className="text-[26px] font-bold leading-none tracking-tight">₹{price}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">{perMonth}</p>
-          </div>
+        {/* Price — serif numerals */}
+        <div className="text-right shrink-0">
+          <p
+            className="leading-none"
+            style={{
+              fontFamily: "'Instrument Serif', serif",
+              fontSize: '32px',
+              color: '#f2f0ff',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            ₹{price}
+          </p>
+          <p className="text-[10px] mt-1 tracking-[0.1em] uppercase" style={{ color: 'rgba(232,232,240,0.45)' }}>
+            {perMonth}
+          </p>
         </div>
       </div>
     </motion.button>
