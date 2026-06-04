@@ -81,26 +81,28 @@ const Auth = () => {
 
   return (
     <FadeTransition>
-      <div className="h-[100dvh] bg-background flex flex-col items-center justify-center p-5 relative overflow-hidden">
+      <div className="min-h-[100dvh] bg-background flex flex-col items-center px-5 pt-10 pb-6 relative overflow-y-auto">
         <SEOHead
           title="Sign in — Univers Flow Premium Music Experience"
           description="Sign in or create your free Univers Flow account to stream music, build playlists, and listen offline."
           path="/auth"
         />
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="fixed inset-0 pointer-events-none"
           style={{
             background:
               'radial-gradient(ellipse at 30% 20%, hsl(340 100% 50% / 0.18) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, hsl(260 100% 60% / 0.15) 0%, transparent 50%), radial-gradient(ellipse at 60% 30%, hsl(210 100% 60% / 0.08) 0%, transparent 40%)',
           }}
         />
 
+
         <motion.div
-          className="relative w-full max-w-sm z-10"
+          className="relative w-full max-w-sm z-10 my-auto"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
+
           <div className="flex flex-col items-center mb-8">
             <motion.div
               className="relative"
@@ -277,7 +279,7 @@ const Auth = () => {
         </motion.div>
 
         <motion.div
-          className="absolute bottom-5 z-10 px-4 py-1.5 rounded-full flex items-center gap-2"
+          className="relative z-10 mt-8 px-4 py-1.5 rounded-full flex items-center gap-2"
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.06)',
@@ -287,10 +289,11 @@ const Auth = () => {
           transition={{ delay: 0.5 }}
         >
           <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-          <p className="text-[10px] text-muted-foreground/50 tracking-wider">
+          <p className="text-[10px] text-muted-foreground/60 tracking-wider">
             Universflow · Built for music lovers
           </p>
         </motion.div>
+
       </div>
     </FadeTransition>
   );

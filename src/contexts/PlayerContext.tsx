@@ -406,22 +406,31 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }, 5000);
 
-    // Handle buffering stalls — nudge playback
+    // Handle buffering stalls — only nudge if we've actually been stuck for
+    // a meaningful window. The old 2s + 0.001s currentTime poke caused a
+    // micro-glitch even when playback was healthy. We now wait 4s and only
+    // act if readyState is still HAVE_CURRENT_DATA or lower.
+    let waitingTimer: number | null = null;
     const handleWaiting = () => {
-      if (audioRef.current && !audioRef.current.paused) {
-        setTimeout(() => {
-          if (audioRef.current && audioRef.current.readyState < 3 && !audioRef.current.paused) {
-            // Nudge currentTime slightly to unstall
-            const at = audioRef.current.currentTime;
-            if (Number.isFinite(at) && at > 0) audioRef.current.currentTime = Math.max(0, at - 0.001);
-          }
-        }, 2000);
-      }
+      if (waitingTimer != null) return;
+      waitingTimer = window.setTimeout(() => {
+        waitingTimer = null;
+        const a = audioRef.current;
+        if (a && !a.paused && a.readyState < 2 && a.src) {
+          a.play().catch(() => {});
+        }
+      }, 4000);
+    };
+    const handlePlaying = () => {
+      if (waitingTimer != null) { clearTimeout(waitingTimer); waitingTimer = null; }
     };
 
+
     audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('playing', handlePlaying);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
+
 
     // Native app resume — only fires inside Capacitor APK. Web preview ignores.
     let appResumeRemove: (() => void) | null = null;
@@ -454,12 +463,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     })();
 
     return () => {
+      if (waitingTimer != null) clearTimeout(waitingTimer);
       audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('playing', handlePlaying);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       if (appResumeRemove) appResumeRemove();
       if (keepAliveRef.current) clearInterval(keepAliveRef.current);
       if (backgroundRecoveryTimerRef.current) clearTimeout(backgroundRecoveryTimerRef.current);
+
       audio.pause();
       audio.src = '';
       nextAudio.pause();

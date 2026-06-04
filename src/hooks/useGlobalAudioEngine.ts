@@ -121,16 +121,16 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     const onPlaying = () => { resume(); reapplyIfSrcChanged(); };
     const onPointer = () => resume();
 
-    // Background → DO NOT swap chains. Disconnecting/reconnecting the
-    // MediaElementSource mid-playback causes an audible pop and on Android
-    // WebView can stall the stream entirely. Just resume on foreground and
-    // re-push EQ values in case the context was suspended.
+    // Background → DO NOT swap chains or even call reapply on foreground.
+    // Disconnecting/reconnecting the MediaElementSource mid-playback causes
+    // an audible pop and can stall the stream on Android WebView. Just resume
+    // the AudioContext when we come back into focus; EQ values are already
+    // wired and remain so. This is the Spotify-like contract: nothing the UI
+    // does ever interrupts the audio graph.
     const onVisibility = () => {
-      if (document.visibilityState !== 'hidden') {
-        resume();
-        reapply();
-      }
+      if (document.visibilityState !== 'hidden') resume();
     };
+
 
     // User toggled EQ in modal — apply right now.
     const onEqChanged = () => reapply();
