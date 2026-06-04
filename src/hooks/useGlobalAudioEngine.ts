@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { bypassAudioElement, connectAudioElement, setBands, setReverb, setSpatial, setLateNight, setStudioSpace as engineSetStudioSpace, resume, subscribe, type StudioSpaceId } from '@/lib/audioEngine';
-import { usePremium } from '@/hooks/usePremium';
 
 const STORAGE_KEY = 'eq_settings';
 
@@ -50,30 +48,15 @@ function hasActiveProcessing(s: StoredEQ) {
  * explicitly disables it.
  */
 export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
-  const { isPremium, isLoading } = usePremium();
-
   useEffect(() => {
     if (!audioElement) return;
-
-    const isNativeApk = (() => {
-      try { return Capacitor.isNativePlatform?.() === true; }
-      catch { return false; }
-    })();
 
     let lastAppliedSrc = '';
     let reapplyTimer: number | null = null;
 
     const doReapply = () => {
-      // APK priority: Spotify-like background reliability beats Web Audio DSP.
-      // Android can suspend AudioContext while the app is minimized; keeping
-      // the stream on the native <audio> path avoids background pause loops.
-      if (isNativeApk) {
-        bypassAudioElement(audioElement);
-        audioElement.playbackRate = 1;
-        return;
-      }
-
-      // Browser EQ is available to ALL users.
+      // EQ is applied to every CORS-safe/proxied HTMLAudio stream. YouTube
+      // iframe fallback cannot be WebAudio-processed, but every normal song can.
       const s = readStored();
       if (!hasActiveProcessing(s)) {
         bypassAudioElement(audioElement);
@@ -141,7 +124,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     const srcObserver = new MutationObserver(() => reapply());
     srcObserver.observe(audioElement, { attributes: true, attributeFilter: ['src'] });
 
-    if (!isLoading) doReapply();
+    doReapply();
     audioElement.addEventListener('loadstart', reapply);
     audioElement.addEventListener('loadedmetadata', reapply);
     audioElement.addEventListener('canplay', reapply);
@@ -167,7 +150,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('uf-eq-changed', onEqChanged);
     };
-  }, [audioElement, isPremium, isLoading]);
+  }, [audioElement]);
 }
 
 export function useEngineState() {
