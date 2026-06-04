@@ -711,13 +711,13 @@ html.light [style*="boxShadow: 0 6px 24px rgba(0,0,0,0.4)"] {
 .lockfx-aurora-a {
   width: 70vw; height: 70vw; max-width: 480px; max-height: 480px;
   left: -10vw; top: -10vw;
-  background: #ff2d55;
+  background: hsl(198 92% 58%);
   animation: lockfxAuroraA 24s ease-in-out infinite alternate;
 }
 .lockfx-aurora-b {
   width: 80vw; height: 80vw; max-width: 540px; max-height: 540px;
   right: -20vw; bottom: -20vw;
-  background: #7c3aed;
+  background: hsl(154 72% 45%);
   animation: lockfxAuroraB 28s ease-in-out infinite alternate;
 }
 @keyframes lockfxAuroraA {
@@ -742,7 +742,7 @@ html.light [style*="boxShadow: 0 6px 24px rgba(0,0,0,0.4)"] {
 
 .lockfx-glow {
   position: absolute; inset: 0;
-  background: radial-gradient(circle at 50% 60%, rgba(255,45,85,0.45) 0%, rgba(120,20,60,0.2) 35%, transparent 70%);
+  background: radial-gradient(circle at 50% 60%, hsl(194 95% 62% / 0.38) 0%, hsl(160 74% 42% / 0.18) 35%, transparent 70%);
   will-change: opacity;
   transform: translateZ(0);
   animation: lockfxGlow 6s ease-in-out infinite;
@@ -763,10 +763,35 @@ html.light [style*="boxShadow: 0 6px 24px rgba(0,0,0,0.4)"] {
   to   { opacity: 0.7; }
 }
 
+.lockfx-classic-drift {
+  position: absolute;
+  inset: -18%;
+  background:
+    radial-gradient(circle at 26% 22%, hsl(202 80% 60% / 0.18), transparent 34%),
+    radial-gradient(circle at 74% 68%, hsl(151 70% 48% / 0.12), transparent 36%);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  animation: lockfxClassicDrift 18s ease-in-out infinite alternate;
+}
+
+@keyframes lockfxClassicDrift {
+  0%   { transform: translate3d(-2%, -1%, 0) scale(1); opacity: 0.65; }
+  100% { transform: translate3d(2%, 2%, 0) scale(1.05); opacity: 0.9; }
+}
+
+.lockfx-cover-float {
+  animation: lockfxCoverFloat 7s ease-in-out infinite;
+}
+
+@keyframes lockfxCoverFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -6px, 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lockfx-aurora-a, .lockfx-aurora-b,
   .lockfx-wave-path-1, .lockfx-wave-path-2,
-  .lockfx-glow { animation: none !important; }
+  .lockfx-glow, .lockfx-classic-drift, .lockfx-cover-float { animation: none !important; }
 }
 
 
