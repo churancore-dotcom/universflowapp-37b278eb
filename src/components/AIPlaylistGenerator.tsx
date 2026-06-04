@@ -251,8 +251,8 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
       toast.success(`Playlist created · ${queue.length} tracks`);
       onClose();
     } catch (e) {
-      console.error('Mix start failed:', e);
-      toast.error('Could not start mix. Try again.');
+      console.error('Playlist generation failed:', e);
+      toast.error('Could not create playlist. Try again.');
     } finally {
       setIsStarting(false);
     }
@@ -285,8 +285,8 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
                 <Radio className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Start Mix</h2>
-                <p className="text-xs text-muted-foreground">Pick a song · we'll play 20 tuned tracks</p>
+                <h2 className="text-lg font-semibold">Auto Generate</h2>
+                <p className="text-xs text-muted-foreground">Pick a song · save 20 tuned tracks</p>
               </div>
             </div>
             <button
@@ -348,11 +348,11 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
               {isStarting ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /><span>Building mix…</span></>
               ) : (
-                <><Play className="w-5 h-5" fill="currentColor" /><span>Start Mix</span></>
+                <><Play className="w-5 h-5" fill="currentColor" /><span>Create Playlist</span></>
               )}
             </button>
             <p className="text-[11px] text-muted-foreground text-center -mt-2">
-              Plays instantly · nothing saved to your library
+              Saves to your library · starts playing instantly
             </p>
           </div>
         </motion.div>
