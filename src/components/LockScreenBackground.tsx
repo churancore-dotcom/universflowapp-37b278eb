@@ -106,12 +106,12 @@ const LockScreenBackground = ({ themeId = 'classic', coverUrl }: Props) => {
         >
           <defs>
             <linearGradient id="lockfx-wave-1" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#ff2d55" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="hsl(198 92% 58%)" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="hsl(154 72% 45%)" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id="lockfx-wave-2" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#ff2d55" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="hsl(154 72% 45%)" stopOpacity="0.32" />
+              <stop offset="100%" stopColor="hsl(198 92% 58%)" stopOpacity="0.0" />
             </linearGradient>
           </defs>
           <path
