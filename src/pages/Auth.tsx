@@ -123,7 +123,7 @@ const Auth = () => {
               >
                 <img
                   src={appLogo}
-                  alt="UniversFlow"
+                  alt="Univers Flow logo"
                   width={96}
                   height={96}
                   {...({ fetchpriority: "high" } as any)}

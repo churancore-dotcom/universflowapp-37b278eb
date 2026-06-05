@@ -251,8 +251,8 @@ const PremiumPage = memo(function PremiumPage() {
               Universflow Premium
             </p>
             <h1 className="text-[40px] leading-[1.05] font-bold tracking-tight mb-3 px-2">
-              Hear it the way<br />
-              <span className="text-primary">it was recorded.</span>
+              Univers Flow Premium —<br />
+              <span className="text-primary">Ad-Free Music &amp; Spatial Audio</span>
             </h1>
             <p className="text-[15px] leading-snug text-muted-foreground max-w-[320px] mx-auto">
               Spatial audio, studio EQ, zero ads. Built for people who actually listen.

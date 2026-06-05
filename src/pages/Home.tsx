@@ -227,7 +227,7 @@ const Home = () => {
     <TabTransition>
       <div className="h-[100dvh] bg-background relative flex flex-col overflow-hidden">
         <SEOHead
-          title="Univers Flow — Free Music Streaming, Playlists & Offline Downloads"
+          title="Univers Flow — Free Music Streaming & Playlists"
           description="Your personalized music feed: trending tracks, featured artists, auto-generated mixes, and your now-playing card. Stream and download free."
           path="/home"
           jsonLdId="home-jsonld"
