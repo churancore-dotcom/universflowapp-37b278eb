@@ -393,47 +393,74 @@ const ArtistStrip = memo(({ songs }: { songs: Song[] }) => {
 });
 ArtistStrip.displayName = 'ArtistStrip';
 
-const EmptyState = memo(() => (
-  <motion.div
-    initial={{ opacity: 0, y: 14 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-    className="space-y-5 pb-8"
-  >
-    <section
-      className="relative h-[68dvh] min-h-[500px] overflow-hidden rounded-[2rem] border border-border/60 bg-card"
-      style={{
-        boxShadow: '0 30px 80px -38px hsl(var(--primary) / 0.55)',
-        background: 'radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.32), transparent 46%), linear-gradient(180deg, hsl(var(--secondary) / 0.85), hsl(var(--background)))',
-      }}
+const EmptyState = memo(() => {
+  const navigate = useNavigate();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="pb-8"
     >
-      <div className="absolute left-1/2 top-8 grid w-[76%] -translate-x-1/2 grid-cols-2 gap-3 rotate-[-7deg]">
-        {[0, 1, 2, 3].map((item) => (
-          <div
-            key={item}
-            className={`aspect-square rounded-[1.7rem] border border-border/70 bg-secondary/90 grid place-items-center ${item === 1 ? 'translate-y-7' : ''} ${item === 2 ? '-translate-y-2' : ''}`}
-          >
-            <Music className="h-8 w-8 text-primary" />
+      <section
+        className="relative overflow-hidden rounded-[2rem] border border-border/60 p-7"
+        style={{
+          minHeight: '70dvh',
+          boxShadow: '0 30px 80px -38px hsl(var(--primary) / 0.55)',
+          background:
+            'radial-gradient(120% 80% at 50% 0%, hsl(var(--primary) / 0.35), transparent 55%), linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)))',
+        }}
+      >
+        <motion.div
+          aria-hidden="true"
+          className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full"
+          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 70%)', filter: 'blur(40px)' }}
+          animate={{ scale: [1, 1.08, 1], opacity: [0.7, 0.9, 0.7] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        <div className="relative flex h-full flex-col">
+          <div className="flex flex-1 flex-col items-center justify-center pt-8 text-center">
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              className="grid h-28 w-28 place-items-center rounded-[2rem] border border-border/70 bg-card/80 backdrop-blur-2xl"
+              style={{ boxShadow: '0 18px 50px -16px hsl(var(--primary) / 0.6)' }}
+            >
+              <img src={appLogo} alt="Universflow" className="h-14 w-14 object-contain" />
+            </motion.div>
+            <h2 className="mt-7 text-[34px] font-black leading-[0.95] tracking-tight text-foreground">
+              Welcome to<br />Universflow
+            </h2>
+            <p className="mt-3 max-w-[28ch] text-[14px] font-medium leading-relaxed text-muted-foreground">
+              Your music library is empty. Search to start streaming, or open the library to explore downloads.
+            </p>
           </div>
-        ))}
-      </div>
-      <div className="absolute inset-x-0 bottom-0 p-6">
-        <h2 className="max-w-[7ch] text-[48px] font-black leading-[0.88] tracking-normal text-foreground">Universflow</h2>
-        <div className="mt-5 flex items-center gap-3">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground" style={{ boxShadow: '0 12px 34px hsl(var(--primary) / 0.5)' }}>
-            <Play className="ml-1 h-6 w-6" fill="currentColor" />
+
+          <div className="mt-8 space-y-3">
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => { triggerHaptic('impactMedium'); navigate('/search'); }}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 text-[15px] font-bold text-primary-foreground"
+              style={{ boxShadow: '0 14px 38px -10px hsl(var(--primary) / 0.7)' }}
+            >
+              <Search className="h-5 w-5" />
+              Find music
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => { triggerHaptic('selection'); navigate('/library'); }}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-border/70 bg-card/70 py-4 text-[15px] font-bold text-foreground backdrop-blur-2xl"
+            >
+              <ListMusic className="h-5 w-5" />
+              Open library
+            </motion.button>
           </div>
-          <TinyBars active />
         </div>
-      </div>
-    </section>
-    <div className="grid grid-cols-3 gap-3 opacity-55">
-      {[0, 1, 2].map((item) => (
-        <div key={item} className="aspect-square rounded-3xl border border-border/50 bg-secondary/70" />
-      ))}
-    </div>
-  </motion.div>
-));
+      </section>
+    </motion.div>
+  );
+});
 EmptyState.displayName = 'EmptyState';
 
 const Home = () => {
