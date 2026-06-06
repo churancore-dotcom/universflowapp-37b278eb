@@ -278,6 +278,7 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
         duration: s.duration ?? 0,
         genre: s.genre ?? undefined,
         mood: s.mood ?? undefined,
+        source: s.source === 'library' ? 'library' : 'indexed',
       }) as Song);
 
       const { data: playlistRow, error: playlistError } = await supabase
