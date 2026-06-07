@@ -346,7 +346,7 @@ const Search = () => {
                             key={entry.id}
                             initial={{ opacity: 0, y: 4 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`flex items-center gap-3 px-2 py-2 rounded-2xl active:scale-[0.98] transition-all ${isActive ? 'bg-primary/10' : 'active:bg-white/5'}`}
+                            className={`flex items-center gap-3 px-2 py-2 rounded-3xl active:scale-[0.98] transition-all ${isActive ? 'bg-primary/10' : 'bg-card/40 active:bg-white/5'}`}
                           >
                             <button
                               className="flex items-center gap-3 flex-1 min-w-0 text-left"
@@ -433,7 +433,7 @@ const Search = () => {
                       const isResolving = resolvingId === track.id;
                       return (
                         <motion.div key={track.id}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer active:scale-[0.98] transition-all ${isActive ? 'bg-primary/10' : 'active:bg-white/5'} ${isResolving ? 'opacity-60' : ''}`}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-3xl cursor-pointer active:scale-[0.98] transition-all ${isActive ? 'bg-primary/10' : 'bg-card/40 active:bg-white/5'} ${isResolving ? 'opacity-60' : ''}`}
                           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.025, duration: 0.25 }}
                           onClick={() => !isResolving && handlePlayIndexed(track)}>
