@@ -65,7 +65,8 @@ const GlobalTopTracksSection = () => {
         }
       }
 
-      return { tracks: mapped, followedCount: prefs.length };
+      // Only surface tracks with real cover art — no placeholder icons.
+      return { tracks: mapped.filter((t) => !!t.cover_url), followedCount: prefs.length };
     },
   });
 
