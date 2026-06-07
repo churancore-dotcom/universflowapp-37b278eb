@@ -54,22 +54,59 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
       const seen = new Set<string>();
       const list: SeedRow[] = [];
 
-      const { data: rp } = await supabase
-        .from('recently_played')
-        .select('song_id, played_at, songs(id,title,artist,cover_url,genre,mood,audio_url,duration,album)')
+      // Source A: per-user stream history from song_play_events (text track_id).
+      // This is what actually fires when users listen to indexed/stream tracks.
+      const { data: events } = await supabase
+        .from('song_play_events')
+        .select('track_id, title, artist, cover_url, source, created_at')
         .eq('user_id', user.id)
-        .order('played_at', { ascending: false })
-        .limit(40);
-      (rp || []).forEach((row: any) => {
-        const s = row.songs;
-        if (!s || seen.has(s.id)) return;
-        seen.add(s.id);
-        list.push({
-          id: s.id, title: s.title, artist: s.artist, cover_url: s.cover_url,
-          genre: s.genre, mood: s.mood, audio_url: s.audio_url,
-          duration: s.duration, album: s.album,
+        .eq('action', 'stream')
+        .order('created_at', { ascending: false })
+        .limit(60);
+
+      const recentTrackIds = Array.from(
+        new Set((events || []).map((e: any) => e.track_id).filter(Boolean))
+      ).slice(0, 30);
+
+      if (recentTrackIds.length > 0) {
+        const { data: streamMatches } = await supabase
+          .from('stream_songs')
+          .select('track_id,title,artist,cover_url,genre,mood,audio_url,duration,album')
+          .in('track_id', recentTrackIds)
+          .not('audio_url', 'is', null);
+        const byTrack = new Map<string, any>((streamMatches || []).map((s: any) => [s.track_id, s]));
+        // Preserve most-recent-first ordering from the event log
+        for (const tid of recentTrackIds) {
+          const s = byTrack.get(tid);
+          if (!s || seen.has(s.track_id)) continue;
+          seen.add(s.track_id);
+          list.push({
+            id: s.track_id, title: s.title, artist: s.artist, cover_url: s.cover_url,
+            genre: s.genre, mood: s.mood, audio_url: s.audio_url,
+            duration: s.duration, album: s.album,
+          });
+        }
+      }
+
+      // Source B: catalog recently_played (uuid → admin songs)
+      if (list.length < 8) {
+        const { data: rp } = await supabase
+          .from('recently_played')
+          .select('song_id, played_at, songs(id,title,artist,cover_url,genre,mood,audio_url,duration,album)')
+          .eq('user_id', user.id)
+          .order('played_at', { ascending: false })
+          .limit(40);
+        (rp || []).forEach((row: any) => {
+          const s = row.songs;
+          if (!s || seen.has(s.id)) return;
+          seen.add(s.id);
+          list.push({
+            id: s.id, title: s.title, artist: s.artist, cover_url: s.cover_url,
+            genre: s.genre, mood: s.mood, audio_url: s.audio_url,
+            duration: s.duration, album: s.album,
+          });
         });
-      });
+      }
 
       // Fallback A: popular catalog (admin-uploaded songs)
       if (list.length < 8) {
