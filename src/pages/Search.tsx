@@ -274,7 +274,7 @@ const Search = () => {
               onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
               placeholder="Any song, artist, or album worldwide"
               aria-label="Search songs, artists, or albums"
-              className="pl-10 pr-8 h-11 text-sm rounded-xl border-0"
+              className="pl-10 pr-8 h-12 text-sm rounded-3xl border-0 bg-card"
               style={{
                 background: 'rgba(255, 255, 255, 0.06)',
                 border: isFocused ? '1px solid hsl(var(--primary) / 0.4)' : '1px solid rgba(255,255,255,0.06)',
@@ -298,11 +298,11 @@ const Search = () => {
                 { key: 'indexer' as SearchSource, label: 'Worldwide', icon: Radio },
               ]).map(tab => (
                 <motion.button key={tab.key} onClick={() => setSource(tab.key)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0"
                   style={{
-                    background: source === tab.key ? 'hsl(var(--primary) / 0.2)' : 'rgba(255,255,255,0.05)',
-                    border: source === tab.key ? '1px solid hsl(var(--primary) / 0.3)' : '1px solid rgba(255,255,255,0.06)',
-                    color: source === tab.key ? 'hsl(var(--primary))' : undefined,
+                    background: source === tab.key ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(18 100% 82%))' : 'hsl(var(--card))',
+                    border: source === tab.key ? '1px solid hsl(0 0% 100% / 0.12)' : '1px solid hsl(0 0% 100% / 0.06)',
+                    color: source === tab.key ? 'hsl(var(--background))' : undefined,
                   }} whileTap={{ scale: 0.95 }}>
                   <tab.icon className="w-3 h-3" />
                   {tab.label}
