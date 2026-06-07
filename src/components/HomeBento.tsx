@@ -1,8 +1,10 @@
 import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Play, Headphones } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
+import { supabase } from '@/integrations/supabase/client';
 import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface Props {
@@ -18,14 +20,43 @@ const fadeUp = (i: number) => ({
 /**
  * Stacked Bento home hero + quick tiles.
  * Rose-ember palette, Bebas Neue display, real data only.
+ * Falls back to stream_songs when the local catalog is empty.
  */
 const HomeBento: React.FC<Props> = ({ songs }) => {
   const { currentSong, playSong } = usePlayer();
   const navigate = useNavigate();
 
-  const hero: Song | undefined = currentSong || songs[0];
-  const newRelease = songs[0];
-  const recent = useMemo(() => songs.slice(0, 2), [songs]);
+  // Stream-songs fallback (catalog is mostly stream-only in this app).
+  const { data: streamSongs = [] } = useQuery({
+    queryKey: ['home-bento', 'stream-fallback'],
+    enabled: songs.length === 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<Song[]> => {
+      const { data, error } = await supabase
+        .from('stream_songs')
+        .select('track_id,title,artist,cover_url,audio_url,duration,genre,mood,album,last_seen_at')
+        .order('last_seen_at', { ascending: false })
+        .limit(40);
+      if (error) throw error;
+      return (data || []).map((s: any) => ({
+        id: s.track_id,
+        title: s.title,
+        artist: s.artist,
+        album: s.album || undefined,
+        cover_url: s.cover_url || undefined,
+        audio_url: s.audio_url,
+        duration: s.duration || undefined,
+        genre: s.genre || undefined,
+        mood: s.mood || undefined,
+      } as Song));
+    },
+  });
+
+  const pool = songs.length > 0 ? songs : streamSongs;
+
+  const hero: Song | undefined = currentSong || pool[0];
+  const newRelease = pool[0];
+  const recent = useMemo(() => pool.slice(0, 2), [pool]);
 
   // Top artist: pick the first song with an artist photo, else first song's artist.
   const topArtist = useMemo(() => {
