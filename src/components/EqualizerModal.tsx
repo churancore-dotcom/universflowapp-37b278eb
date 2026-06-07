@@ -230,37 +230,45 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
         />
 
         <motion.div
-          className="relative w-full max-w-lg mx-4 mb-4 rounded-3xl overflow-hidden"
-          style={{
-            background: 'linear-gradient(180deg, rgba(30, 30, 35, 0.98) 0%, rgba(20, 20, 25, 0.99) 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-          }}
+          className="relative w-full max-w-lg mx-4 mb-4 rounded-3xl overflow-hidden bg-background border border-white/10"
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={iosSpring}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-purple-600">
+          <div className="relative overflow-hidden p-5 uf-rose-gradient">
+            {currentSong?.cover_url && (
+              <img
+                src={currentSong.cover_url}
+                alt=""
+                aria-hidden
+                className="absolute inset-y-0 right-0 h-full w-2/3 object-cover pointer-events-none"
+                style={{ filter: 'blur(18px) saturate(140%)', opacity: 0.45, WebkitMaskImage: 'linear-gradient(to left, #000 30%, transparent 100%)', maskImage: 'linear-gradient(to left, #000 30%, transparent 100%)' }}
+              />
+            )}
+            <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-black shadow-lg shrink-0">
                 <Waves className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h2 className="text-lg font-semibold">Equalizer</h2>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  {isConnected && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
-                  {isConnected ? 'Connected' : currentSong ? 'Connecting to current song…' : 'Play a song to connect'}
+              <div className="min-w-0">
+                <p className="text-black/60 text-[10px] font-extrabold uppercase tracking-[0.18em]">Studio sound</p>
+                <h2 className="text-black text-[30px] leading-none font-display tracking-wide">EQUALIZER</h2>
+                <p className="text-xs text-black/70 font-semibold truncate flex items-center gap-1">
+                  {isConnected && <span className="w-1.5 h-1.5 rounded-full bg-black" />}
+                  {isConnected ? 'Connected' : currentSong ? 'Connecting…' : 'Play a song to connect'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <motion.button onClick={handleReset} className="w-10 h-10 rounded-full flex items-center justify-center glass" whileTap={{ scale: 0.95 }}>
-                <RotateCcw className="w-4 h-4 text-muted-foreground" />
+              <motion.button onClick={handleReset} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/15" whileTap={{ scale: 0.95 }}>
+                <RotateCcw className="w-4 h-4 text-black/70" />
               </motion.button>
-              <motion.button onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center glass" whileTap={{ scale: 0.95 }}>
+              <motion.button onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center bg-black text-white" whileTap={{ scale: 0.95 }}>
                 <X className="w-5 h-5" />
               </motion.button>
+            </div>
             </div>
           </div>
 
@@ -279,7 +287,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
 
             {/* Presets 2x4 Grid */}
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">Presets</h3>
+              <h3 className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary mb-3">Presets</h3>
               <div className="grid grid-cols-4 gap-2">
                 {presets.map((preset) => {
                   const Icon = preset.icon;
@@ -291,8 +299,8 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                       className="relative flex flex-col items-center gap-2 py-3 px-2 rounded-xl overflow-hidden transition-all"
                       style={{
                         background: isSelected
-                          ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(270 80% 55%))'
-                          : 'rgba(28, 28, 30, 0.8)',
+                          ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(18 100% 82%))'
+                          : 'hsl(var(--card))',
                         border: isSelected
                           ? '1px solid hsl(var(--primary) / 0.6)'
                           : '1px solid rgba(255, 255, 255, 0.06)',
