@@ -140,6 +140,19 @@ const SPACE_PROFILES: Record<Exclude<StudioSpaceId, 'off'>, SpaceProfile> = {
 };
 
 let currentSpaceId: StudioSpaceId = 'off';
+let currentReverbPercent = 0;
+
+function applyReverbMix(percent: number) {
+  if (engine.mode !== 'processed' || !engine.ctx || !engine.dryGain || !engine.wetGain) return;
+  const ctx = engine.ctx;
+  const now = ctx.currentTime;
+  const wet = Math.max(0, Math.min(0.35, percent / 100 * 0.45));
+  const dry = 1 - wet * 0.4;
+  engine.dryGain.gain.cancelScheduledValues(now);
+  engine.wetGain.gain.cancelScheduledValues(now);
+  engine.dryGain.gain.setTargetAtTime(dry, now, SMOOTH);
+  engine.wetGain.gain.setTargetAtTime(wet, now, SMOOTH);
+}
 
 /** Build a stereo IR from a SpaceProfile. */
 function buildSpaceIR(ctx: AudioContext, p: SpaceProfile): AudioBuffer {
@@ -202,10 +215,7 @@ export function setStudioSpace(spaceId: StudioSpaceId) {
   const now = ctx.currentTime;
   if (spaceId === 'off') {
     engine.convolver.buffer = getReverbIR(ctx);
-    engine.wetGain.gain.cancelScheduledValues(now);
-    engine.dryGain.gain.cancelScheduledValues(now);
-    engine.wetGain.gain.setTargetAtTime(0, now, SMOOTH);
-    engine.dryGain.gain.setTargetAtTime(1, now, SMOOTH);
+    applyReverbMix(currentReverbPercent);
     return;
   }
   const profile = SPACE_PROFILES[spaceId];
