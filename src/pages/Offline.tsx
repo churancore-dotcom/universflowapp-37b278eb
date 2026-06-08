@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { WifiOff, Play, Music, HardDrive, ArrowLeft, Shuffle } from 'lucide-react';
+import { Play, Music, HardDrive, ArrowLeft, Shuffle } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useNavigate } from 'react-router-dom';
