@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, Music, X, Globe, Radio, Loader2, Clock, Trash2 } from 'lucide-react';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
@@ -129,6 +129,12 @@ const Search = () => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+
+  useEffect(() => {
+    const urlQuery = params.get('q')?.trim() || '';
+    if (urlQuery && urlQuery !== query.trim()) setQuery(urlQuery);
+  }, [params]);
 
   // Refresh history snapshot whenever the currently playing song changes
   useEffect(() => {
@@ -182,7 +188,7 @@ const Search = () => {
           .slice(0, 300);
 
         setCached(SEARCH_CACHE_NAMESPACE, trimmedQuery, merged);
-        setArtistResults(artists.filter((artist) => !!artist.image_url || normalizeText(artist.name).includes(normalizeText(trimmedQuery))).slice(0, 30));
+        setArtistResults(artists.filter((artist) => !!artist.image_url).slice(0, 1));
         setIndexedResults(merged);
         setSearchHistory(getSongHistory());
       } catch {
@@ -206,6 +212,7 @@ const Search = () => {
 
   const libraryResults: Song[] = [];
   const hasQuery = query.length > 1;
+  const featuredArtist = artistResults[0];
 
   const artistNameSearch = hasQuery && artistResults.some((artist) => {
     const artistName = normalizeText(artist.name);
