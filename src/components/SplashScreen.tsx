@@ -1,15 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import mark from '@/assets/universflow-mark.png';
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
+// Splash: original logo-anim.mp4 video — restored — with a fresher cinematic frame
+// around it (rose halo, ring stroke, animated underline) so it doesn't feel stale.
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoReady, setVideoReady] = useState(false);
+
   useEffect(() => {
-    const t = setTimeout(onComplete, 1800);
-    return () => clearTimeout(t);
+    // Hard cap so we never block the app even if video fails to load
+    const fallback = setTimeout(onComplete, 3500);
+    return () => clearTimeout(fallback);
   }, [onComplete]);
 
   return (
@@ -22,7 +27,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     >
       {/* Ambient rose halo */}
       <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[460px] h-[460px] rounded-full pointer-events-none"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full pointer-events-none"
         style={{
           background:
             'radial-gradient(circle, rgba(255,45,85,0.22), rgba(255,45,85,0.05) 45%, transparent 70%)',
@@ -31,33 +36,53 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       />
 
       <div className="relative flex flex-col items-center">
-        <motion.img
-          src={mark}
-          alt="Univers Flow"
-          width={132}
-          height={132}
-          className="w-[132px] h-[132px] object-contain"
-          initial={{ scale: 0.86, opacity: 0, filter: 'blur(8px)' }}
-          animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          style={{ filter: 'drop-shadow(0 8px 32px rgba(255,45,85,0.35))' }}
-        />
+        {/* Animated ring stroke around the video */}
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: videoReady ? 1 : 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-48 h-48 rounded-full flex items-center justify-center"
+          style={{
+            background:
+              'conic-gradient(from 0deg, rgba(255,45,85,0.6), rgba(255,45,85,0) 60%, rgba(255,45,85,0.6))',
+            padding: 2,
+          }}
+        >
+          <div
+            className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-black"
+            style={{ boxShadow: '0 20px 60px rgba(255,45,85,0.25)' }}
+          >
+            <video
+              ref={videoRef}
+              src="/logo-anim.mp4"
+              autoPlay
+              muted
+              playsInline
+              preload="auto"
+              onLoadedData={() => setVideoReady(true)}
+              onEnded={onComplete}
+              onError={onComplete}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </motion.div>
 
         <motion.h1
-          className="mt-7 text-[22px] font-semibold tracking-[0.32em] text-white/95"
-          initial={{ opacity: 0, y: 6 }}
+          className="mt-7 text-3xl font-semibold tracking-tight text-white"
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.45 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
         >
-          UNIVERS FLOW
+          Universflow
         </motion.h1>
 
+        {/* Shimmer underline */}
         <motion.div
-          className="mt-6 h-[2px] w-24 rounded-full overflow-hidden"
+          className="mt-5 h-[2px] w-24 rounded-full overflow-hidden"
           style={{ background: 'rgba(255,255,255,0.08)' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.35 }}
+          transition={{ delay: 0.7 }}
         >
           <motion.div
             className="h-full w-1/2"
@@ -66,9 +91,19 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             }}
             initial={{ x: '-100%' }}
             animate={{ x: '200%' }}
-            transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
           />
         </motion.div>
+
+        <motion.button
+          onClick={onComplete}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.6 }}
+          className="mt-8 text-[11px] uppercase tracking-[0.25em] text-white/40 active:scale-95 transition-transform"
+        >
+          Skip →
+        </motion.button>
       </div>
     </motion.div>
   );

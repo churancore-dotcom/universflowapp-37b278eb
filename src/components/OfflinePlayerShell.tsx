@@ -69,8 +69,8 @@ const OfflinePlayerShell = memo(function OfflinePlayerShell() {
       {/* Header */}
       <div className="sticky top-0 z-40 px-4 pt-4 pb-3 bg-background/80 backdrop-blur-xl safe-area-pt">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-            <img src={appLogo} alt="Univers Flow" className="w-9 h-9 object-contain" />
+          <div className="w-10 h-10 rounded-full overflow-hidden border border-border/30">
+            <img src={appLogo} alt="Universflow" className="w-full h-full object-cover" />
           </div>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-foreground">Offline Mode</h1>

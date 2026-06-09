@@ -277,12 +277,13 @@ const Home = () => {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center"
+                className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0"
                 style={{
-                  background: 'radial-gradient(circle at 30% 25%, rgba(255,45,85,0.18), transparent 70%)',
+                  boxShadow: '0 2px 12px hsl(var(--primary) / 0.25)',
+                  border: '1.5px solid hsl(var(--primary) / 0.3)',
                 }}
               >
-                <img src={appLogo} alt="Univers Flow logo" width={36} height={36} {...({ fetchpriority: "high" } as any)} decoding="async" className="w-9 h-9 object-contain" />
+                <img src={appLogo} alt="Univers Flow logo" width={40} height={40} {...({ fetchpriority: "high" } as any)} decoding="async" className="w-full h-full object-cover" />
               </div>
               <div>
                 <p
@@ -291,8 +292,8 @@ const Home = () => {
                 >
                   {greeting().toUpperCase()}
                 </p>
-                <p className="text-[10px] text-[#FFB199]/70 font-bold tracking-[0.28em] uppercase mt-1">
-                  UNIVERS FLOW
+                <p className="text-[10px] text-[#FFB199]/70 font-bold tracking-[0.2em] uppercase mt-1">
+                  Universflow
                 </p>
               </div>
             </div>

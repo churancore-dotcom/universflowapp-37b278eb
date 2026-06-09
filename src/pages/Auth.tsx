@@ -118,26 +118,28 @@ const Auth = () => {
                 className="absolute -inset-4 rounded-full pointer-events-none"
                 style={{ background: 'radial-gradient(circle, hsl(340 100% 55% / 0.28), transparent 70%)', filter: 'blur(10px)' }}
               />
-              <div className="relative w-[88px] h-[88px] flex items-center justify-center">
+              <div
+                className="relative w-[68px] h-[68px] rounded-[22px] overflow-hidden bg-black"
+                style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)' }}
+              >
                 <img
                   src={appLogo}
-                  alt="Univers Flow"
-                  width={88}
-                  height={88}
+                  alt="Universflow"
+                  width={68}
+                  height={68}
                   decoding="async"
-                  className="w-full h-full object-contain"
-                  style={{ filter: 'drop-shadow(0 6px 24px rgba(255,45,85,0.35))' }}
+                  className="w-full h-full object-cover"
                 />
               </div>
             </motion.div>
 
             <motion.h1
-              className="mt-5 text-[22px] leading-none font-semibold tracking-[0.3em] text-foreground"
+              className="mt-5 text-[26px] leading-none font-display tracking-tight text-foreground"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.18, duration: 0.4 }}
             >
-              UNIVERS FLOW
+              Universflow
             </motion.h1>
             <p className="mt-2 text-[10.5px] tracking-[0.28em] uppercase text-muted-foreground/80">
               {isLogin ? 'Welcome back' : 'Start your sound'}
