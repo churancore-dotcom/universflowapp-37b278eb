@@ -482,11 +482,11 @@ export function setBands(gainsDb: number[], bassBoostPercent = 0) {
   if (engine.mode !== 'processed' || !engine.ctx || !engine.filters.length) return;
   const ctx = engine.ctx;
   const now = ctx.currentTime;
-  // Bass boost ramps up to +18dB on the 32Hz sub-shelf — felt as physical thump.
+  // Bass boost — reined in so high settings don't drive the limiter into pumping.
   const pct = Math.min(100, Math.max(0, bassBoostPercent)) / 100;
-  const subBoost = pct * 18;
-  const punchBoost = pct * 12; // 64Hz — the "thump" frequency
-  const kickBoost  = pct * 4;  // 125Hz — slight body, no vocal muddiness
+  const subBoost = pct * 10;   // 32Hz sub — felt as physical thump
+  const punchBoost = pct * 7;  // 64Hz — the "thump" frequency
+  const kickBoost  = pct * 3;  // 125Hz — slight body, no vocal muddiness
 
   for (let i = 0; i < engine.filters.length; i++) {
     let g = gainsDb[i] ?? 0;
