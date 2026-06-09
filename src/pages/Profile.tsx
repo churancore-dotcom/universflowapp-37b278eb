@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import AvatarPickerModal from '@/components/AvatarPickerModal';
 import VideoAvatar from '@/components/VideoAvatar';
 import { resolveAvatar, isPresetAvatar } from '@/lib/avatars';
+import { useDownloads } from '@/contexts/DownloadContext';
 import { Camera } from 'lucide-react';
 
 interface ProfileData {
@@ -27,6 +28,7 @@ interface ProfileData {
 const Profile = () => {
   const { user, isAdmin, isLoading: authLoading, signOut } = useAuth();
   const { isPremium, isLoading: premiumLoading } = usePremium();
+  const { downloads } = useDownloads();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ likedSongs: 0, playlists: 0, downloads: 0 });
   const [listenStats, setListenStats] = useState<{ minutes: number; topArtist: string | null; topSong: string | null; streak: number }>({ minutes: 0, topArtist: null, topSong: null, streak: 0 });
@@ -79,19 +81,38 @@ const Profile = () => {
   const fetchStats = async () => {
     if (!user) { setStatsReady(true); return; }
     try {
-      const [liked, playlists, plays] = await Promise.all([
+      const [liked, playlists, recentPlays, playEvents] = await Promise.all([
         supabase.from('user_library').select('id').eq('user_id', user.id),
         supabase.from('playlists').select('id').eq('user_id', user.id),
-        supabase.from('song_play_events').select('title,artist,duration_played,played_at').eq('user_id', user.id).order('played_at', { ascending: false }).limit(500),
+        supabase.from('recently_played').select('song_id,played_at').eq('user_id', user.id).order('played_at', { ascending: false }).limit(500),
+        supabase.from('song_play_events').select('title,artist,created_at,source').eq('user_id', user.id).order('created_at', { ascending: false }).limit(500),
       ]);
       setStats({
         likedSongs: liked.data?.length || 0,
         playlists: playlists.data?.length || 0,
-        downloads: 0,
+        downloads: downloads.length,
       });
 
-      const rows = (plays.data as any[]) || [];
-      const totalSeconds = rows.reduce((sum, r) => sum + (Number(r.duration_played) || 0), 0);
+      const recentRows = (recentPlays.data as any[]) || [];
+      const catalogIds = [...new Set(recentRows.map((r) => r.song_id).filter(Boolean))];
+      const { data: catalogSongs } = catalogIds.length
+        ? await supabase.from('songs').select('id,title,artist,duration').in('id', catalogIds)
+        : { data: [] as any[] };
+      const songById = new Map((catalogSongs || []).map((song: any) => [song.id, song]));
+      const eventRows = ((playEvents.data as any[]) || []).map((r) => ({
+        title: r.title,
+        artist: r.artist,
+        played_at: r.created_at,
+        duration: 180,
+      }));
+      const rows = [
+        ...recentRows.map((r) => {
+          const song = songById.get(r.song_id) as any;
+          return { title: song?.title, artist: song?.artist, played_at: r.played_at, duration: Number(song?.duration) || 180 };
+        }),
+        ...eventRows,
+      ];
+      const totalSeconds = rows.reduce((sum, r) => sum + (Number(r.duration) || 180), 0);
       const artistCount = new Map<string, number>();
       const songCount = new Map<string, number>();
       const dayKeys = new Set<string>();
