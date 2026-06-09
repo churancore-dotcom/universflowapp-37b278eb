@@ -1,5 +1,7 @@
 export interface ActionableSongLike {
   id?: string | null;
+  title?: string | null;
+  artist?: string | null;
   source?: string | null;
   audio_url?: string | null;
 }
@@ -25,14 +27,14 @@ export const canLikeSong = (_song?: ActionableSongLike | null) => {
 
 // Allow downloading ANY song that has an audio URL
 export const canDownloadSong = (song?: ActionableSongLike | null) => {
-  return Boolean(song?.audio_url);
+  return Boolean(song?.audio_url || (song?.title && song?.artist));
 };
 
 export const getLikeUnavailableMessage = () => 'Unable to add this song to your library right now.';
 
 export const getDownloadUnavailableMessage = (song?: ActionableSongLike | null) => {
-  if (!song?.audio_url) {
-    return 'This track has no audio URL available for download.';
+  if (!song?.audio_url && !(song?.title && song?.artist)) {
+    return 'This track has no download source available.';
   }
   return 'This track cannot be downloaded right now.';
 };
