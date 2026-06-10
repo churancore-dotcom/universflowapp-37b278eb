@@ -48,7 +48,7 @@ const ReviewsSheet = ({ isOpen, onClose, onWriteReview }: Props) => {
 
   const fetchAll = async () => {
     const { data: revs } = await supabase
-      .from('app_reviews')
+      .from('app_reviews_public' as any)
       .select('id, rating, comment, display_name, created_at')
       .order('created_at', { ascending: false })
       .limit(100);
