@@ -1,19 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-// Bundled locally in /public so the APK shows it instantly without hitting the CDN.
-const SPLASH_VIDEO = '/media/splash.mp4';
+import appLogo from '@/assets/app-logo.png';
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
+/**
+ * Instant splash — pure CSS/image, no video, no network wait.
+ * Renders on the very first paint and dismisses after 450ms so the
+ * APK shell never blocks behind a loading splash.
+ */
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
   useEffect(() => {
-    // Hard cap so we never block the app even if the video stalls
-    const fallback = setTimeout(onComplete, 4000);
-    return () => clearTimeout(fallback);
+    const t = setTimeout(onComplete, 450);
+    return () => clearTimeout(t);
   }, [onComplete]);
 
   return (
@@ -21,27 +22,31 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.35, ease: 'easeOut' }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
     >
       <div className="flex flex-col items-center gap-5">
-        <div className="w-44 h-44 rounded-full overflow-hidden flex items-center justify-center bg-black shadow-[0_0_48px_hsl(var(--primary)_/_0.24)]">
-          <video
-            ref={videoRef}
-            src={SPLASH_VIDEO}
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            onEnded={onComplete}
-            onError={onComplete}
-            className="w-full h-full object-cover"
+        <div
+          className="w-28 h-28 rounded-[28px] overflow-hidden flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(135deg, #1a1a1c 0%, #0a0a0b 100%)',
+            boxShadow: '0 0 48px hsl(var(--primary) / 0.28), inset 0 0 0 0.5px rgba(255,255,255,0.08)',
+          }}
+        >
+          <img
+            src={appLogo}
+            alt="Universflow"
+            width={112}
+            height={112}
+            decoding="sync"
+            fetchPriority="high"
+            className="w-full h-full object-cover scale-[1.18]"
           />
         </div>
         <div className="text-center">
-          <h1 className="text-[28px] leading-none font-black tracking-[0.08em] text-foreground">
+          <h1 className="text-[26px] leading-none font-black tracking-[0.08em] text-foreground">
             Univers <span className="text-primary">Flow</span>
           </h1>
-          <div className="mt-3 h-[2px] w-28 mx-auto rounded-full uf-rose-gradient opacity-90" />
+          <div className="mt-3 h-[2px] w-24 mx-auto rounded-full uf-rose-gradient opacity-90" />
         </div>
       </div>
     </motion.div>
