@@ -209,6 +209,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               <button 
                 className="w-10 h-10 flex items-center justify-center -ml-2 active:scale-90 transition-transform" 
                 onClick={() => { triggerHaptic('impactLight'); setExpanded(false); }}
+                aria-label="Close fullscreen player"
               >
                 <ChevronDown className="w-6 h-6 text-white/80" />
               </button>
