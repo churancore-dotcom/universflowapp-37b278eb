@@ -2,16 +2,18 @@ import { Link } from "react-router-dom";
 import { Download, Share2, ShieldCheck, Music2, WifiOff, Sparkles, Headphones, ChevronRight, Users } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 
-const APK_URL = "/UniversFlow.apk";
+const APK_URL = "https://kzaeahjeqlihmxrfhjqd.supabase.co/storage/v1/object/public/music/releases/UniversFlow.apk";
 const VERSION = "1.0.0";
-const SIZE = "24 MB";
+const SIZE = "11 MB";
+const INSTALLS = "50+";
 
-// Reuse existing in-app screens as "store screenshots"
+// Real in-app screenshots
 const SHOTS = [
-  { src: "/pwa-512x512.png", alt: "Universflow home screen" },
-  { src: "/pwa-512x512.png", alt: "Now playing — fullscreen player" },
-  { src: "/pwa-512x512.png", alt: "Your library and downloads" },
-  { src: "/pwa-512x512.png", alt: "Search across millions of songs" },
+  { src: "/screenshots/home.png", alt: "Universflow home — Listen Now with personalized recommendations" },
+  { src: "/screenshots/player.png", alt: "Now Playing — fullscreen Apple Music-style player" },
+  { src: "/screenshots/library.png", alt: "Your Library — liked songs, playlists and downloads" },
+  { src: "/screenshots/search.png", alt: "Discover — search songs, artists and albums worldwide" },
+  { src: "/screenshots/profile.png", alt: "Profile — listening stats and quick access" },
 ];
 
 const FEATURES = [
@@ -38,13 +40,19 @@ const GetApp = () => {
       operatingSystem: "ANDROID",
       applicationCategory: "MusicApplication",
       url: "https://universflow.in/get",
-      installUrl: "https://universflow.in/UniversFlow.apk",
-      downloadUrl: "https://universflow.in/UniversFlow.apk",
+      installUrl: APK_URL,
+      downloadUrl: APK_URL,
       softwareVersion: VERSION,
       fileSize: SIZE,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       image: "https://universflow.in/pwa-512x512.png",
-      screenshot: "https://universflow.in/pwa-512x512.png",
+      screenshot: [
+        "https://universflow.in/screenshots/home.png",
+        "https://universflow.in/screenshots/player.png",
+        "https://universflow.in/screenshots/library.png",
+        "https://universflow.in/screenshots/search.png",
+        "https://universflow.in/screenshots/profile.png",
+      ],
       description: "Free music streaming and download app for Android. Stream millions of songs, build playlists, and listen offline.",
     },
     {
@@ -54,13 +62,19 @@ const GetApp = () => {
       operatingSystem: "Android 5.1+",
       applicationCategory: "MusicApplication",
       url: "https://universflow.in/get",
-      downloadUrl: "https://universflow.in/UniversFlow.apk",
-      installUrl: "https://universflow.in/UniversFlow.apk",
+      downloadUrl: APK_URL,
+      installUrl: APK_URL,
       softwareVersion: VERSION,
       fileSize: SIZE,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       image: "https://universflow.in/pwa-512x512.png",
-      screenshot: "https://universflow.in/pwa-512x512.png",
+      screenshot: [
+        "https://universflow.in/screenshots/home.png",
+        "https://universflow.in/screenshots/player.png",
+        "https://universflow.in/screenshots/library.png",
+        "https://universflow.in/screenshots/search.png",
+        "https://universflow.in/screenshots/profile.png",
+      ],
       description: "Free music streaming and download app for Android. Stream millions of songs, build playlists, and listen offline.",
     },
     {
@@ -114,7 +128,7 @@ const GetApp = () => {
           <div className="mt-6 grid grid-cols-3 divide-x divide-white/10 text-center">
             <div className="px-2">
               <div className="flex items-center justify-center gap-1 text-base font-bold">
-                <Users className="w-3.5 h-3.5 text-white/70" /> 10K+
+                <Users className="w-3.5 h-3.5 text-white/70" /> {INSTALLS}
               </div>
               <div className="text-[11px] text-white/55 mt-0.5">Installs</div>
             </div>
@@ -168,9 +182,15 @@ const GetApp = () => {
             {SHOTS.map((s, i) => (
               <div
                 key={i}
-                className="snap-start shrink-0 w-[58vw] max-w-[260px] aspect-[9/19.5] rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-b from-[#1a1a1a] to-black flex items-center justify-center"
+                className="snap-start shrink-0 w-[58vw] max-w-[260px] aspect-[9/19.5] rounded-2xl overflow-hidden border border-white/10 bg-black"
               >
-                <img src={s.src} alt={s.alt} className="w-1/2 h-1/2 object-contain opacity-90" />
+                <img
+                  src={s.src}
+                  alt={s.alt}
+                  loading={i === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                  className="w-full h-full object-cover"
+                />
               </div>
             ))}
           </div>
