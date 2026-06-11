@@ -150,6 +150,7 @@ export const useLike = (songId: string, song?: Song | null) => {
       console.error('Error toggling like:', error);
       setIsLiked(!newLiked);
       if (!newLiked) { likeCache.add(songId); } else { likeCache.delete(songId); }
+      notifyLikeSubscribers();
       toast.error('Failed to update favorites');
     } finally {
       if (mountedRef.current) setIsLoading(false);
