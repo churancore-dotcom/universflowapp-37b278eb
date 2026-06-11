@@ -251,7 +251,7 @@ const GetApp = () => {
           </a>
         </section>
 
-        <footer className="px-5 py-6 text-center text-[11px] text-white/40 border-t border-white/5">
+        <footer className="px-5 py-6 text-center text-[11px] text-white/70 border-t border-white/5">
           <div className="space-x-3">
             <Link to="/premium" className="hover:text-white/70">Premium</Link>
             <Link to="/support" className="hover:text-white/70">Support</Link>
