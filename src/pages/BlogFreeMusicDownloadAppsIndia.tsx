@@ -161,7 +161,7 @@ const BlogFreeMusicDownloadAppsIndia = () => {
     <div className="min-h-[100dvh] bg-black text-white overflow-x-hidden">
       <SEOHead
         title="Best Free Music Download Apps in India (2026) — Universflow"
-        description="Looking for a free music download app in India? Compare Universflow, JioSaavn, Gaana, Spotify and Wynk on offline playback, audio quality and ads. Updated for 2026."
+        description="Compare Universflow, JioSaavn, Gaana, Spotify and Wynk on offline downloads, audio quality and ads — the best free music apps in India."
         keywords="free music download app india, best music app india, free music download, offline music app india, hindi songs download app, free music streaming india, universflow"
         url={PAGE_URL}
         path="/blog/free-music-download-apps-india"
