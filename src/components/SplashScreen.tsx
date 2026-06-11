@@ -70,7 +70,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           muted
           playsInline
           preload="auto"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="w-32 h-32 object-contain"
         />
       )}
 
