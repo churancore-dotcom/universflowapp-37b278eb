@@ -131,14 +131,11 @@ const configureAudioElementSource = (audio: HTMLAudioElement, sourceUrl: string)
   audio.src = sourceUrl;
 };
 
-// Hosts that already deliver proper CORS headers — safe to play & EQ-process directly.
-// Keep this list MINIMAL: anything not here gets proxied through our edge function
-// so the EQ / Web Audio graph can process it without tainting the audio.
+// Hosts we should keep raw for normal playback. When EQ is active we still
+// proxy remote HTTP streams below because WebAudio processing needs a CORS-
+// clean response, and some hosts advertise CORS inconsistently on media ranges.
 const DIRECT_PLAYABLE_HOST_SNIPPETS = [
   'supabase.co',
-  'the-standard.io',
-  'private.coffee',
-  'saavncdn.com',
 ];
 
 const shouldProxyStreamUrl = (sourceUrl: string) => {
@@ -149,10 +146,10 @@ const shouldProxyStreamUrl = (sourceUrl: string) => {
     if (parsed.origin === window.location.origin) return false;
     if (sourceUrl.includes('/functions/v1/music-indexer?audio=')) return false;
 
-    // Proxy any non-catalog stream so the Web Audio EQ chain can always
-    // process it (CORS-safe). This unconditionally routes through our
-    // edge function — the user explicitly chose reliability of EQ over
-    // background-throttling risk.
+    if (isEqProcessingEnabled()) return true;
+
+    // With EQ off, avoid proxying trusted catalog/storage URLs so Android can
+    // use the native media pipeline for the most reliable background playback.
     return !DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host));
   } catch {
     return false;
@@ -185,7 +182,6 @@ if (typeof window !== 'undefined') {
 const buildStreamProxyUrl = (sourceUrl: string) => {
   const projectUrl = import.meta.env.VITE_SUPABASE_URL;
   if (!projectUrl || !shouldProxyStreamUrl(sourceUrl)) return sourceUrl;
-  if (!isEqProcessingEnabled()) return sourceUrl;
   return `${projectUrl}/functions/v1/music-indexer?audio=${encodeURIComponent(sourceUrl)}`;
 };
 
