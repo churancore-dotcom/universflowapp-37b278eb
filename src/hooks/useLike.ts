@@ -17,6 +17,18 @@ let likeCacheLoaded = false;
 let likeCacheUserId: string | null = null;
 let likeCachePromise: Promise<void> | null = null;
 
+// Subscribers — every mounted useLike hook registers here so a like toggle on
+// one card instantly re-renders every other LikeButton + Library list for the
+// same songId, without waiting for a Supabase round-trip or query refetch.
+const likeSubscribers = new Set<() => void>();
+const notifyLikeSubscribers = () => {
+  for (const cb of likeSubscribers) {
+    try { cb(); } catch { /* ignore */ }
+  }
+  // Also let Library / Profile invalidate their react-query cache
+  try { window.dispatchEvent(new Event('uf:likes-changed')); } catch { /* ignore */ }
+};
+
 const STREAM_LIKES_KEY = 'uf_stream_likes';
 
 const getStreamLikes = (): Set<string> => {
@@ -68,19 +80,23 @@ export const useLike = (songId: string, song?: Song | null) => {
   useEffect(() => {
     if (!songId) { setIsLiked(false); return; }
 
-    if (!user) {
-      const streamLikes = getStreamLikes();
-      setIsLiked(streamLikes.has(songId));
-      return;
-    }
-
-    const check = async () => {
-      await loadLikeCache(user.id);
-      if (mountedRef.current) {
+    const sync = () => {
+      if (!mountedRef.current) return;
+      if (!user) {
+        setIsLiked(getStreamLikes().has(songId));
+      } else {
         setIsLiked(likeCache.has(songId));
       }
     };
-    check();
+
+    if (!user) {
+      sync();
+    } else {
+      loadLikeCache(user.id).then(sync);
+    }
+
+    likeSubscribers.add(sync);
+    return () => { likeSubscribers.delete(sync); };
   }, [user?.id, songId]);
 
   const toggleLike = useCallback(async () => {
@@ -97,6 +113,7 @@ export const useLike = (songId: string, song?: Song | null) => {
 
     setIsLiked(newLiked);
     if (newLiked) { likeCache.add(songId); } else { likeCache.delete(songId); }
+    notifyLikeSubscribers();
 
     const isCatalog = isCatalogSongId(songId);
 
@@ -133,6 +150,7 @@ export const useLike = (songId: string, song?: Song | null) => {
       console.error('Error toggling like:', error);
       setIsLiked(!newLiked);
       if (!newLiked) { likeCache.add(songId); } else { likeCache.delete(songId); }
+      notifyLikeSubscribers();
       toast.error('Failed to update favorites');
     } finally {
       if (mountedRef.current) setIsLoading(false);
