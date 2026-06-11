@@ -136,6 +136,9 @@ const configureAudioElementSource = (audio: HTMLAudioElement, sourceUrl: string)
 // clean response, and some hosts advertise CORS inconsistently on media ranges.
 const DIRECT_PLAYABLE_HOST_SNIPPETS = [
   'supabase.co',
+  'the-standard.io',
+  'private.coffee',
+  'saavncdn.com',
 ];
 
 const shouldProxyStreamUrl = (sourceUrl: string) => {
@@ -146,11 +149,11 @@ const shouldProxyStreamUrl = (sourceUrl: string) => {
     if (parsed.origin === window.location.origin) return false;
     if (sourceUrl.includes('/functions/v1/music-indexer?audio=')) return false;
 
-    if (isEqProcessingEnabled()) return true;
+    if (DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host))) return false;
 
-    // With EQ off, avoid proxying trusted catalog/storage URLs so Android can
-    // use the native media pipeline for the most reliable background playback.
-    return !DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host));
+    // Proxy unknown external streams only while EQ/effects are active. With EQ
+    // off, play raw URLs to preserve Android's native background media path.
+    return isEqProcessingEnabled();
   } catch {
     return false;
   }
@@ -182,6 +185,7 @@ if (typeof window !== 'undefined') {
 const buildStreamProxyUrl = (sourceUrl: string) => {
   const projectUrl = import.meta.env.VITE_SUPABASE_URL;
   if (!projectUrl || !shouldProxyStreamUrl(sourceUrl)) return sourceUrl;
+  if (!isEqProcessingEnabled()) return sourceUrl;
   return `${projectUrl}/functions/v1/music-indexer?audio=${encodeURIComponent(sourceUrl)}`;
 };
 
