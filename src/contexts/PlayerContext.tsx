@@ -149,12 +149,17 @@ const shouldProxyStreamUrl = (sourceUrl: string) => {
     if (parsed.origin === window.location.origin) return false;
     if (sourceUrl.includes('/functions/v1/music-indexer?audio=')) return false;
 
+    // When EQ/effects are active, proxy EVERY external HTTP stream through the
+    // backend audio endpoint — including the "direct playable" hosts. WebAudio
+    // needs a guaranteed CORS-clean response; several CDNs advertise CORS
+    // inconsistently on media ranges, which leaves the element "tainted" so
+    // createMediaElementSource silently outputs nothing and the EQ sliders
+    // move while the sound stays unchanged.
+    if (isEqProcessingEnabled()) return true;
+
     if (DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host))) return false;
 
-    // When EQ/effects are active, proxy every external HTTP stream through the
-    // backend audio endpoint. WebAudio needs a CORS-clean response; leaving an
-    // unknown host raw makes the controls move while the audio stays unchanged.
-    return isEqProcessingEnabled();
+    return false;
   } catch {
     return false;
   }
@@ -519,17 +524,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const a = audioRef.current;
       if (!a || !a.src) return;
       if (!isEqProcessingEnabled()) return;
-      // Already going through our edge-function proxy → already CORS-safe.
-      if (isAudioProxyUrl(a.src)) {
-        window.dispatchEvent(new CustomEvent('uf-eq-source-ready'));
-        return;
-      }
-      // Same-origin or already-CORS-safe hosts also work.
-      if (!shouldProxyStreamUrl(a.src)) {
+
+      // If the element is already going through our edge-function proxy AND
+      // already crossOrigin="anonymous", the WebAudio graph can attach without
+      // a reload — just nudge the engine.
+      const alreadyProxied = isAudioProxyUrl(a.src);
+      const alreadyAnonymous = a.crossOrigin === 'anonymous';
+      if (alreadyProxied && alreadyAnonymous) {
         window.dispatchEvent(new CustomEvent('uf-eq-source-ready'));
         return;
       }
 
+      // Otherwise we MUST reload the source through a CORS-clean fetch so
+      // createMediaElementSource() doesn't taint the graph. This applies even
+      // to "direct playable" hosts (saavncdn / the-standard / private.coffee):
+      // if the original load wasn't anonymous, the element is permanently
+      // tainted for WebAudio and EQ stays dead until we re-fetch.
       const wasPlaying = !a.paused;
       const at = a.currentTime;
       const original = currentSong?.audio_url;
