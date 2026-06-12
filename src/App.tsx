@@ -262,13 +262,16 @@ const PrerollAdWrapper = () => {
 };
 
 const PostAuthGate = () => {
-  const { user } = useAuth();
+  const { user, emailVerified } = useAuth();
   const [showPicker, setShowPicker] = useState(false);
   const [showReview, setShowReview] = useState(false);
 
-  // Open artist picker ONLY immediately after signup (not on every login)
+  // Open artist picker ONLY immediately after signup (not on every login),
+  // and ONLY once the user's email is verified — otherwise unverified accounts
+  // were getting the picker over the /check-email screen.
   useEffect(() => {
     if (!user) return;
+    if (emailVerified !== true) return;
     const justSignedUp = localStorage.getItem('uf_just_signed_up');
     if (!justSignedUp) return;
 
@@ -288,7 +291,7 @@ const PostAuthGate = () => {
           setTimeout(() => setShowPicker(true), 600);
         }
       });
-  }, [user]);
+  }, [user, emailVerified]);
 
   const handlePickerComplete = () => {
     localStorage.removeItem('uf_just_signed_up');
