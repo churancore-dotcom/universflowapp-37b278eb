@@ -524,17 +524,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const a = audioRef.current;
       if (!a || !a.src) return;
       if (!isEqProcessingEnabled()) return;
-      // Already going through our edge-function proxy → already CORS-safe.
-      if (isAudioProxyUrl(a.src)) {
-        window.dispatchEvent(new CustomEvent('uf-eq-source-ready'));
-        return;
-      }
-      // Same-origin or already-CORS-safe hosts also work.
-      if (!shouldProxyStreamUrl(a.src)) {
+
+      // If the element is already going through our edge-function proxy AND
+      // already crossOrigin="anonymous", the WebAudio graph can attach without
+      // a reload — just nudge the engine.
+      const alreadyProxied = isAudioProxyUrl(a.src);
+      const alreadyAnonymous = a.crossOrigin === 'anonymous';
+      if (alreadyProxied && alreadyAnonymous) {
         window.dispatchEvent(new CustomEvent('uf-eq-source-ready'));
         return;
       }
 
+      // Otherwise we MUST reload the source through a CORS-clean fetch so
+      // createMediaElementSource() doesn't taint the graph. This applies even
+      // to "direct playable" hosts (saavncdn / the-standard / private.coffee):
+      // if the original load wasn't anonymous, the element is permanently
+      // tainted for WebAudio and EQ stays dead until we re-fetch.
       const wasPlaying = !a.paused;
       const at = a.currentTime;
       const original = currentSong?.audio_url;
