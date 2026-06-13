@@ -14,6 +14,7 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
+import { maybeSendWelcomePush } from '@/lib/welcomePush';
 
 const isNative = () =>
   Capacitor.isNativePlatform?.() === true;
@@ -35,6 +36,8 @@ async function upsertToken(token: string, meta: Record<string, unknown>) {
     _device_info: { ...meta, last_seen_at: new Date().toISOString() },
   });
   if (error) throw error;
+  // Fire one-shot welcome push (no-op after first successful send per device).
+  maybeSendWelcomePush(uid).catch(() => { /* best-effort */ });
 }
 
 async function collectDeviceMeta() {
