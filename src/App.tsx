@@ -16,6 +16,7 @@ import RateUsPopup from "./components/RateUsPopup";
 import ReviewModal from "./components/ReviewModal";
 import { NavDirectionProvider } from "./components/PageTransition";
 import GlobalPlayerLayer from "./components/GlobalPlayerLayer";
+import { UpdateBanner } from "./components/UpdateBanner";
 import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -92,6 +93,7 @@ const ABTesting = lazy(() => import("./pages/admin/ABTesting"));
 const SecurityCenter = lazy(() => import("./pages/admin/SecurityCenter"));
 
 const SupportInbox = lazy(() => import("./pages/admin/SupportInbox"));
+const AppUpdates = lazy(() => import("./pages/admin/AppUpdates"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -239,6 +241,7 @@ const AnimatedRoutes = () => {
             <Route path="ab-testing" element={<ABTesting />} />
             <Route path="security" element={<SecurityCenter />} />
             <Route path="support" element={<SupportInbox />} />
+            <Route path="app-updates" element={<AppUpdates />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -340,6 +343,7 @@ const AppContent = () => {
       <Suspense fallback={null}>
         <DownloadQueuePanel />
         <PWAInstallBanner />
+        <UpdateBanner />
       </Suspense>
     </MobileShell>
   );
