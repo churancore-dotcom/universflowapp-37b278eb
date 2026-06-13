@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import SupportChatModal from '@/components/SupportChatModal';
 import EmailVerificationCard from '@/components/EmailVerificationCard';
 import EqualizerModal from '@/components/EqualizerModal';
+import { SettingsUpdateButton } from '@/components/SettingsUpdateButton';
 
 import { applyTheme, type ThemeMode } from '@/lib/themeBoot';
 import { setEQSettings } from '@/lib/eqSettings';
