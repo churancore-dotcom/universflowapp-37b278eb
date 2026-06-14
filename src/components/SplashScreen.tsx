@@ -1,18 +1,18 @@
-import { useEffect, useRef } from 'react';
-import splashVideo from '@/assets/splash.mp4.asset.json';
+import { useEffect, useRef, useState } from 'react';
+import appLogo from '@/assets/app-logo.png';
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
 /**
- * SplashScreen — full-bleed branded video.
- * No logo/text overlay, no fade-in delay. Fires onComplete the moment the
- * video ends, or after a hard cap so we never block the app.
+ * SplashScreen — clean logo reveal with CSS keyframes.
+ * Fires onComplete after the logo animation finishes (≈ 2.2 s)
+ * or after a hard cap so we never block the app.
  */
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const doneRef = useRef(false);
+  const [phase, setPhase] = useState<'in' | 'hold' | 'out' | 'done'>('in');
 
   const finish = () => {
     if (doneRef.current) return;
@@ -21,43 +21,46 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   };
 
   useEffect(() => {
-    // Hard cap so a broken video never wedges the app
+    // Hard cap so a broken asset never wedges the app
     const cap = window.setTimeout(finish, 3500);
-    // Try to start playback even if autoplay attribute is ignored on some webviews
-    videoRef.current?.play().catch(() => finish());
-    return () => window.clearTimeout(cap);
+
+    const t1 = window.setTimeout(() => setPhase('hold'), 600);
+    const t2 = window.setTimeout(() => setPhase('out'), 1800);
+    const t3 = window.setTimeout(() => {
+      setPhase('done');
+      finish();
+    }, 2200);
+
+    return () => {
+      window.clearTimeout(cap);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const logoScale = phase === 'in' ? 'scale-75 opacity-0' : phase === 'hold' ? 'scale-100 opacity-100' : phase === 'out' ? 'scale-110 opacity-0' : 'scale-110 opacity-0';
+
   return (
     <div className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-black">
-      {/* Crop bottom strip to hide Gemini watermark while keeping the logo centered */}
-      <div
-        className="relative overflow-hidden"
-        style={{ width: 'min(78vw, 380px)', height: 'min(70.2vw, 342px)' }}
-      >
-        <video
-          ref={videoRef}
-          src={splashVideo.url}
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          onEnded={finish}
-          onError={finish}
-          className="absolute left-0 top-0 w-full"
-          style={{ height: 'calc(100% / 0.9)' }}
+      <div className="flex flex-col items-center justify-center">
+        <img
+          src={appLogo}
+          alt="Univers Flow"
+          className={`h-40 w-40 object-contain transition-all duration-[600ms] ease-out ${logoScale}`}
+          draggable={false}
         />
-      </div>
-      <div
-        className="mt-8 text-white"
-        style={{
-          fontSize: 30,
-          letterSpacing: '0.34em',
-          fontWeight: 700,
-        }}
-      >
-        UNIVERS FLOW
+        <div
+          className={`mt-8 text-white transition-all duration-[600ms] ease-out ${logoScale}`}
+          style={{
+            fontSize: 30,
+            letterSpacing: '0.34em',
+            fontWeight: 700,
+          }}
+        >
+          UNIVERS FLOW
+        </div>
       </div>
     </div>
   );
