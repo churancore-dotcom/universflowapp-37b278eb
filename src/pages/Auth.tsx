@@ -140,6 +140,7 @@ const Auth = () => {
               transition={{ delay: 0.18, duration: 0.4 }}
             >
               Universflow
+              <span className="sr-only"> — Sign in to stream and download music</span>
             </motion.h1>
             <p className="mt-2 text-[10.5px] tracking-[0.28em] uppercase text-muted-foreground/80">
               {isLogin ? 'Welcome back' : 'Start your sound'}

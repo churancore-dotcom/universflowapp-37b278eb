@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import appLogo from '@/assets/app-logo.png';
+import SEOHead from '@/components/SEOHead';
 
 type State = 'loading' | 'success' | 'error';
 
@@ -102,6 +103,7 @@ const VerifyEmail = () => {
             Univers
           </span>
           <span className="text-foreground ml-1.5 font-light">Flow</span>
+          <span className="sr-only"> — Verify your email</span>
         </h1>
 
         <motion.div
