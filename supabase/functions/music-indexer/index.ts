@@ -120,6 +120,35 @@ function hostnameMatchesAllowedSuffix(hostname: string): boolean {
   });
 }
 
+// Per-IP sliding-window rate limit for the unauthenticated audio proxy.
+// Prevents random internet callers from using this function as a free
+// high-bandwidth audio extraction proxy. 120 reqs/min/IP is plenty for a
+// single user streaming + seeking (range requests).
+const AUDIO_PROXY_RATE_LIMIT_MAX = 120;
+const AUDIO_PROXY_RATE_LIMIT_WINDOW_MS = 60_000;
+const audioProxyHits = new Map<string, number[]>();
+function checkAudioProxyRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const cutoff = now - AUDIO_PROXY_RATE_LIMIT_WINDOW_MS;
+  const arr = (audioProxyHits.get(ip) || []).filter((t) => t > cutoff);
+  if (arr.length >= AUDIO_PROXY_RATE_LIMIT_MAX) {
+    audioProxyHits.set(ip, arr);
+    return false;
+  }
+  arr.push(now);
+  audioProxyHits.set(ip, arr);
+  // Opportunistic GC so the map doesn't grow unbounded across the warm instance.
+  if (audioProxyHits.size > 5000) {
+    for (const [k, v] of audioProxyHits) {
+      const kept = v.filter((t) => t > cutoff);
+      if (kept.length === 0) audioProxyHits.delete(k);
+      else audioProxyHits.set(k, kept);
+    }
+  }
+  return true;
+}
+
+
 const LASTFM_API_KEY = Deno.env.get('LASTFM_API_KEY') || '';
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY') || '';
 const YOUTUBE_API_KEY_2 = Deno.env.get('YOUTUBE_API_KEY_2') || '';
