@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import appLogo from '@/assets/app-logo.png';
+import SEOHead from '@/components/SEOHead';
 
 type State = 'loading' | 'success' | 'error';
 
@@ -63,6 +64,12 @@ const VerifyEmail = () => {
   };
 
   return (
+    <>
+    <SEOHead
+      title="Verify Your Email — Univers Flow"
+      description="Confirm your email address to activate your Univers Flow account and start streaming music."
+      path="/verify"
+    />
     <div className="h-[100dvh] bg-background flex flex-col items-center justify-center p-5 relative overflow-hidden">
       <div
         className="absolute inset-0 pointer-events-none"
@@ -102,6 +109,7 @@ const VerifyEmail = () => {
             Univers
           </span>
           <span className="text-foreground ml-1.5 font-light">Flow</span>
+          <span className="sr-only"> — Verify your email</span>
         </h1>
 
         <motion.div
@@ -183,6 +191,7 @@ const VerifyEmail = () => {
         </motion.div>
       </motion.div>
     </div>
+    </>
   );
 };
 
