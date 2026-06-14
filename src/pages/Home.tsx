@@ -345,11 +345,12 @@ const Home = () => {
               {/* New Bento Hero — Continue Listening + quick tiles */}
               {!isOffline && <HomeBento songs={allSongs} />}
 
+              {/* Discovery — Featured Artists */}
+              {!isOffline && <FeaturedArtistsSection />}
+
               {/* Viral Now Rail — live country chart, real data */}
               {!isOffline && <CountryViralSection />}
 
-              {/* Discovery — Featured Artists only, to match the home design */}
-              {!isOffline && <FeaturedArtistsSection />}
 
 
 
