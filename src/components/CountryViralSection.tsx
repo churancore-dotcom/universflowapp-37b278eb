@@ -53,6 +53,8 @@ async function getDeezerChart(limit = 30): Promise<IndexedTrack[]> {
 const CountryViralSection = memo(function CountryViralSection() {
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+  const queryClient = useQueryClient();
+
 
   // Country resolution is cached forever per user — it never changes mid-session.
   const { data: country } = useQuery({
