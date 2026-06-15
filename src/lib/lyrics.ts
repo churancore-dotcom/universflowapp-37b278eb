@@ -19,7 +19,7 @@ const EMPTY: LyricsResult = {
 };
 
 // localStorage cache (7 days)
-const LS_KEY = 'uf_lyrics_cache_v1';
+const LS_KEY = 'uf_lyrics_cache_v2';
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_ENTRIES = 80;
 
@@ -39,8 +39,9 @@ function writeCache(c: CacheShape) {
   } catch { /* quota — ignore */ }
 }
 
-function makeKey(artist: string, title: string) {
-  return `${artist.toLowerCase().trim()}::${title.toLowerCase().trim()}`;
+function makeKey(artist: string, title: string, duration?: number) {
+  const durationKey = duration && Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 'unknown';
+  return `${artist.toLowerCase().trim()}::${title.toLowerCase().trim()}::${durationKey}`;
 }
 
 /** Parse LRC text into time-ordered lines. Handles [mm:ss.xx] and [mm:ss]. */
@@ -85,7 +86,7 @@ const inFlight = new Map<string, Promise<LyricsResult>>();
 
 export async function fetchLyrics(artist: string, title: string, duration?: number): Promise<LyricsResult> {
   if (!artist || !title) return EMPTY;
-  const key = makeKey(artist, title);
+  const key = makeKey(artist, title, duration);
   const cache = readCache();
   const hit = cache[key];
   if (hit && hit.expiresAt > Date.now()) return hit.data;
