@@ -1691,10 +1691,6 @@ export type Database = {
         Args: { _device_info?: Json; _platform?: string; _token: string }
         Returns: string
       }
-      send_welcome_push_to_self: {
-        Args: { _body: string; _title: string }
-        Returns: undefined
-      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
