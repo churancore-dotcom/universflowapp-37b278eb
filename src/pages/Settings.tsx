@@ -41,7 +41,7 @@ type CapacitorWindow = Window & typeof globalThis & {
 const Settings = () => {
   const navigate = useNavigate();
   const { isPremium } = usePremium();
-  const { crossfade: cfEnabled, crossfadeDuration: cfDuration, toggleCrossfade, setCrossfadeDuration, audioElement } = usePlayer();
+  const { crossfade: cfEnabled, crossfadeDuration: cfDuration, crossfadeCurve, gaplessPro, toggleCrossfade, setCrossfadeDuration, setCrossfadeCurve, toggleGaplessPro, audioElement } = usePlayer();
 
   const [gaplessPlayback, setGaplessPlayback] = useState(() => localStorage.getItem('uf_gapless') !== 'false');
   const [autoplay, setAutoplay] = useState(() => localStorage.getItem('uf_autoplay') !== 'false');
