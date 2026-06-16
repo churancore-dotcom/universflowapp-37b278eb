@@ -270,6 +270,7 @@ const Settings = () => {
                   }}
                   className="data-[state=checked]:bg-primary scale-90"
                 />
+              </div>
               <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
                 <span className="text-sm">Gapless Playback</span>
                 <Switch checked={gaplessPlayback} onCheckedChange={handleGapless} className="data-[state=checked]:bg-primary scale-90" />
