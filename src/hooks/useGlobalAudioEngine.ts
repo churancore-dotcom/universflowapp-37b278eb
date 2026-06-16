@@ -55,6 +55,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
         engineSetStudioSpace(s.studioSpace);
         setSpatial(s.spatialAudio);
         setLateNight(s.lateNight);
+        setHeadphoneSurround(s.headphoneSurround);
       }
     };
 
