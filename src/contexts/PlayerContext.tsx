@@ -6,6 +6,7 @@ import { resolveIndexedTrack, resolveYouTubeVideoStream, prefetchIndexedTrack } 
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
+import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
 import { toast } from 'sonner';
 
 interface YouTubePlayer {
