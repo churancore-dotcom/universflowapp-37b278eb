@@ -1938,6 +1938,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isExpanded,
       crossfade,
       crossfadeDuration,
+      crossfadeCurve,
+      gaplessPro,
       audioElement,
       showPrerollAd,
       adType,
@@ -1957,6 +1959,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setExpanded,
       toggleCrossfade,
       setCrossfadeDuration: setCrossfadeDurationFn,
+      setCrossfadeCurve: setCrossfadeCurveFn,
+      toggleGaplessPro,
       onPrerollAdComplete,
     }}>
       {children}
