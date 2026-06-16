@@ -1331,13 +1331,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       crossfadeIntervalRef.current = window.setInterval(() => {
         currentStep++;
-        const fadeProgress = currentStep / steps;
+        const p = currentStep / steps;
+
+        // Equal-power = DJ standard (constant perceived loudness),
+        // smooth = S-curve, exponential = power curve, linear = legacy.
+        let fadeOut: number;
+        let fadeIn: number;
+        switch (crossfadeCurve) {
+          case 'equal-power':
+            fadeOut = Math.cos(p * Math.PI * 0.5);
+            fadeIn = Math.sin(p * Math.PI * 0.5);
+            break;
+          case 'smooth': {
+            const s = p * p * (3 - 2 * p);
+            fadeOut = 1 - s;
+            fadeIn = s;
+            break;
+          }
+          case 'exponential':
+            fadeOut = (1 - p) * (1 - p);
+            fadeIn = p * p;
+            break;
+          default:
+            fadeOut = 1 - p;
+            fadeIn = p;
+        }
 
         if (audioRef.current) {
-          audioRef.current.volume = Math.max(0, volume * (1 - fadeProgress));
+          audioRef.current.volume = Math.max(0, Math.min(volume, volume * fadeOut));
         }
         if (nextAudioRef.current) {
-          nextAudioRef.current.volume = Math.min(volume, volume * fadeProgress);
+          nextAudioRef.current.volume = Math.max(0, Math.min(volume, volume * fadeIn));
         }
 
         if (currentStep >= steps) {
