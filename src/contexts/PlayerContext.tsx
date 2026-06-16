@@ -97,6 +97,8 @@ interface PlayerContextType {
   setExpanded: (expanded: boolean) => void;
   toggleCrossfade: () => void;
   setCrossfadeDuration: (seconds: number) => void;
+  setCrossfadeCurve: (curve: 'linear' | 'equal-power' | 'smooth' | 'exponential') => void;
+  toggleGaplessPro: () => void;
   onPrerollAdComplete: () => void;
 }
 
