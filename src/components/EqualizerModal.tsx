@@ -474,6 +474,40 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                 className="data-[state=checked]:bg-primary"
               />
             </div>
+
+            {/* Headphone 3D Surround — premium binaural crossfeed */}
+            <div
+              className="flex items-center justify-between p-4 rounded-2xl"
+              style={{
+                background: 'rgba(28, 28, 30, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: headphoneSurround
+                      ? 'linear-gradient(135deg, hsl(var(--primary) / 0.4), hsl(280 80% 55% / 0.3))'
+                      : 'rgba(255,255,255,0.05)',
+                  }}
+                >
+                  <Headphones className={`w-5 h-5 ${headphoneSurround ? 'text-primary' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Headphone 3D Surround</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-rose-500 to-pink-600 text-white">EXCLUSIVE</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Binaural crossfeed — sound out of your head, not inside it</p>
+                </div>
+              </div>
+              <Switch
+                checked={headphoneSurround}
+                onCheckedChange={(value) => setEQSettings({ headphoneSurround: value })}
+                className="data-[state=checked]:bg-primary"
+              />
+            </div>
           </div>
         </motion.div>
       </motion.div>
