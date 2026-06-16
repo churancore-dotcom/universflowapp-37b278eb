@@ -30,12 +30,24 @@ interface Engine {
   stereoPanner: StereoPannerNode | null;
   panLfo: OscillatorNode | null;
   panLfoGain: GainNode | null;
+  // Headphone 3D Surround (crossfeed + inter-aural delay)
+  surroundSplitter: ChannelSplitterNode | null;
+  surroundMerger: ChannelMergerNode | null;
+  surroundDirectL: GainNode | null;
+  surroundDirectR: GainNode | null;
+  surroundDelayLR: DelayNode | null;
+  surroundDelayRL: DelayNode | null;
+  surroundLpLR: BiquadFilterNode | null;
+  surroundLpRL: BiquadFilterNode | null;
+  surroundXfeedLR: GainNode | null;
+  surroundXfeedRL: GainNode | null;
   limiter: DynamicsCompressorNode | null;
   el: HTMLAudioElement | null;
   signature: string | null;
   mode: Mode;
   spatialEnabled: boolean;
   lateNightEnabled: boolean;
+  surroundEnabled: boolean;
   listeners: Set<(m: Mode) => void>;
   cachedIR: AudioBuffer | null;
 }
@@ -51,12 +63,23 @@ const engine: Engine = {
   stereoPanner: null,
   panLfo: null,
   panLfoGain: null,
+  surroundSplitter: null,
+  surroundMerger: null,
+  surroundDirectL: null,
+  surroundDirectR: null,
+  surroundDelayLR: null,
+  surroundDelayRL: null,
+  surroundLpLR: null,
+  surroundLpRL: null,
+  surroundXfeedLR: null,
+  surroundXfeedRL: null,
   limiter: null,
   el: null,
   signature: null,
   mode: 'idle',
   spatialEnabled: false,
   lateNightEnabled: false,
+  surroundEnabled: false,
   listeners: new Set(),
   cachedIR: null,
 };
