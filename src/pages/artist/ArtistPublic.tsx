@@ -139,7 +139,7 @@ export default function ArtistPublic() {
         title={`${profile.stage_name} — Universflow`}
         description={profile.bio || `Listen to ${profile.stage_name} on Universflow.`}
         path={`/a/${profile.slug}`}
-        ogImage={profile.avatar_url || undefined}
+        image={profile.avatar_url || undefined}
       />
       <div className="min-h-[100dvh] bg-background text-foreground pb-32">
         {/* Banner */}
