@@ -47,6 +47,27 @@ Deno.serve(async (req) => {
     const email = String(body?.email ?? '').trim().toLowerCase();
     const username = String(body?.username ?? '').trim().slice(0, 40) || 'there';
 
+    const UNIFORM_OK = new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+    // Per-IP throttle: max 10 attempts / minute / IP. Silently swallow excess.
+    try {
+      const ipUuid = await idToUuid(clientIp(req));
+      const rl = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_and_increment_rate_limit`, {
+        method: 'POST',
+        headers: {
+          apikey: SERVICE_ROLE,
+          Authorization: `Bearer ${SERVICE_ROLE}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ _user_id: ipUuid, _endpoint: 'send_welcome_email', _max_per_minute: 10 }),
+      });
+      const allowed = await rl.json().catch(() => true);
+      if (allowed === false) return UNIFORM_OK;
+    } catch (_) { /* fail-open on rate-limiter outage */ }
+
     if (!isEmail(email)) {
       return new Response(JSON.stringify({ error: 'Invalid email' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -54,8 +75,6 @@ Deno.serve(async (req) => {
     }
 
     // Anti-abuse: only send if a matching auth user exists and was created in the last 10 minutes.
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lookup = await fetch(
       `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
       { headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` } }
