@@ -95,6 +95,19 @@ const SecurityCenter = lazy(() => import("./pages/admin/SecurityCenter"));
 
 const SupportInbox = lazy(() => import("./pages/admin/SupportInbox"));
 const AppUpdates = lazy(() => import("./pages/admin/AppUpdates"));
+const ArtistApplications = lazy(() => import("./pages/admin/ArtistApplications"));
+
+// Artist program
+const ArtistApply = lazy(() => import("./pages/artist/Apply"));
+const ArtistStatus = lazy(() => import("./pages/artist/Status"));
+const ArtistStudio = lazy(() => import("./pages/artist/Studio"));
+const ArtistPublic = lazy(() => import("./pages/artist/ArtistPublic"));
+
+// Legal
+const LegalTerms = lazy(() => import("./pages/legal/Terms"));
+const LegalPrivacy = lazy(() => import("./pages/legal/Privacy"));
+const LegalArtistTerms = lazy(() => import("./pages/legal/ArtistTerms"));
+const LegalArtistPrivacy = lazy(() => import("./pages/legal/ArtistPrivacy"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
