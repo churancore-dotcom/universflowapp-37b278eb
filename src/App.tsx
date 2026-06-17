@@ -236,6 +236,7 @@ const AnimatedRoutes = () => {
           <Route path="/downloads" element={<ProtectedRoute><Downloads /></ProtectedRoute>} />
 
           {/* Artist program */}
+          <Route path="/artist/auth" element={user ? <Navigate to="/artist/apply" replace /> : <ArtistAuth />} />
           <Route path="/artist/apply" element={<ProtectedRoute><ArtistApply /></ProtectedRoute>} />
           <Route path="/artist/status" element={<ProtectedRoute><ArtistStatus /></ProtectedRoute>} />
           <Route path="/artist/studio" element={<ProtectedRoute><ArtistStudio /></ProtectedRoute>} />
