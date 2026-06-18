@@ -205,20 +205,8 @@ export default function ArtistStudio() {
                 <Plus className="w-4 h-4 mr-1.5" /> Add a song
               </Button>
 
-              {songs.length === 0 && (
-                <p className="text-center text-[13px] text-muted-foreground py-10">
-                  No songs yet. Tap "Add a song" to publish your first track.
-                </p>
-              )}
-
-              {songs.map((s) => (
-                <SongRow key={s.id} song={s} onDelete={async () => {
-                  const ok = confirm(`Delete "${s.title}"? This cannot be undone.`);
-                  if (!ok) return;
-                  const { error } = await supabase.from('artist_songs').delete().eq('id', s.id);
-                  if (error) toast.error(error.message); else toast.success('Deleted');
-                }} />
-              ))}
+              <TopTrackCard songs={songs} />
+              <SongsList songs={songs} />
             </TabsContent>
 
             <TabsContent value="profile" className="mt-4">
@@ -226,6 +214,7 @@ export default function ArtistStudio() {
             </TabsContent>
           </Tabs>
         </main>
+
 
         <AddSongDialog
           open={addOpen}
