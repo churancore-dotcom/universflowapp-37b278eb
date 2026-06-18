@@ -161,42 +161,43 @@ const Auth = () => {
             </p>
           </div>
 
-          {/* Segmented tabs — single accent, no gradients */}
+          {/* Segmented tabs — listener + artist signup together */}
           <div
-            className="relative grid grid-cols-2 p-1 rounded-full mb-5 mx-auto w-[78%]"
+            className="relative grid grid-cols-3 p-1 rounded-full mb-5 mx-auto w-[92%]"
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.06)',
             }}
           >
-            <motion.div
-              layout
-              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-              className="absolute top-1 bottom-1 rounded-full"
-              style={{
-                width: 'calc(50% - 4px)',
-                left: isLogin ? 4 : 'calc(50% + 0px)',
-                background: '#FF2D55',
-                boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
-              }}
-            />
-            {(['login', 'signup'] as Mode[]).map((m) => (
+            {(['login', 'signup', 'artist'] as Mode[]).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className="relative z-10 h-9 text-[12.5px] font-semibold tracking-tight transition-colors"
+                className="relative z-10 h-9 text-[12px] font-semibold tracking-tight transition-colors"
                 style={{ color: mode === m ? '#fff' : 'hsl(var(--muted-foreground))' }}
               >
-                {m === 'login' ? 'Sign in' : 'Create account'}
+                {mode === m && (
+                  <motion.div
+                    layoutId="activeAuthTab"
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background: '#FF2D55',
+                      boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
+                    }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                )}
+                <span className="relative z-10">{labels[m]}</span>
               </button>
             ))}
           </div>
 
           <AnimatePresence mode="wait" initial={false} custom={isLogin}>
-            <motion.form
-              key={mode}
-              custom={isLogin}
+            {mode !== 'artist' && (
+              <motion.form
+                key={mode}
+                custom={isLogin}
               variants={panelVariants}
               onSubmit={handleSubmit}
               className="relative rounded-[26px] p-5 space-y-3.5"
