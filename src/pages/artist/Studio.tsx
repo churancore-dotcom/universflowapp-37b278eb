@@ -233,21 +233,142 @@ export default function ArtistStudio() {
 }
 
 function StatCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: boolean }) {
+  const prev = useRef(value);
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    if (prev.current !== value) {
+      prev.current = value;
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 700);
+      return () => clearTimeout(t);
+    }
+  }, [value]);
   return (
     <div
-      className="rounded-2xl p-4"
+      className="rounded-2xl p-4 relative overflow-hidden transition-shadow"
       style={{
         background: accent ? 'linear-gradient(160deg, rgba(255,45,85,0.18), rgba(16,16,18,0.6))' : 'rgba(255,255,255,0.03)',
         border: '0.5px solid rgba(255,255,255,0.07)',
+        boxShadow: pulse ? '0 0 0 1px rgba(255,45,85,0.45), 0 8px 32px -8px rgba(255,45,85,0.35)' : undefined,
       }}
     >
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
         {icon}{label}
       </div>
-      <div className="mt-2 text-[24px] font-semibold tabular-nums leading-none">{value}</div>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.div
+          key={value}
+          initial={{ y: 8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -8, opacity: 0 }}
+          transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+          className="mt-2 text-[24px] font-semibold tabular-nums leading-none"
+        >
+          {value}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
+
+function TopTrackCard({ songs }: { songs: Song[] }) {
+  const top = useMemo(() => {
+    if (!songs.length) return null;
+    return [...songs].sort((a, b) =>
+      (b.play_count + b.like_count * 2 + b.download_count * 3) -
+      (a.play_count + a.like_count * 2 + a.download_count * 3),
+    )[0];
+  }, [songs]);
+  if (!top || (top.play_count === 0 && top.like_count === 0 && top.download_count === 0)) return null;
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl p-3.5 flex items-center gap-3 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(160deg, rgba(255,45,85,0.22), rgba(16,16,18,0.6))',
+        border: '0.5px solid rgba(255,45,85,0.25)',
+      }}
+    >
+      <div className="absolute top-2 right-3 inline-flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-wider text-rose-200/90">
+        <TrendingUp className="w-3 h-3" /> Top track
+      </div>
+      <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 shrink-0">
+        {top.cover_url ? (
+          <img src={top.cover_url} alt={top.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center"><Music2 className="w-6 h-6 text-muted-foreground" /></div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 pr-14">
+        <p className="text-[14px] font-semibold truncate">{top.title}</p>
+        <p className="text-[11.5px] text-rose-100/70 tabular-nums mt-0.5">
+          {fmt(top.play_count)} plays · {fmt(top.like_count)} likes
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+type SortKey = 'recent' | 'plays' | 'likes' | 'views' | 'downloads';
+
+function SongsList({ songs }: { songs: Song[] }) {
+  const [sort, setSort] = useState<SortKey>('recent');
+  const sorted = useMemo(() => {
+    const arr = [...songs];
+    switch (sort) {
+      case 'plays': return arr.sort((a, b) => b.play_count - a.play_count);
+      case 'likes': return arr.sort((a, b) => b.like_count - a.like_count);
+      case 'views': return arr.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+      case 'downloads': return arr.sort((a, b) => b.download_count - a.download_count);
+      default: return arr.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+    }
+  }, [songs, sort]);
+
+  if (!songs.length) {
+    return (
+      <p className="text-center text-[13px] text-muted-foreground py-10">
+        No songs yet. Tap "Add a song" to publish your first track.
+      </p>
+    );
+  }
+
+  const opts: Array<[SortKey, string]> = [
+    ['recent', 'Recent'], ['plays', 'Plays'], ['likes', 'Likes'], ['views', 'Views'], ['downloads', 'DLs'],
+  ];
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+        {opts.map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setSort(k)}
+            className={`shrink-0 px-3 h-7 rounded-full text-[11.5px] font-medium transition ${
+              sort === k
+                ? 'bg-white text-black'
+                : 'bg-white/[0.05] text-muted-foreground active:scale-95'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <AnimatePresence initial={false}>
+        {sorted.map((s) => (
+          <SongRow key={s.id} song={s} onDelete={async () => {
+            const ok = confirm(`Delete "${s.title}"? This cannot be undone.`);
+            if (!ok) return;
+            const { error } = await supabase.from('artist_songs').delete().eq('id', s.id);
+            if (error) toast.error(error.message); else toast.success('Deleted');
+          }} />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 
 function SongRow({ song, onDelete }: { song: Song; onDelete: () => void }) {
   return (
