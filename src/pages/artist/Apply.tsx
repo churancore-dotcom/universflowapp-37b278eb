@@ -20,7 +20,8 @@ import {
   uploadKycFile,
 } from '@/lib/artist';
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
+const TOTAL_STEPS = 6;
 
 const COUNTRIES = [
   ['IN', '🇮🇳 India'],
