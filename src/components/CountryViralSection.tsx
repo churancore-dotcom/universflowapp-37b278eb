@@ -199,7 +199,7 @@ const CountryViralSection = memo(function CountryViralSection() {
             </div>
           ) : (
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
-              {tracks.map((track, i) => {
+              {rotated.map((track, i) => {
                 const active = currentSong?.id === track.id;
                 return (
                   <button
