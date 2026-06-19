@@ -531,7 +531,10 @@ export default function ArtistApply() {
         </main>
 
         {/* Sticky bottom CTA */}
-        <div className="fixed bottom-0 inset-x-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-6 pb-5 px-5">
+        <div
+          className="fixed bottom-0 inset-x-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-6 px-5"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}
+        >
           <div className="max-w-md mx-auto">
             {step < TOTAL_STEPS ? (
               <Button
