@@ -4,6 +4,7 @@ import { useGlobalAudioEngine } from '@/hooks/useGlobalAudioEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { resolveIndexedTrack, resolveYouTubeVideoStream, prefetchIndexedTrack } from '@/lib/musicIndexer';
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
+import { recordPerfEvent } from '@/lib/perfMonitor';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
 import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
@@ -441,13 +442,34 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }, 4000);
     };
+    const handleWaitingPerf = () => {
+      recordPerfEvent({
+        event_type: 'playback_stall',
+        severity: 'warn',
+        message: 'Buffering / stalled',
+      });
+    };
     const handlePlaying = () => {
       if (waitingTimer != null) { clearTimeout(waitingTimer); waitingTimer = null; }
+      const startedAt = (audio as any).__ufStartedAt as number | undefined;
+      if (startedAt) {
+        recordPerfEvent({
+          event_type: 'playback_start',
+          severity: 'info',
+          latency_ms: Math.max(0, Math.round(performance.now() - startedAt)),
+        });
+        (audio as any).__ufStartedAt = undefined;
+      }
+    };
+    const handleLoadStartPerf = () => {
+      (audio as any).__ufStartedAt = performance.now();
     };
 
 
     audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('waiting', handleWaitingPerf);
     audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('loadstart', handleLoadStartPerf);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
@@ -485,7 +507,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => {
       if (waitingTimer != null) clearTimeout(waitingTimer);
       audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('waiting', handleWaitingPerf);
       audio.removeEventListener('playing', handlePlaying);
+      audio.removeEventListener('loadstart', handleLoadStartPerf);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       if (appResumeRemove) appResumeRemove();
@@ -822,6 +846,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else if (upcoming.source === 'indexed' || upcoming.audio_url === 'resolving') {
       prefetchIndexedTrack(upcoming.artist, upcoming.title);
       preloadedNextIdRef.current = upcoming.id;
+    }
+
+    // Also warm the track AFTER next so two-tap skips feel instant.
+    const nextNextIdx = getNextIndex(nextIdx, queue.length, shuffle, repeat);
+    if (nextNextIdx !== null && nextNextIdx !== currentIndex) {
+      const afterNext = queue[nextNextIdx];
+      if (afterNext && (afterNext.source === 'indexed' || afterNext.audio_url === 'resolving')) {
+        prefetchIndexedTrack(afterNext.artist, afterNext.title);
+      }
     }
   }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl]);
 
@@ -1223,6 +1256,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!audio.src || audio.src === window.location.href || /empty src/i.test(errorMessage)) return;
 
       console.warn('[player] audio error, auto-skipping:', errorCode, errorMessage);
+      recordPerfEvent({
+        event_type: 'playback_error',
+        severity: 'error',
+        message: `code=${errorCode} ${errorMessage}`.slice(0, 240),
+        details: { code: errorCode, src_host: (() => { try { return new URL(audio.src).host; } catch { return null; } })() },
+      });
 
       // ── First-chance recovery: stream URL likely went stale. Re-resolve
       //    once with a forced cache-bust, then retry the same song. Only skip
