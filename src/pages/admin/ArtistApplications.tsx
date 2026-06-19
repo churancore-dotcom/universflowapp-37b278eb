@@ -29,7 +29,7 @@ type App = {
   real_name: string;
   phone: string;
   country_code: string;
-  social_links: Record<string, any> | null;
+  social_links: (Record<string, unknown> & { face_shots?: unknown }) | null;
   id_doc_type: IdDocType;
   id_doc_front_path: string | null;
   id_doc_back_path: string | null;
@@ -73,7 +73,7 @@ export default function ArtistApplications() {
       .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, created_at')
       .order('created_at', { ascending: false });
     if (error) toast.error(error.message);
-    setApps(((data ?? []) as any[]).map((a) => ({ ...a, admin_note: null })) as App[]);
+    setApps((data ?? []).map((a) => ({ ...a, admin_note: null })) as App[]);
     setLoading(false);
   };
 
@@ -101,12 +101,13 @@ export default function ArtistApplications() {
     // hidden from regular signed-in users at the database level.
     let currentNote: string | null = null;
     try {
-      const { data: note } = await (supabase.rpc as any)('admin_get_artist_application_note', { _app_id: app.id });
+      const { data: note } = await supabase.rpc('admin_get_artist_application_note', { _app_id: app.id });
       currentNote = (note as string | null) ?? null;
     } catch { /* ignore */ }
     setNote(currentNote ?? '');
     setPreviews({});
-    const face = ((app.social_links as any)?.face_shots ?? []) as string[];
+    const faceShots = app.social_links?.face_shots;
+    const face = Array.isArray(faceShots) ? faceShots.filter((path): path is string => typeof path === 'string') : [];
     const [front, back, selfie, center, left, right, up] = await Promise.all([
       signed(app.id_doc_front_path),
       signed(app.id_doc_back_path),
