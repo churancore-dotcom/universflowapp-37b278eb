@@ -823,6 +823,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       prefetchIndexedTrack(upcoming.artist, upcoming.title);
       preloadedNextIdRef.current = upcoming.id;
     }
+
+    // Also warm the track AFTER next so two-tap skips feel instant.
+    const nextNextIdx = getNextIndex(nextIdx, queue.length, shuffle, repeat);
+    if (nextNextIdx !== null && nextNextIdx !== currentIndex) {
+      const afterNext = queue[nextNextIdx];
+      if (afterNext && (afterNext.source === 'indexed' || afterNext.audio_url === 'resolving')) {
+        prefetchIndexedTrack(afterNext.artist, afterNext.title);
+      }
+    }
   }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl]);
 
   // ── YouTube IFrame fallback helpers ──
