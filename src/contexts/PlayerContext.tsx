@@ -446,8 +446,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       recordPerfEvent({
         event_type: 'playback_stall',
         severity: 'warn',
-        track_id: currentSongRef.current?.id ?? null,
-        source: currentSongRef.current?.source ?? null,
         message: 'Buffering / stalled',
       });
     };
@@ -458,8 +456,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         recordPerfEvent({
           event_type: 'playback_start',
           severity: 'info',
-          track_id: currentSongRef.current?.id ?? null,
-          source: currentSongRef.current?.source ?? null,
           latency_ms: Math.max(0, Math.round(performance.now() - startedAt)),
         });
         (audio as any).__ufStartedAt = undefined;
