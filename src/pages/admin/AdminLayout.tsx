@@ -103,7 +103,7 @@ const SidebarContent = memo(({ currentPath, onNavigate, onClose, onLogout, showC
 
     <nav className="flex-1 p-3 md:p-4 space-y-1 overflow-y-auto">
       {navItems.map((item) => {
-        const isActive = currentPath === item.path;
+        const isActive = currentPath === item.path || (item.path !== '/admin' && currentPath.startsWith(`${item.path}/`));
         const Icon = item.icon;
         return (
           <button
