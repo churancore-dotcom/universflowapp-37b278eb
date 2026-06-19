@@ -30,6 +30,8 @@ export default function FaceLivenessCapture({
   const streamRef = useRef<MediaStream | null>(null);
 
   const [streaming, setStreaming] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [started, setStarted] = useState(false); // user tapped "Start camera"
   const [err, setErr] = useState<string | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
   const [countdown, setCountdown] = useState(3);
@@ -38,23 +40,32 @@ export default function FaceLivenessCapture({
 
   const pose = ORDER[stepIdx];
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
-          audio: false,
-        });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-        setStreaming(true);
-      } catch (e: any) {
-        setErr(e?.message || 'Camera access denied. Please allow camera permission and retry.');
+  // Camera permission is requested ONLY after the user taps "Start camera".
+  // This avoids the OS prompt firing as soon as Step 4 mounts.
+  const startCamera = async () => {
+    if (starting || streaming) return;
+    setErr(null);
+    setStarting(true);
+    setStarted(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
-    })();
+      setStreaming(true);
+    } catch (e: any) {
+      setErr(e?.message || 'Camera access denied. Please allow camera permission and retry.');
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
