@@ -303,6 +303,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                   </motion.div>
                 </AnimatePresence>
               </div>
+              )}
             </div>
 
             {/* Controls Section - fixed at bottom */}
