@@ -32,14 +32,7 @@ class MusicService : Service() {
     private var audioManager: AudioManager? = null
     private var focusRequest: AudioFocusRequest? = null
 
-    private val focusListener = AudioManager.OnAudioFocusChangeListener { focus ->
-        when (focus) {
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> sendAction("pause")
-            AudioManager.AUDIOFOCUS_GAIN -> sendAction("resume")
-        }
-    }
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { _ -> }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -70,26 +63,9 @@ class MusicService : Service() {
     }
 
     private fun requestAudioFocus() {
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val attrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-            focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(attrs)
-                .setOnAudioFocusChangeListener(focusListener)
-                .setWillPauseWhenDucked(true)
-                .build()
-            audioManager?.requestAudioFocus(focusRequest!!)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager?.requestAudioFocus(
-                focusListener,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-            )
-        }
+        // Compatibility service only. The real lock-screen service is
+        // MediaNotificationService; this old keep-alive service must not own
+        // audio focus or it can pause the WebView player on some Android builds.
     }
 
     private fun sendAction(action: String) {

@@ -8,6 +8,7 @@ import { recordPerfEvent } from '@/lib/perfMonitor';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
 import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
+import { initNativeBridge } from '@/services/NativeBridge';
 import { toast } from 'sonner';
 
 interface YouTubePlayer {
@@ -541,9 +542,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Wire the global EQ/audio engine to the live audio element. Persists across modal open/close.
   useGlobalAudioEngine(audioElement);
 
-  const publishNativeMusicControls = useCallback((song: Song, playing: boolean, duration?: number) => {
-    import('@/lib/nativeMusicControls')
-      .then(({ showNativeMusicControls }) => showNativeMusicControls(
+  const publishNativeMusicControls = useCallback(async (song: Song, playing: boolean, duration?: number) => {
+    try {
+      const { showNativeMusicControls } = await import('@/lib/nativeMusicControls');
+      await showNativeMusicControls(
         {
           title: song.title,
           artist: song.artist,
@@ -552,8 +554,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           duration: duration || song.duration,
         },
         playing,
-      ))
-      .catch(() => {});
+      );
+    } catch { /* native controls are best-effort */ }
   }, []);
 
   // ── EQ requires a CORS-safe source. When the user turns EQ on AFTER a song
@@ -844,8 +846,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         preloadedNextIdRef.current = upcoming.id;
       } catch { /* ignore preload errors */ }
     } else if (upcoming.source === 'indexed' || upcoming.audio_url === 'resolving') {
-      prefetchIndexedTrack(upcoming.artist, upcoming.title);
       preloadedNextIdRef.current = upcoming.id;
+      prefetchIndexedTrack(upcoming.artist, upcoming.title);
+      resolveAudioUrl(upcoming).then((resolved) => {
+        if (!resolved || preloadedNextIdRef.current !== upcoming.id) return;
+        const activeQueue = queueRef.current;
+        const idx = activeQueue.findIndex((item) => getSongIdentity(item) === getSongIdentity(upcoming));
+        if (idx >= 0 && !isPlayableUrl(activeQueue[idx].audio_url)) {
+          const warmed = { ...activeQueue[idx], audio_url: resolved };
+          const nextQueue = [...activeQueue];
+          nextQueue[idx] = warmed;
+          queueRef.current = nextQueue;
+          setQueueState(nextQueue);
+        }
+        if (nextAudioRef.current && !isYouTubeFallbackUrl(resolved)) {
+          configureAudioElementSource(nextAudioRef.current, buildStreamProxyUrl(resolved));
+          nextAudioRef.current.preload = 'auto';
+          nextAudioRef.current.volume = 0;
+          nextAudioRef.current.load();
+        }
+      }).catch(() => null);
     }
 
     // Also warm the track AFTER next so two-tap skips feel instant.
@@ -856,7 +876,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         prefetchIndexedTrack(afterNext.artist, afterNext.title);
       }
     }
-  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl]);
+  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl, resolveAudioUrl]);
 
   // ── YouTube IFrame fallback helpers ──
   const stopYouTubeProgressLoop = useCallback(() => {
@@ -1043,7 +1063,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentIndex(index);
     setProgress(0);
     setIsPlaying(true);
-    publishNativeMusicControls(resolvedSong, true, resolvedSong.duration);
+    await publishNativeMusicControls(resolvedSong, true, resolvedSong.duration);
 
     // Resolve audio URL if needed
     let audioUrl = resolvedSong.audio_url;
@@ -1471,7 +1491,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentSong(song);
     setProgress(0);
     setIsPlaying(true);
-    publishNativeMusicControls(song, true, song.duration);
+    await publishNativeMusicControls(song, true, song.duration);
     
     let playbackSource = offlineUrl || song.audio_url;
 
@@ -1866,6 +1886,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     },
   }), [currentSong, queue, currentIndex, shuffle, repeat, getNextIndex, playSongAtIndex, markIntentionalPause]);
+
+  useEffect(() => {
+    initNativeBridge(mediaSessionCallbacks.onPause, mediaSessionCallbacks.onPlay);
+  }, [mediaSessionCallbacks]);
 
   const { progress: liveProgress, duration: liveDuration } = usePlayerProgress();
 

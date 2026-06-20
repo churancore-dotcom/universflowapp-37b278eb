@@ -119,9 +119,10 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 
 export async function showNativeMusicControls(track: NativeTrack, isPlaying: boolean) {
   if (!isNative()) return;
-  // Best-effort permission grant; service still posts notification even if
-  // user denies — it just won't show on the lock screen.
-  await ensureNotificationPermission();
+  // Best-effort permission grant, but NEVER block playback startup on the
+  // Android 13+ permission dialog. The foreground service can still keep the
+  // WebView alive even if the drawer notification is hidden by OS policy.
+  void ensureNotificationPermission();
   try {
     await MediaNotification.create({
       title: track.title || 'Unknown',

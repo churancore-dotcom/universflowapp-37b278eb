@@ -33,7 +33,14 @@ const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
 const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
-const SEARCH_CACHE_NAMESPACE = 'stable-search-v4';
+const SEARCH_CACHE_NAMESPACE = 'stable-search-v5';
+const SPAM_RESULT_PATTERNS = [
+  /\b(top|best)\s*\d+\b/i,
+  /\b\d+\s*(top|best|hit|hits|songs)\b/i,
+  /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|full album|all songs)\b/i,
+  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone)\b/i,
+  /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
+];
 
 type HiddenSearchEntry = {
   key: string;
@@ -81,12 +88,26 @@ function hideSearchTrack(track: IndexedTrack) {
   clearCache(SEARCH_CACHE_NAMESPACE);
 }
 
+function isSpamTrack(track: IndexedTrack, query: string) {
+  const q = normalizeText(query);
+  const haystack = `${track.title || ''} ${track.artist || ''} ${track.album || ''}`;
+  const normalizedHaystack = normalizeText(haystack);
+  const duration = Number(track.duration || 0);
+  const allowLongForm = /\b(lofi|mix|playlist|jukebox|medley|concert|live)\b/.test(q);
+  if (!track.title || !track.artist) return true;
+  if (duration && (duration < 75 || (!allowLongForm && duration > 540))) return true;
+  if (/\boriginals?\b/.test(normalizeText(track.artist)) && !q.includes('original')) return true;
+  if (!q.includes('lofi') && /\blo\s*fi\b|\blofi\b/.test(normalizedHaystack)) return true;
+  return SPAM_RESULT_PATTERNS.some((pattern) => pattern.test(haystack));
+}
+
 function rankAndDedupeResults(query: string, youtube: IndexedTrack[], literal: IndexedTrack[], tagSets: IndexedTrack[][], allowDiscoveryFallback = false) {
   const tokens = queryTokens(query);
   const rows = new Map<string, { track: IndexedTrack; score: number; firstSeen: number; sourcePriority: number }>();
   let firstSeen = 0;
 
   const add = (track: IndexedTrack, base: number, index: number, sourcePriority: number) => {
+    if (isSpamTrack(track, query)) return;
     const key = resultKey(track);
     if (!key || key === '::') return;
     const haystack = normalizeText(`${track.title} ${track.artist} ${track.album || ''}`);
