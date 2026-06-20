@@ -11,8 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import FaceLivenessCapture, { LivenessShots } from '@/components/FaceLivenessCapture';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { detectCountrySilently } from '@/lib/geoCountry';
 import {
+  ArtistApplicationSafe,
   ID_DOC_LABELS,
   IdDocType,
   docsForCountry,
@@ -26,6 +28,18 @@ import { validateSocialLink, atLeastOneValidLink, SocialPlatform } from '@/lib/s
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 const TOTAL_STEPS = 6;
+
+type SocialLinksDraft = { instagram?: unknown; youtube?: unknown; spotify?: unknown; apple_music?: unknown; bio?: unknown };
+
+function asSocialLinks(value: Json | null): SocialLinksDraft {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function getReapplyApplicationId(value: Json | null): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const id = value.application_id;
+  return typeof id === 'string' ? id : null;
+}
 
 // Wide country list. Order: Top-of-mind first, then alphabetical.
 const COUNTRIES: ReadonlyArray<readonly [string, string]> = [
