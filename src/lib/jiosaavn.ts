@@ -229,6 +229,7 @@ export async function findSongStreamUrl(title: string, artist = '', opts: { forc
   const results = await searchSongs(query, 8);
   const best = (results || [])
     .filter((song): song is SaavnSong & { id: string } => !!song?.id)
+    .filter((song) => !looksSpammy(song))
     .sort((a, b) => scoreSong(b, title, artist) - scoreSong(a, title, artist))[0];
   if (!best?.id) return null;
   if (!isConfidentMatch(best, title, artist)) return null;
