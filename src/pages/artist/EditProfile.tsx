@@ -24,17 +24,16 @@ export default function EditProfile() {
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (!stage.trim()) return;
     setSaving(true);
     try {
       const [newAvatar, newBanner] = await Promise.all([
         avatar ? uploadArtistPhoto(user.id, avatar) : Promise.resolve(profile.avatar_url),
         banner ? uploadArtistCover(user.id, banner) : Promise.resolve(profile.banner_url),
       ]);
+      // NOTE: stage_name is locked after verification. To change it, contact support.
       const { error } = await supabase
         .from('artist_profiles')
         .update({
-          stage_name: stage.trim(),
           bio: bio.trim() || null,
           avatar_url: newAvatar,
           banner_url: newBanner,
