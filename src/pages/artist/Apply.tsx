@@ -35,9 +35,10 @@ function asSocialLinks(value: Json | null): SocialLinksDraft {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
-function getReapplyApplicationId(value: Json | null): string | null {
+function getApplicationId(value: unknown): string | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const id = value.application_id;
+  const record = value as { application_id?: unknown; id?: unknown };
+  const id = record.application_id ?? record.id;
   return typeof id === 'string' ? id : null;
 }
 
@@ -361,7 +362,7 @@ export default function ArtistApply() {
       }
 
       // Kick off automated verification in the background — non-blocking.
-      const applicationId = isLockedReapply ? getReapplyApplicationId(inserted) : inserted?.id;
+      const applicationId = getApplicationId(inserted);
       if (applicationId) {
         supabase.functions
           .invoke('artist-verify-checks', { body: { application_id: applicationId } })
