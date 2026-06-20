@@ -20,6 +20,8 @@ import {
   uploadArtistPhoto,
   uploadKycFile,
 } from '@/lib/artist';
+import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
+import { validateSocialLink, atLeastOneValidLink, SocialPlatform } from '@/lib/socialLinkValidator';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 const TOTAL_STEPS = 6;
