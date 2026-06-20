@@ -4,6 +4,8 @@ import { compressImage } from './imageCompression';
 export type ArtistAppStatus = 'pending' | 'approved' | 'rejected';
 export type IdDocType = 'voter_id' | 'pan' | 'passport' | 'drivers_license' | 'national_id';
 
+const REAPPLY_COOLDOWN_DAYS = 7;
+
 export const ID_DOC_LABELS: Record<IdDocType, string> = {
   voter_id: 'Voter ID',
   pan: 'PAN Card',
@@ -120,6 +122,22 @@ export async function getMyApplication(userId: string) {
     admin_note = null;
   }
   return { ...(data as any), admin_note };
+}
+
+export function getArtistReapplyAt(app: { reviewed_at?: string | null; updated_at?: string | null; created_at?: string | null }) {
+  const base = app.reviewed_at || app.updated_at || app.created_at;
+  if (!base) return null;
+  return new Date(new Date(base).getTime() + REAPPLY_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
+}
+
+export function getArtistReapplyState(app: { reviewed_at?: string | null; updated_at?: string | null; created_at?: string | null }) {
+  const reapplyAt = getArtistReapplyAt(app);
+  if (!reapplyAt) return { reapplyAt: null, canReapply: false, waitText: '' };
+  const diff = reapplyAt.getTime() - Date.now();
+  const canReapply = diff <= 0;
+  const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
+  const waitText = canReapply ? 'You can re-submit now.' : `You can re-submit in ${days} day${days === 1 ? '' : 's'}.`;
+  return { reapplyAt, canReapply, waitText };
 }
 
 export async function getMyArtistProfile(userId: string) {
