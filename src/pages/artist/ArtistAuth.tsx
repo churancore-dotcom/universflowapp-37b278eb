@@ -88,10 +88,12 @@ const ArtistAuth = () => {
     username.trim().length >= 3 &&
     /\S+@\S+\.\S+/.test(email);
 
+  const phoneCheck = useMemo(() => validatePhone(dial[0], phone), [dial, phone]);
+
   const signupValid =
     step1Valid &&
     password.length >= 6 &&
-    phone.replace(/\D/g, '').length >= 6 &&
+    phoneCheck.ok &&
     age !== null && age >= 13 &&
     agreeTerms && agreePrivacy;
 
