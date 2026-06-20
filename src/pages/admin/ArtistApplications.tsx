@@ -40,7 +40,14 @@ type App = {
   admin_note: string | null;
   created_at: string;
   reviewed_at: string | null;
+  face_match_score: number | null;
+  face_match_status: string | null;
+  ocr_extracted_name: string | null;
+  name_match_score: number | null;
+  auto_check_warnings: string[] | null;
+  auto_checks_at: string | null;
 };
+
 
 type PreviewMap = {
   front?: string;
@@ -73,10 +80,11 @@ export default function ArtistApplications() {
     setLoading(true);
     const { data, error } = await supabase
       .from('artist_applications')
-      .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, created_at')
+      .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, created_at, face_match_score, face_match_status, ocr_extracted_name, name_match_score, auto_check_warnings, auto_checks_at')
       .order('created_at', { ascending: false });
     if (error) toast.error(error.message);
     setApps((data ?? []).map((a) => ({ ...a, admin_note: null })) as App[]);
+
     setLoading(false);
   };
 
@@ -236,6 +244,8 @@ export default function ArtistApplications() {
                   </div>
                 </section>
 
+                <AutoChecksPanel app={active} />
+
                 <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
                   <h3 className="font-semibold mb-3 flex items-center gap-2"><Camera className="w-4 h-4" /> Face liveness check</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -245,6 +255,7 @@ export default function ArtistApplications() {
                     <DocPreview label="Look up" url={previews.up} />
                   </div>
                 </section>
+
               </div>
 
               <div className="space-y-5">
@@ -367,3 +378,61 @@ function DocPreview({ label, url }: { label: string; url?: string }) {
     </div>
   );
 }
+
+function AutoChecksPanel({ app }: { app: App }) {
+  const ran = !!app.auto_checks_at;
+  const faceScorePct = app.face_match_score == null ? null : Math.round(app.face_match_score * 100);
+  const nameScorePct = app.name_match_score == null ? null : Math.round(app.name_match_score * 100);
+  const faceColor =
+    app.face_match_status === 'pass' ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30'
+    : app.face_match_status === 'fail' ? 'text-rose-300 bg-rose-500/15 border-rose-500/30'
+    : app.face_match_status === 'error' ? 'text-amber-300 bg-amber-500/15 border-amber-500/30'
+    : 'text-amber-300 bg-amber-500/15 border-amber-500/30';
+  const nameColor =
+    nameScorePct == null ? 'text-muted-foreground bg-white/[0.04] border-white/10'
+    : nameScorePct >= 70 ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30'
+    : nameScorePct >= 40 ? 'text-amber-300 bg-amber-500/15 border-amber-500/30'
+    : 'text-rose-300 bg-rose-500/15 border-rose-500/30';
+  const warnings = Array.isArray(app.auto_check_warnings) ? app.auto_check_warnings : [];
+  return (
+    <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+      <h3 className="font-semibold mb-3 flex items-center gap-2">
+        <ShieldCheck className="w-4 h-4 text-primary" /> Automated verification
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground ml-1">
+          {ran ? `ran ${new Date(app.auto_checks_at!).toLocaleString()}` : 'pending'}
+        </span>
+      </h3>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className={`rounded-xl border p-3 ${faceColor}`}>
+          <p className="text-[10px] uppercase tracking-wider opacity-70">Face match</p>
+          <p className="text-lg font-semibold mt-0.5">
+            {app.face_match_status?.toUpperCase() ?? 'PENDING'}
+            {faceScorePct != null && <span className="text-xs ml-2 opacity-80">{faceScorePct}%</span>}
+          </p>
+          <p className="text-[11px] opacity-80">Selfie-with-ID vs liveness shot</p>
+        </div>
+        <div className={`rounded-xl border p-3 ${nameColor}`}>
+          <p className="text-[10px] uppercase tracking-wider opacity-70">Name on ID</p>
+          <p className="text-lg font-semibold mt-0.5">
+            {nameScorePct != null ? `${nameScorePct}%` : 'PENDING'}
+          </p>
+          <p className="text-[11px] opacity-80 break-words">
+            {app.ocr_extracted_name ? `"${app.ocr_extracted_name}"` : 'OCR result unavailable'}
+          </p>
+        </div>
+      </div>
+      {warnings.length > 0 ? (
+        <ul className="space-y-1.5">
+          {warnings.map((w, i) => (
+            <li key={i} className="text-[12px] rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-200 px-3 py-2">{w}</li>
+          ))}
+        </ul>
+      ) : ran ? (
+        <p className="text-[12px] text-emerald-300/90">✓ No automated warnings — applicant looks clean.</p>
+      ) : (
+        <p className="text-[12px] text-muted-foreground">Checks will run automatically right after submission.</p>
+      )}
+    </section>
+  );
+}
+
