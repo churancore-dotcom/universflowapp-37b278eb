@@ -80,10 +80,11 @@ export default function ArtistApplications() {
     setLoading(true);
     const { data, error } = await supabase
       .from('artist_applications')
-      .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, created_at')
+      .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, created_at, face_match_score, face_match_status, ocr_extracted_name, name_match_score, auto_check_warnings, auto_checks_at')
       .order('created_at', { ascending: false });
     if (error) toast.error(error.message);
     setApps((data ?? []).map((a) => ({ ...a, admin_note: null })) as App[]);
+
     setLoading(false);
   };
 
