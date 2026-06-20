@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
 import { connectAudioElement, getState, setBands, setReverb, setSpatial, setLateNight, setHeadphoneSurround, setStudioSpace as engineSetStudioSpace, resume, subscribe } from '@/lib/audioEngine';
 import { getEQSettings, isEqActive } from '@/lib/eqSettings';
+import {
+  isNativeAndroid,
+  nativeAudioSetEqBands,
+  nativeAudioSetBassBoost,
+  nativeAudioSetReverb,
+  nativeAudioSetStudioSpace,
+  nativeAudioSetLateNight,
+  nativeAudioSetHeadphoneSurround,
+  nativeAudioSetSpatial8D,
+  nativeAudioSetPlaybackSpeed,
+} from '@/lib/nativeAudioPlayer';
 
 /**
  * Mount once at app root.
