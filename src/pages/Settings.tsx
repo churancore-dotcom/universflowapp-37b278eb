@@ -402,7 +402,7 @@ const Settings = () => {
               </div>
               <div className="px-4 py-3 flex items-center justify-between">
                 <span className="text-sm">Haptic Feedback</span>
-                <Switch checked={haptics} onCheckedChange={handleHaptics} className="data-[state=checked]:bg-primary scale-90" />
+                <Switch checked={haptics} onCheckedChange={handleHaptics} className="data-[state=checked]:bg-primary scale-90" aria-label="Toggle haptic feedback" />
               </div>
             </div>
           </section>
