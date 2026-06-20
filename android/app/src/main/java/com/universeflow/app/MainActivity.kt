@@ -1,7 +1,5 @@
 package com.universeflow.app
 
-import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import com.getcapacitor.BridgeActivity
 import com.universeflow.app.media.MediaNotificationPlugin
