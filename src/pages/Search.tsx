@@ -33,7 +33,7 @@ const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
 const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
-const SEARCH_CACHE_NAMESPACE = 'stable-search-v4';
+const SEARCH_CACHE_NAMESPACE = 'stable-search-v5';
 const SPAM_RESULT_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
