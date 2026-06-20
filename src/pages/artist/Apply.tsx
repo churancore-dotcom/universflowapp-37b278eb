@@ -398,7 +398,7 @@ export default function ArtistApply() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-[15px] font-semibold tracking-tight leading-tight truncate">Apply as Artist</h1>
+              <h1 className="text-[15px] font-semibold tracking-tight leading-tight truncate">{isLockedReapply ? 'Re-submit Verification' : 'Apply as Artist'}</h1>
               <p className="text-[11px] text-muted-foreground leading-tight truncate">{meta.label}</p>
             </div>
             <div className="flex items-center gap-1">
@@ -442,6 +442,12 @@ export default function ArtistApply() {
             >
               {step === 1 && (
                 <>
+                  {isLockedReapply && existingApp?.admin_note && (
+                    <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-rose-300/80 mb-2">Rejected reason</p>
+                      <p className="text-[13px] leading-relaxed text-foreground/90">{existingApp.admin_note}</p>
+                    </div>
+                  )}
                   <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/8 border border-primary/15">
                     <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                     <p className="text-[12.5px] leading-relaxed text-foreground/90">
@@ -450,10 +456,10 @@ export default function ArtistApply() {
                     </p>
                   </div>
                   <Field label="Stage / Artist name">
-                    <Input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="e.g. KAYO" maxLength={50} />
+                    <Input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="e.g. KAYO" maxLength={50} disabled={isLockedReapply} />
                   </Field>
                   <Field label="Legal full name">
-                    <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} />
+                    <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} disabled={isLockedReapply} />
                   </Field>
                   <Field label={`Phone number${country ? ` · ${getDialCode(country)} (${PHONE_DIGITS[country] ?? '—'} digits)` : ''}`}>
                     <div className="flex gap-2">
@@ -467,7 +473,7 @@ export default function ArtistApply() {
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
                         placeholder={country ? `${PHONE_DIGITS[country] ?? 10}-digit mobile number` : 'Pick country first'}
                         maxLength={15}
-                        disabled={!country}
+                        disabled={!country || isLockedReapply}
                       />
                     </div>
                     {country && phone.length > 0 && !phoneCheck.ok && (
@@ -490,6 +496,7 @@ export default function ArtistApply() {
                       <select
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
+                        disabled={isLockedReapply}
                         className={`flex h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-9 pr-3 py-2 text-sm appearance-none focus:outline-none focus:border-primary/50 ${
                           !country ? 'text-muted-foreground' : ''
                         }`}
