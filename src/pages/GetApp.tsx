@@ -71,9 +71,9 @@ const GetApp = () => {
 
           <div className="relative flex flex-col items-center text-center">
             {/* Real app logo, not an AI icon */}
-            <div className="w-[88px] h-[88px] rounded-[22px] overflow-hidden bg-gradient-to-br from-[#FF2D55]/30 to-black border border-white/10 shadow-[0_20px_60px_-15px_rgba(255,45,85,0.55)] flex items-center justify-center">
+            <div className="w-[88px] h-[88px] rounded-full overflow-hidden bg-gradient-to-br from-[#FF2D55]/30 to-black border border-white/10 shadow-[0_20px_60px_-15px_rgba(255,45,85,0.55)] flex items-center justify-center">
               <img
-                src={appLogo.url}
+                src={appLogo}
                 alt="Universflow logo"
                 className="w-[78%] h-[78%] object-contain"
                 width={88}
