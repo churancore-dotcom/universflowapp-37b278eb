@@ -115,7 +115,7 @@ export async function getMyApplication(userId: string): Promise<ArtistApplicatio
     .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, reviewed_by, created_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
-  if (!data) return data;
+  if (!data) return null;
   let admin_note: string | null = null;
   if (data.id) try {
     const { data: note } = await supabase.rpc('get_my_artist_application_note', { _app_id: data.id });
