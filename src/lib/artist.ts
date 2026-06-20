@@ -1,8 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { compressImage } from './imageCompression';
 
 export type ArtistAppStatus = 'pending' | 'approved' | 'rejected';
 export type IdDocType = 'voter_id' | 'pan' | 'passport' | 'drivers_license' | 'national_id';
+export type ArtistApplicationSafe = Database['public']['Views']['artist_applications_safe']['Row'] & { admin_note: string | null };
 
 const REAPPLY_COOLDOWN_DAYS = 7;
 
@@ -109,19 +111,19 @@ export async function getMyApplication(userId: string) {
   // admin_note column is no longer SELECT-able by regular authenticated users;
   // fetch the rest of the row, then pull the owner-scoped note via RPC.
   const { data } = await supabase
-    .from('artist_applications_safe' as any)
+    .from('artist_applications_safe')
     .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, reviewed_by, created_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
   if (!data) return data;
   let admin_note: string | null = null;
-  try {
-    const { data: note } = await (supabase.rpc as any)('get_my_artist_application_note', { _app_id: (data as any).id });
+  if (data.id) try {
+    const { data: note } = await supabase.rpc('get_my_artist_application_note', { _app_id: data.id });
     admin_note = (note as string | null) ?? null;
   } catch {
     admin_note = null;
   }
-  return { ...(data as any), admin_note };
+  return { ...data, admin_note } as ArtistApplicationSafe;
 }
 
 export function getArtistReapplyAt(app: { reviewed_at?: string | null; updated_at?: string | null; created_at?: string | null }) {
