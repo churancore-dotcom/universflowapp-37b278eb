@@ -193,6 +193,11 @@ export default function FaceLivenessCapture({
   }
 
 
+  // Progress 0 → 1 for the ring that fills while the user holds the pose.
+  const progress = armed ? (3 - countdown + 1) / 3 : 0;
+  const RING_R = 130;
+  const RING_C = 2 * Math.PI * RING_R;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-[11.5px] text-muted-foreground">
@@ -208,42 +213,91 @@ export default function FaceLivenessCapture({
           className="w-full h-full object-cover"
           style={{ transform: 'scaleX(-1)' }}
         />
-        {/* face guide */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div
-            className="rounded-full border-2 border-white/40"
-            style={{ width: '72%', height: '88%', boxShadow: '0 0 0 9999px rgba(0,0,0,0.35)' }}
+
+        {/* dimmed background outside the face oval — Instagram-style */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <mask id="face-mask">
+              <rect width="300" height="300" fill="white" />
+              <ellipse cx="150" cy="150" rx="108" ry="132" fill="black" />
+            </mask>
+          </defs>
+          <rect width="300" height="300" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
+
+          {/* outer guide ring */}
+          <ellipse
+            cx="150" cy="150" rx="108" ry="132"
+            fill="none"
+            stroke="rgba(255,255,255,0.22)"
+            strokeWidth="2"
           />
-        </div>
-        {/* prompt */}
-        <div className="absolute top-3 inset-x-3">
-          <div className="rounded-full bg-black/60 backdrop-blur px-4 py-2 text-center">
-            <p className="text-[13px] font-semibold text-white">{POSE_PROMPT[pose]}</p>
-          </div>
-        </div>
-        {/* countdown */}
-        <AnimatePresence>
-          {armed && (
+          {/* progress ring — fills as the user holds the pose, like IG's appeal flow */}
+          <circle
+            cx="150" cy="150" r={RING_R}
+            fill="none"
+            stroke="#FF2D55"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={RING_C}
+            strokeDashoffset={RING_C * (1 - progress)}
+            transform="rotate(-90 150 150)"
+            style={{ transition: 'stroke-dashoffset 0.7s linear', filter: 'drop-shadow(0 0 8px rgba(255,45,85,0.6))' }}
+          />
+        </svg>
+
+        {/* arrow guides — only when not the center pose */}
+        <AnimatePresence mode="wait">
+          {streaming && pose !== 'center' && (
             <motion.div
-              key={countdown}
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.4, opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center"
+              key={pose}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 pointer-events-none"
             >
-              <div className="w-24 h-24 rounded-full bg-black/70 backdrop-blur flex items-center justify-center">
-                <span className="text-white text-5xl font-bold tabular-nums">{countdown}</span>
-              </div>
+              <ArrowGuide pose={pose} />
+            </motion.div>
+          )}
+          {streaming && pose === 'center' && (
+            <motion.div
+              key="center-smile"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/30 flex items-center justify-center"
+              >
+                <Smile className="w-7 h-7 text-white" strokeWidth={1.8} />
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* top prompt pill */}
+        <div className="absolute top-3 inset-x-3 pointer-events-none">
+          <motion.div
+            key={pose}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto inline-flex items-center justify-center w-full"
+          >
+            <div className="rounded-full bg-black/65 backdrop-blur-md px-4 py-2 text-center border border-white/10">
+              <p className="text-[13px] font-semibold text-white">{POSE_PROMPT[pose]}</p>
+            </div>
+          </motion.div>
+        </div>
+
         {/* progress dots */}
         <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5">
           {ORDER.map((p, i) => (
             <div
               key={p}
-              className={`w-2 h-2 rounded-full transition ${
-                shots[p] ? 'bg-emerald-400' : i === stepIdx ? 'bg-white' : 'bg-white/30'
+              className={`h-1.5 rounded-full transition-all ${
+                shots[p] ? 'w-6 bg-emerald-400' : i === stepIdx ? 'w-6 bg-white' : 'w-1.5 bg-white/30'
               }`}
             />
           ))}
@@ -262,15 +316,66 @@ export default function FaceLivenessCapture({
         {!streaming ? (
           <><Loader2 className="w-4 h-4 animate-spin" /> Starting camera…</>
         ) : armed ? (
-          <>Hold still…</>
+          <>Hold still… {countdown}</>
         ) : (
           <><Camera className="w-4 h-4" /> Capture {pose === 'center' ? 'front' : pose} <ArrowRight className="w-4 h-4" /></>
         )}
       </button>
 
       <p className="text-[11.5px] text-muted-foreground leading-relaxed text-center">
-        We take 4 photos to confirm you're a real person. Photos are stored privately and deleted right after review.
+        Follow the arrow. We take 4 quick photos to confirm you're a real person — stored privately, deleted after review.
       </p>
     </div>
   );
 }
+
+// Animated direction-cue arrow that slides toward the requested direction, like
+// the guided face-capture flow Meta uses for Instagram identity / appeal checks.
+function ArrowGuide({ pose }: { pose: Exclude<Pose, 'center'> }) {
+  // Axis the arrow travels along, and its rest position relative to centre.
+  const cfg = {
+    left:  { x: [-8, -52, -8], y: [0, 0, 0], rot:  180, side: 'left' as const },
+    right: { x: [8,  52,  8],  y: [0, 0, 0], rot:    0, side: 'right' as const },
+    up:    { x: [0, 0, 0],     y: [-8, -52, -8], rot: -90, side: 'top'  as const },
+  }[pose];
+
+  const Icon = pose === 'up' ? ArrowUp : pose === 'left' ? ArrowLeft : ArrowRight;
+
+  // Position so the arrow sits just inside the face oval on the relevant side.
+  const positionStyle =
+    cfg.side === 'left' ? { left: '8%',  top: '50%', transform: 'translateY(-50%)' } :
+    cfg.side === 'right' ? { right: '8%', top: '50%', transform: 'translateY(-50%)' } :
+                           { top: '10%', left: '50%', transform: 'translateX(-50%)' };
+
+  return (
+    <div className="absolute" style={positionStyle}>
+      {/* trailing ghost ring that pulses out in the same direction */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        initial={{ opacity: 0 }}
+        animate={{
+          opacity: [0.55, 0, 0.55],
+          x: cfg.x,
+          y: cfg.y,
+        }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{
+          width: 64, height: 64,
+          background: 'radial-gradient(circle, rgba(255,45,85,0.55) 0%, rgba(255,45,85,0) 70%)',
+        }}
+      />
+      <motion.div
+        animate={{ x: cfg.x, y: cfg.y }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+        className="relative w-16 h-16 rounded-full flex items-center justify-center"
+        style={{
+          background: 'rgba(255,45,85,0.95)',
+          boxShadow: '0 8px 24px rgba(255,45,85,0.45), 0 0 0 4px rgba(255,255,255,0.18)',
+        }}
+      >
+        <Icon className="w-7 h-7 text-white" strokeWidth={2.5} />
+      </motion.div>
+    </div>
+  );
+}
+
