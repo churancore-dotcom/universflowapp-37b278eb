@@ -297,28 +297,41 @@ export default function ArtistApply() {
       const phoneHash = await sha256Hex(phoneE164.toLowerCase());
       const idImageHash = docFront ? await sha256Hex(await docFront.arrayBuffer()) : null;
 
-      const { data: inserted, error } = await supabase.from('artist_applications').insert({
-        user_id: user.id,
-        stage_name: stageName.trim(),
-        real_name: realName.trim(),
-        phone: phoneE164,
-        country_code: country,
-        social_links: {
-          instagram: instagram.trim() || null,
-          youtube: youtube.trim() || null,
-          spotify: spotify.trim() || null,
-          apple_music: appleMusic.trim() || null,
-          bio: bio.trim() || null,
-          face_shots: faceUploads,
-        },
-        id_doc_type: docType,
-        id_doc_front_path: frontPath,
-        id_doc_back_path: backPath,
-        selfie_path: selfiePath,
-        artist_photo_path: photoUrl,
-        phone_hash: phoneHash,
-        id_image_hash: idImageHash,
-      }).select('id').maybeSingle();
+      const socialLinks = {
+        instagram: instagram.trim() || null,
+        youtube: youtube.trim() || null,
+        spotify: spotify.trim() || null,
+        apple_music: appleMusic.trim() || null,
+        bio: bio.trim() || null,
+        face_shots: faceUploads,
+      };
+
+      const { data: inserted, error } = isLockedReapply
+        ? await (supabase.rpc as any)('reapply_artist_application', {
+            p_application_id: existingApp.id,
+            p_social_links: socialLinks,
+            p_id_doc_type: docType,
+            p_id_doc_front_path: frontPath,
+            p_id_doc_back_path: backPath,
+            p_selfie_path: selfiePath,
+            p_artist_photo_path: photoUrl,
+            p_id_image_hash: idImageHash,
+          })
+        : await supabase.from('artist_applications').insert({
+            user_id: user.id,
+            stage_name: stageName.trim(),
+            real_name: realName.trim(),
+            phone: phoneE164,
+            country_code: country,
+            social_links: socialLinks,
+            id_doc_type: docType,
+            id_doc_front_path: frontPath,
+            id_doc_back_path: backPath,
+            selfie_path: selfiePath,
+            artist_photo_path: photoUrl,
+            phone_hash: phoneHash,
+            id_image_hash: idImageHash,
+          }).select('id').maybeSingle();
 
       if (error) {
         // Surface friendly errors for the new anti-abuse rules.
@@ -334,13 +347,14 @@ export default function ArtistApply() {
       }
 
       // Kick off automated verification in the background — non-blocking.
-      if (inserted?.id) {
+      const applicationId = isLockedReapply ? inserted?.application_id : inserted?.id;
+      if (applicationId) {
         supabase.functions
-          .invoke('artist-verify-checks', { body: { application_id: inserted.id } })
+          .invoke('artist-verify-checks', { body: { application_id: applicationId } })
           .catch((e) => console.warn('verify-checks invoke failed', e));
       }
 
-      toast.success('Application submitted ✓ Auto-verification running…');
+      toast.success(isLockedReapply ? 'Verification re-submitted ✓' : 'Application submitted ✓ Auto-verification running…');
       navigate('/artist/status', { replace: true });
     } catch (e: any) {
       console.error(e);
