@@ -78,8 +78,8 @@ const GetApp = () => {
                 width={88}
                 height={88}
                 loading="eager"
-                fetchPriority="high"
                 decoding="async"
+                {...({ fetchpriority: "high" } as any)}
               />
             </div>
 
@@ -140,7 +140,7 @@ const GetApp = () => {
                   className="w-full h-full object-cover"
                   width={260}
                   height={563}
-                  fetchPriority={i === 0 ? "high" : "auto"}
+                  {...(i === 0 ? { fetchpriority: "high" } : {}) as any}
                 />
               </div>
             ))}

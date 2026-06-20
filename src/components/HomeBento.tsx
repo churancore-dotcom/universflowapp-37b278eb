@@ -270,10 +270,10 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
                   alt=""
                   className="w-full h-full object-cover"
                   loading="eager"
-                  fetchPriority="high"
                   width={88}
                   height={88}
                   decoding="async"
+                  {...({ fetchpriority: "high" } as any)}
                 />
               </div>
             )}
@@ -321,9 +321,9 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
               alt={artistOfWeek.name}
               className="absolute inset-0 w-full h-full object-cover"
               loading="eager"
-              fetchPriority="high"
               decoding="async"
               referrerPolicy="no-referrer"
+              {...({ fetchpriority: "high" } as any)}
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-rose-500/30 to-rose-900/40" />
