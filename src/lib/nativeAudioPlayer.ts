@@ -38,6 +38,15 @@ interface NativeAudioPluginShape {
   setVolume(opts: { volume: number }): Promise<void>;
   stop(): Promise<void>;
   getState(): Promise<NativeAudioState>;
+  // Native DSP (Android audiofx)
+  setEqBands(opts: { bands: number[] }): Promise<void>;
+  setBassBoost(opts: { percent: number }): Promise<void>;
+  setReverb(opts: { percent: number }): Promise<void>;
+  setStudioSpace(opts: { id: string }): Promise<void>;
+  setLateNight(opts: { enabled: boolean }): Promise<void>;
+  setHeadphoneSurround(opts: { enabled: boolean }): Promise<void>;
+  setSpatial8D(opts: { enabled: boolean }): Promise<void>;
+  setPlaybackSpeed(opts: { speed: number }): Promise<void>;
   addListener(
     eventName: 'nativeAudioEvent',
     cb: (e: NativeAudioEvent) => void,
