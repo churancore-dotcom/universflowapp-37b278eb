@@ -95,6 +95,29 @@ public class NativeAudioPlayerService extends Service {
     private boolean reprepareTried = false;
     private long lastPositionTickMs = -1L;
 
+    // --- Native DSP effects attached to ExoPlayer audio session ---
+    private int audioSessionId = 0;
+    private Equalizer equalizer;
+    private BassBoost bassBoost;
+    private PresetReverb presetReverb;
+    private Virtualizer virtualizer;
+    private LoudnessEnhancer loudnessEnhancer;
+
+    // 8D spatial: LFO that sweeps Virtualizer strength + reverb send
+    // (Android has no native stereo panner, so we approximate motion).
+    private boolean spatial8dEnabled = false;
+    private Runnable spatialTicker;
+    private long spatialStartMs = 0L;
+
+    // Persisted intent state (re-applied whenever effects are rebuilt)
+    private final short[] eqBandGainsDb = new short[]{0,0,0,0,0,0,0,0,0,0};
+    private int bassBoostPercent = 0;
+    private int reverbPercent = 0;
+    private String studioSpaceId = "off";
+    private boolean lateNightEnabled = false;
+    private boolean virtualizerEnabled = false;
+    private float playbackSpeed = 1.0f;
+
     private final Player.Listener listener = new Player.Listener() {
         @Override public void onPlaybackStateChanged(int playbackState) {
             switch (playbackState) {
