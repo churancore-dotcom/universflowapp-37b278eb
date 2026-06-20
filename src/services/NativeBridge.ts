@@ -13,6 +13,10 @@ interface AudioFocusPluginShape {
 
 const AudioFocusBridge = registerPlugin<AudioFocusPluginShape>('AudioFocus');
 
+let listenerAttached = false;
+let latestPause: (() => void) | null = null;
+let latestResume: (() => void) | null = null;
+
 declare global {
   interface Window {
     Capacitor?: {
@@ -28,14 +32,19 @@ export function initNativeBridge(
 ): void {
   if (typeof window === 'undefined') return;
   if (Capacitor.isNativePlatform?.() !== true && !window.Capacitor?.isNativePlatform?.()) return;
+  latestPause = onPause;
+  latestResume = onResume;
 
   const AudioFocus = AudioFocusBridge || window.Capacitor?.Plugins?.AudioFocus;
   if (!AudioFocus) return;
 
-  AudioFocus.addListener('audioFocus', (data: { action: string }) => {
-    if (data?.action === 'pause') onPause();
-    if (data?.action === 'resume') onResume();
-  });
+  if (!listenerAttached) {
+    AudioFocus.addListener?.('audioFocus', (data: { action: string }) => {
+      if (data?.action === 'pause') latestPause?.();
+      if (data?.action === 'resume') latestResume?.();
+    });
+    listenerAttached = true;
+  }
 
   try {
     AudioFocus.keepAlive?.();
