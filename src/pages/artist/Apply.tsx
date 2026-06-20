@@ -14,7 +14,6 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { detectCountrySilently } from '@/lib/geoCountry';
 import {
-  ArtistApplicationSafe,
   ID_DOC_LABELS,
   IdDocType,
   docsForCountry,
@@ -23,6 +22,7 @@ import {
   uploadArtistPhoto,
   uploadKycFile,
 } from '@/lib/artist';
+import type { ArtistApplicationSafe } from '@/lib/artist';
 import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
 import { validateSocialLink, atLeastOneValidLink, SocialPlatform } from '@/lib/socialLinkValidator';
 
@@ -176,7 +176,7 @@ export default function ArtistApply() {
   const [bootChecked, setBootChecked] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
-  const [existingApp, setExistingApp] = useState<any>(null);
+  const [existingApp, setExistingApp] = useState<ArtistApplicationSafe | null>(null);
   const isLockedReapply = isReapplyMode && !!existingApp;
 
   // form
@@ -220,7 +220,7 @@ export default function ArtistApply() {
         const lockedPhone = String(existing.phone || '');
         setPhone(lockedDial && lockedPhone.startsWith(lockedDial) ? lockedPhone.slice(lockedDial.length) : lockedPhone.replace(/\D/g, ''));
         setCountry(existing.country_code || '');
-        const links = existing.social_links || {};
+        const links = asSocialLinks(existing.social_links);
         setInstagram(typeof links.instagram === 'string' ? links.instagram : '');
         setYoutube(typeof links.youtube === 'string' ? links.youtube : '');
         setSpotify(typeof links.spotify === 'string' ? links.spotify : '');
@@ -321,7 +321,7 @@ export default function ArtistApply() {
       };
 
       const { data: inserted, error } = isLockedReapply
-        ? await (supabase.rpc as any)('reapply_artist_application', {
+        ? await supabase.rpc('reapply_artist_application', {
             p_application_id: existingApp.id,
             p_social_links: socialLinks,
             p_id_doc_type: docType,
@@ -329,7 +329,7 @@ export default function ArtistApply() {
             p_id_doc_back_path: backPath,
             p_selfie_path: selfiePath,
             p_artist_photo_path: photoUrl,
-            p_id_image_hash: idImageHash,
+            p_id_image_hash: idImageHash ?? '',
           })
         : await supabase.from('artist_applications').insert({
             user_id: user.id,
@@ -361,7 +361,7 @@ export default function ArtistApply() {
       }
 
       // Kick off automated verification in the background — non-blocking.
-      const applicationId = isLockedReapply ? inserted?.application_id : inserted?.id;
+      const applicationId = isLockedReapply ? getReapplyApplicationId(inserted) : inserted?.id;
       if (applicationId) {
         supabase.functions
           .invoke('artist-verify-checks', { body: { application_id: applicationId } })
@@ -370,9 +370,9 @@ export default function ArtistApply() {
 
       toast.success(isLockedReapply ? 'Verification re-submitted ✓' : 'Application submitted ✓ Auto-verification running…');
       navigate('/artist/status', { replace: true });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      toast.error(e?.message || 'Could not submit application.');
+      toast.error(e instanceof Error ? e.message : 'Could not submit application.');
     } finally {
       setSubmitting(false);
     }
