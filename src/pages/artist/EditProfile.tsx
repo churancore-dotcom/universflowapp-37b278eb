@@ -62,8 +62,11 @@ export default function EditProfile() {
       </p>
 
       <div className="space-y-4 mt-5">
-        <Field label="Stage name">
-          <Input value={stage} onChange={(e) => setStage(e.target.value)} maxLength={60} />
+        <Field label="Stage name (locked)">
+          <Input value={stage} disabled readOnly className="opacity-70 cursor-not-allowed" />
+          <p className="mt-1.5 text-[11px] text-muted-foreground/80">
+            Your verified stage name is locked. Contact support if you really need to change it.
+          </p>
         </Field>
 
         <Field label="Bio">
