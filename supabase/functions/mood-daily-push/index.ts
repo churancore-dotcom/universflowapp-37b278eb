@@ -152,15 +152,16 @@ Deno.serve(async (req) => {
           .update({ last_mood_push_at: new Date().toISOString() })
           .eq("user_id", p.user_id);
       }
-      results.push({ user: p.user_id, mood, ok });
+      results.push({ ok });
     }
 
-    return new Response(JSON.stringify({ sent: results.length, results }), {
+    const sent = results.filter((r) => r.ok).length;
+    return new Response(JSON.stringify({ processed: results.length, sent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("mood-daily-push error", e);
-    return new Response(JSON.stringify({ error: String(e) }), {
+    return new Response(JSON.stringify({ error: "An unexpected error occurred" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
