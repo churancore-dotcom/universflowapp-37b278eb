@@ -91,7 +91,7 @@ export default function EditProfile() {
         <Button
           className="w-full h-12 rounded-xl font-semibold text-white"
           style={{ background: '#FF2D55' }}
-          disabled={saving || !stage.trim()}
+          disabled={saving}
           onClick={save}
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (
