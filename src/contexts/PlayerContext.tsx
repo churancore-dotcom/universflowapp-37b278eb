@@ -8,6 +8,7 @@ import { recordPerfEvent } from '@/lib/perfMonitor';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
 import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
+import { initNativeBridge } from '@/services/NativeBridge';
 import { toast } from 'sonner';
 
 interface YouTubePlayer {
@@ -541,9 +542,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Wire the global EQ/audio engine to the live audio element. Persists across modal open/close.
   useGlobalAudioEngine(audioElement);
 
-  const publishNativeMusicControls = useCallback((song: Song, playing: boolean, duration?: number) => {
-    import('@/lib/nativeMusicControls')
-      .then(({ showNativeMusicControls }) => showNativeMusicControls(
+  const publishNativeMusicControls = useCallback(async (song: Song, playing: boolean, duration?: number) => {
+    try {
+      const { showNativeMusicControls } = await import('@/lib/nativeMusicControls');
+      await showNativeMusicControls(
         {
           title: song.title,
           artist: song.artist,
@@ -552,8 +554,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           duration: duration || song.duration,
         },
         playing,
-      ))
-      .catch(() => {});
+      );
+    } catch { /* native controls are best-effort */ }
   }, []);
 
   // ── EQ requires a CORS-safe source. When the user turns EQ on AFTER a song
