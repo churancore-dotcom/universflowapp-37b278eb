@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import appLogo from '@/assets/app-logo.png';
+import appLogo from '@/assets/app-logo.gif.asset.json';
+
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -46,8 +47,13 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     <div className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-black">
       <div className="flex flex-col items-center justify-center">
         <img
-          src={appLogo}
+          src={appLogo.url}
           alt="Univers Flow"
+          width={160}
+          height={160}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className={`h-40 w-40 object-contain transition-all duration-[600ms] ease-out ${logoScale}`}
           draggable={false}
         />

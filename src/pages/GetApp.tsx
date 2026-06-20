@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Download, Share2 } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
-import appLogo from "@/assets/app-logo.png";
+import appLogo from "@/assets/app-logo.gif.asset.json";
+
 
 const APK_URL = "https://kzaeahjeqlihmxrfhjqd.supabase.co/storage/v1/object/public/music/releases/UniversFlow.apk";
 const VERSION = "1.0.0";
@@ -72,7 +73,7 @@ const GetApp = () => {
             {/* Real app logo, not an AI icon */}
             <div className="w-[88px] h-[88px] rounded-[22px] overflow-hidden bg-gradient-to-br from-[#FF2D55]/30 to-black border border-white/10 shadow-[0_20px_60px_-15px_rgba(255,45,85,0.55)] flex items-center justify-center">
               <img
-                src={appLogo}
+                src={appLogo.url}
                 alt="Universflow logo"
                 className="w-[78%] h-[78%] object-contain"
                 width={88}
@@ -182,7 +183,7 @@ const GetApp = () => {
             />
             <div className="relative">
               <div className="w-[56px] h-[56px] mx-auto rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center">
-                <img src={appLogo} alt="Universflow app logo" className="w-[78%] h-[78%] object-contain" />
+                <img src={appLogo.url} alt="Universflow app logo" className="w-[78%] h-[78%] object-contain" />
               </div>
               <h2 className="mt-4 text-2xl font-extrabold leading-tight">Get Universflow</h2>
               <a
@@ -200,7 +201,7 @@ const GetApp = () => {
 
         <footer className="px-5 py-8 text-center text-[11px] text-white/60 border-t border-white/5">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <img src={appLogo} alt="" className="w-4 h-4 rounded-[4px] object-contain" />
+            <img src={appLogo.url} alt="" className="w-4 h-4 rounded-[4px] object-contain" />
             <span className="font-bold tracking-widest text-white/80">UNIVERSFLOW</span>
           </div>
           <div className="space-x-3">
