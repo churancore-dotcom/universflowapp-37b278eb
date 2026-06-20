@@ -698,6 +698,8 @@ public class NativeAudioPlayerService extends Service {
     public void onDestroy() {
         cancelStallWatchdog();
         stopPositionTicker();
+        if (spatialTicker != null) { mainHandler.removeCallbacks(spatialTicker); spatialTicker = null; }
+        releaseAudioEffects();
         try { if (player != null) { player.release(); player = null; } } catch (Throwable ignore) {}
         try { if (session != null) { session.release(); session = null; } } catch (Throwable ignore) {}
         super.onDestroy();
