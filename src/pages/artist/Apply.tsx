@@ -221,9 +221,13 @@ export default function ArtistApply() {
   const needsBack = docType !== 'pan' && docType !== 'passport';
   const allowedDocs = country ? docsForCountry(country) : [];
 
+  const phoneCheck = country ? validatePhone(country, phone) : { ok: false, reason: '' };
+  const linksCheck = atLeastOneValidLink({ instagram, youtube, spotify, apple_music: appleMusic });
+  const countryLabel = COUNTRIES.find(([c]) => c === country)?.[1] ?? country;
+
   const canNext = () => {
-    if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && phone.trim().length >= 5 && !!country;
-    if (step === 2) return [instagram, youtube, spotify, appleMusic].some((s) => s.trim().length > 4);
+    if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && !!country && phoneCheck.ok;
+    if (step === 2) return linksCheck.ok;
     if (step === 3) return !!docType && !!docFront && (!needsBack || !!docBack) && !!selfie;
     if (step === 4) return !!livenessShots;
     if (step === 5) return !!photo;
