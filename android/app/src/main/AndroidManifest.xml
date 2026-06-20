@@ -34,12 +34,6 @@
         </activity>
 
         <service
-            android:name=".MusicService"
-            android:foregroundServiceType="mediaPlayback"
-            android:exported="false"
-            android:stopWithTask="false" />
-
-        <service
             android:name=".media.MediaNotificationService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false"
