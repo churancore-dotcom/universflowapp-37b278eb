@@ -1,17 +1,6 @@
 import { useEffect, useState } from 'react';
 import { connectAudioElement, getState, setBands, setReverb, setSpatial, setLateNight, setHeadphoneSurround, setStudioSpace as engineSetStudioSpace, resume, subscribe } from '@/lib/audioEngine';
 import { getEQSettings, isEqActive } from '@/lib/eqSettings';
-import {
-  isNativeAndroid,
-  nativeAudioSetEqBands,
-  nativeAudioSetBassBoost,
-  nativeAudioSetReverb,
-  nativeAudioSetStudioSpace,
-  nativeAudioSetLateNight,
-  nativeAudioSetHeadphoneSurround,
-  nativeAudioSetSpatial8D,
-  nativeAudioSetPlaybackSpeed,
-} from '@/lib/nativeAudioPlayer';
 
 /**
  * Mount once at app root.
@@ -46,33 +35,17 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       const s = getEQSettings();
       const wantsProcessing = isEqActive(s);
 
-      // Always honor playback rate on the <audio> tag (WebView UI element).
+      // Always honor playback rate — it's a native <audio> property,
+      // independent of WebAudio.
       audioElement.playbackRate = s.playbackSpeed;
 
-      // === Android APK path ===
-      // Push every effect to the native ExoPlayer audio session via
-      // android.media.audiofx. These run in the foreground service,
-      // hardware-accelerated, and keep working when the screen locks.
-      // The WebView audio is muted on Android (see nativePlaybackMirror)
-      // so DO NOT also route through WebAudio here — that would be silent.
-      if (isNativeAndroid()) {
-        void nativeAudioSetEqBands(s.bands);
-        void nativeAudioSetBassBoost(s.bassBoost);
-        void nativeAudioSetReverb(s.reverb);
-        void nativeAudioSetStudioSpace(s.studioSpace);
-        void nativeAudioSetLateNight(s.lateNight);
-        void nativeAudioSetHeadphoneSurround(s.headphoneSurround);
-        void nativeAudioSetSpatial8D(s.spatialAudio);
-        void nativeAudioSetPlaybackSpeed(s.playbackSpeed);
-        return;
-      }
-
-      // === Web / iOS path === (unchanged)
       if (!wantsProcessing && !isAttached) {
-        // Pure HTMLAudio path — best for background reliability.
+        // Pure HTMLAudio path — best for Android background reliability.
         return;
       }
 
+      // User has effects on (or had them on earlier this session) — attach
+      // and push current settings.
       const ok = connectAudioElement(audioElement);
       if (ok) isAttached = true;
 
