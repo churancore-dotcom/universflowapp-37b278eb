@@ -108,7 +108,7 @@ jobs:
           echo "=== app build.gradle ==="
           grep -n "google-services\|firebase" "$APP_GRADLE" || true
 
-      - name: Write MainActivity (registers MediaNotificationPlugin)
+      - name: Write MainActivity (registers native plugins)
         run: |
           PKG="app.lovable.id5acaae55bbc847a7bd32f3924d8ef986"
           PKG_PATH="app/lovable/id5acaae55bbc847a7bd32f3924d8ef986"
@@ -118,15 +118,49 @@ jobs:
           cat > "$MAIN_ACTIVITY" <<EOF
           package ${PKG};
 
+          import android.Manifest;
+          import android.content.pm.PackageManager;
+          import android.os.Build;
           import android.os.Bundle;
+          import android.webkit.PermissionRequest;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebView;
+          import androidx.core.app.ActivityCompat;
+          import androidx.core.content.ContextCompat;
           import com.getcapacitor.BridgeActivity;
           import ${PKG}.media.MediaNotificationPlugin;
+          import ${PKG}.island.DynamicIslandPlugin;
 
           public class MainActivity extends BridgeActivity {
+              private static final int CAMERA_REQ_CODE = 4711;
+
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   registerPlugin(MediaNotificationPlugin.class);
+                  registerPlugin(DynamicIslandPlugin.class);
                   super.onCreate(savedInstanceState);
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                      ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                      ActivityCompat.requestPermissions(this, new String[]{ Manifest.permission.CAMERA }, CAMERA_REQ_CODE);
+                  }
+
+                  WebView web = bridge.getWebView();
+                  if (web != null) {
+                      web.getSettings().setJavaScriptEnabled(true);
+                      web.getSettings().setMediaPlaybackRequiresUserGesture(false);
+                      web.getSettings().setAllowFileAccess(true);
+                      web.getSettings().setAllowContentAccess(true);
+                      web.setWebChromeClient(new WebChromeClient() {
+                          @Override
+                          public void onPermissionRequest(final PermissionRequest request) {
+                              runOnUiThread(() -> {
+                                  try { request.grant(request.getResources()); }
+                                  catch (Throwable t) { request.deny(); }
+                              });
+                          }
+                      });
+                  }
               }
           }
           EOF
@@ -180,6 +214,36 @@ jobs:
           grep -nE "POST_NOTIFICATIONS|FOREGROUND_SERVICE|MediaNotificationService|MediaButtonReceiver" "$MANIFEST" || true
           echo "=== Plugin files ==="
           ls -la "android/app/src/main/java/${PKG_PATH}/media/"
+
+      - name: Integrate Dynamic Island plugin (system floating pill)
+        run: |
+          PKG="app.lovable.id5acaae55bbc847a7bd32f3924d8ef986"
+          PKG_PATH="app/lovable/id5acaae55bbc847a7bd32f3924d8ef986"
+
+          mkdir -p "android/app/src/main/java/${PKG_PATH}/island"
+          for f in android-native/java/DynamicIsland*.java; do
+            base=$(basename "$f")
+            sed "s|PACKAGE_PLACEHOLDER|${PKG}|g" "$f" \
+              > "android/app/src/main/java/${PKG_PATH}/island/${base}"
+          done
+
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          add_perm() {
+            local PERM="$1"
+            if ! grep -q "android.permission.${PERM}" "$MANIFEST"; then
+              sed -i "s|<application|<uses-permission android:name=\"android.permission.${PERM}\" />\n    <application|" "$MANIFEST"
+            fi
+          }
+          add_perm "SYSTEM_ALERT_WINDOW"
+          add_perm "CAMERA"
+
+          if ! grep -q "DynamicIslandService" "$MANIFEST"; then
+            sed -i 's|</application>|    <service android:name=".island.DynamicIslandService" android:exported="false" android:stopWithTask="true" />\n    </application>|' "$MANIFEST"
+          fi
+
+          echo "=== Dynamic Island manifest / files ==="
+          grep -nE "SYSTEM_ALERT_WINDOW|DynamicIslandService" "$MANIFEST" || true
+          ls -la "android/app/src/main/java/${PKG_PATH}/island/"
 
       - name: Sync Capacitor
         run: npx cap sync android
