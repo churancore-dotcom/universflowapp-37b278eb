@@ -18,6 +18,7 @@ export default function ArtistUpload() {
   const [streamUrl, setStreamUrl] = useState('');
   const [cover, setCover] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const coverPreview = useFilePreview(cover);
 
   const urlError = streamUrl ? isBlockedStreamHost(streamUrl) : null;
 
