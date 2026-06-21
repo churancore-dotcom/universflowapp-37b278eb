@@ -125,6 +125,7 @@ function FilePicker({
   onPick: (f: File | null) => void;
   accept?: string;
 }) {
+  const preview = useFilePreview(file);
   return (
     <label className="block">
       <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-2">
@@ -134,7 +135,7 @@ function FilePicker({
         {file ? (
           <>
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
-              <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+              <img src={preview || undefined} alt="preview" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium truncate">{file.name}</p>
