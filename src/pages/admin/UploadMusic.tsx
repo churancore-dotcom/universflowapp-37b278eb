@@ -45,7 +45,9 @@ const UploadMusic = () => {
   const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverUrlPreview, setCoverUrlPreview] = useState<string | null>(null);
+  const coverFilePreview = useFilePreview(coverFile);
+  const coverPreview = coverFilePreview || coverUrlPreview;
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isDraggingAudio, setIsDraggingAudio] = useState(false);
