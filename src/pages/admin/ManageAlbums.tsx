@@ -98,10 +98,8 @@ const ManageAlbums = () => {
     try {
       const compressed = await compressImage(file);
       setCoverFile(compressed);
-      setCoverPreview(URL.createObjectURL(compressed));
     } catch {
       setCoverFile(file);
-      setCoverPreview(URL.createObjectURL(file));
     }
   };
 
@@ -123,7 +121,7 @@ const ManageAlbums = () => {
   const resetForm = () => {
     setFormData({ title: '', artist: '', release_year: new Date().getFullYear(), cover_url: '' });
     setCoverFile(null);
-    setCoverPreview(null);
+    setCoverUrlPreview(null);
     setEditingAlbum(null);
   };
 
@@ -135,7 +133,7 @@ const ManageAlbums = () => {
       release_year: album.release_year || new Date().getFullYear(),
       cover_url: album.cover_url || '',
     });
-    setCoverPreview(album.cover_url);
+    setCoverUrlPreview(album.cover_url);
     setIsDialogOpen(true);
   };
 
@@ -270,7 +268,7 @@ const ManageAlbums = () => {
                       size="sm"
                       onClick={() => {
                         setCoverFile(null);
-                        setCoverPreview(null);
+                        setCoverUrlPreview(null);
                         setFormData(prev => ({ ...prev, cover_url: '' }));
                       }}
                     >
