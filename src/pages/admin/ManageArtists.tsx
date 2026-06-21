@@ -152,10 +152,8 @@ const ManageArtists = () => {
     try {
       const compressed = await compressImage(file);
       setPhotoFile(compressed);
-      setPhotoPreview(URL.createObjectURL(compressed));
     } catch {
       setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
     }
   };
 
@@ -177,7 +175,7 @@ const ManageArtists = () => {
   const resetForm = () => {
     setFormData({ name: '', bio: '', genre: '', photo_url: '' });
     setPhotoFile(null);
-    setPhotoPreview(null);
+    setPhotoUrlPreview(null);
     setEditingArtist(null);
   };
 
@@ -189,7 +187,7 @@ const ManageArtists = () => {
       genre: artist.genre || '',
       photo_url: artist.photo_url || '',
     });
-    setPhotoPreview(artist.photo_url);
+    setPhotoUrlPreview(artist.photo_url);
     setIsDialogOpen(true);
   };
 
@@ -363,7 +361,7 @@ const ManageArtists = () => {
                       size="sm"
                       onClick={() => {
                         setPhotoFile(null);
-                        setPhotoPreview(null);
+                        setPhotoUrlPreview(null);
                         setFormData(prev => ({ ...prev, photo_url: '' }));
                       }}
                     >
