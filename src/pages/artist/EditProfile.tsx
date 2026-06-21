@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { uploadArtistPhoto, uploadArtistCover } from '@/lib/artist';
+import { useFilePreview } from '@/lib/useFilePreview';
 import { ArtistProfile } from './_shared';
 
 type Ctx = { profile: ArtistProfile; user: { id: string } };
