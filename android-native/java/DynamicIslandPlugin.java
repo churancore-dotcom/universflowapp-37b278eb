@@ -1,4 +1,4 @@
-package com.universeflow.app.island;
+package PACKAGE_PLACEHOLDER.island;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -73,6 +73,11 @@ public class DynamicIslandPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("granted", false);
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void openOverlaySettings(PluginCall call) {
+        requestPermission(call);
     }
 
     @PluginMethod
