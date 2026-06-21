@@ -123,8 +123,8 @@ const ArtistDetail = () => {
               const albumMap = new Map<string, typeof songs>();
               for (const s of songs) {
                 if (!s.album) continue;
-                if (!albumMap.has(s.album)) albumMap.set(s.album, [] as any);
-                (albumMap.get(s.album) as any).push(s);
+                if (!albumMap.has(s.album)) albumMap.set(s.album, [] as typeof songs);
+                (albumMap.get(s.album) as typeof songs).push(s);
               }
               const albums = Array.from(albumMap.entries()).slice(0, 20).map(([name, tracks]) => ({
                 '@type': 'MusicAlbum',

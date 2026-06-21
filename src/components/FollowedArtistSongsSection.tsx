@@ -15,8 +15,23 @@ interface Props {
 
 const normalize = (value?: string | null) => value?.trim().toLowerCase() || '';
 
-const toCatalogSong = (row: any): Song => {
-  const artistData = row.artists as { id: string; photo_url: string | null } | null;
+type SongRowWithArtist = {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string | null;
+  cover_url?: string | null;
+  audio_url: string;
+  duration?: number | null;
+  artist_id?: string | null;
+  genre?: string | null;
+  mood?: string | null;
+  created_at?: string | null;
+  artists?: { id: string; name: string; photo_url: string | null } | null;
+};
+
+const toCatalogSong = (row: SongRowWithArtist): Song => {
+  const artistData = row.artists;
   return {
     id: row.id,
     title: row.title,
@@ -68,7 +83,7 @@ const fetchFollowedArtistSongs = async (userId: string, seedSongs: Song[] = []) 
 
   if (error) console.warn('Failed to load followed-artist catalog songs:', error);
 
-  const catalogMatches = ((catalog || []) as any[])
+  const catalogMatches = ((catalog || []) as SongRowWithArtist[])
     .map(toCatalogSong)
     .filter((song) => followed.has(normalize(song.artist)));
 

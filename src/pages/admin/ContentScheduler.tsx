@@ -71,7 +71,7 @@ const ContentScheduler = () => {
   const loadSchedules = () => {
     const saved = localStorage.getItem('scheduled_actions');
     if (saved) {
-      const parsed = JSON.parse(saved).map((s: any) => ({
+      const parsed = (JSON.parse(saved) as Array<{ scheduledFor: string; [k: string]: unknown }>).map((s) => ({
         ...s,
         scheduledFor: new Date(s.scheduledFor),
       }));

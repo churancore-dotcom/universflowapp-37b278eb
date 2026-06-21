@@ -67,7 +67,7 @@ const ManageUsers = () => {
 
       const usersWithCounts = (profiles || []).map(profile => ({
         ...profile,
-        status: (profile as any).status || 'active',
+        status: (profile as { status?: string }).status || 'active',
         is_admin: adminUserIds.has(profile.user_id),
         library_count: libraryMap[profile.user_id] || 0,
         playlist_count: playlistMap[profile.user_id] || 0,

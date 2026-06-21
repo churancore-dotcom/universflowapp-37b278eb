@@ -40,7 +40,7 @@ async function flush() {
         source: e.source ?? null,
         latency_ms: e.latency_ms ?? null,
         message: e.message ?? null,
-        details: (e.details ?? {}) as any,
+        details: (e.details ?? {}) as Record<string, unknown>,
         user_agent: e.user_agent,
         route: e.route,
       })),

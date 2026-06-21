@@ -23,7 +23,7 @@ interface StorageStats {
 
 const Analytics = () => {
   const [topSongs, setTopSongs] = useState<TopSong[]>([]);
-  const [recentPlays, setRecentPlays] = useState<any[]>([]);
+  const [recentPlays, setRecentPlays] = useState<Array<{ title: string | null; artist: string | null; created_at: string; user_id: string | null }>>([]);
   const [stats, setStats] = useState({
     totalPlays: 0,
     uniqueListeners: 0,
