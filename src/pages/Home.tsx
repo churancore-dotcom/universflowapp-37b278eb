@@ -82,8 +82,9 @@ const fetchHomeSongs = async (): Promise<Song[]> => {
   if (error) throw error;
   if (!data) return [];
 
-  return data.map((s: any) => {
-    const artistData = s.artists as { id: string; name: string; photo_url: string | null } | null;
+  type SongRowDb = (typeof data)[number] & { artists: { id: string; name: string; photo_url: string | null } | null };
+  return (data as SongRowDb[]).map((s) => {
+    const artistData = s.artists;
     return {
       id: s.id,
       title: s.title,
@@ -107,7 +108,7 @@ const fetchHomeSongs = async (): Promise<Song[]> => {
 const Home = () => {
   const { currentSong, playSong } = usePlayer();
   const { cachedSongs, updateCache } = useSongCache();
-  const { isOffline, user } = useAuth() as any;
+  const { isOffline, user } = useAuth();
   const { downloads } = useDownloads();
   const { isPremium } = usePremium();
   const queryClient = useQueryClient();
@@ -173,8 +174,8 @@ const Home = () => {
       .channel('songs-realtime-diff')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, (payload) => {
         const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE';
-        const newRow = payload.new as any;
-        const oldRow = payload.old as any;
+        const newRow = payload.new as Partial<Song> & { id?: string };
+        const oldRow = payload.old as Partial<Song> & { id?: string };
 
         queryClient.setQueryData<Song[]>(HOME_SONGS_QUERY_KEY, (current) => {
           if (!current) return current;
@@ -300,7 +301,7 @@ const Home = () => {
                   border: '1.5px solid hsl(var(--primary) / 0.3)',
                 }}
               >
-                <img src={appLogo} alt="Universflow app logo" width={40} height={40} {...({ fetchpriority: "high" } as any)} decoding="async" className="w-full h-full rounded-full object-cover" />
+                <img src={appLogo} alt="Universflow app logo" width={40} height={40} {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)} decoding="async" className="w-full h-full rounded-full object-cover" />
               </div>
               <div>
                 <p
