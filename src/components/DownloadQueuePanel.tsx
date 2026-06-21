@@ -146,7 +146,7 @@ const DownloadQueuePanel = () => {
                           song={downloadQueue.find(q => q.id === currentlyDownloading[0])
                             || downloads.find(d => d.id === currentlyDownloading[0])
                             || (currentDownloadId === currentlyDownloading[0]
-                              ? ({ id: currentlyDownloading[0], title: 'Downloading…', artist: '', cover_url: '', queuedAt: '', position: 0 } as any)
+                              ? ({ id: currentlyDownloading[0], title: 'Downloading…', artist: '', cover_url: '', queuedAt: '', position: 0 } as QueuedSong)
                               : null)}
                           progress={currentlyDownloading[1].progress}
                           isDownloading={true}
