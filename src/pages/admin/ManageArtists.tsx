@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from 'sonner';
 import { compressImage, formatBytes } from '@/lib/imageCompression';
 import { getDatabaseError } from '@/lib/errorMessages';
+import { useFilePreview } from '@/lib/useFilePreview';
 
 interface Artist {
   id: string;
