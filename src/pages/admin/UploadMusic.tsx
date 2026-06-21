@@ -111,9 +111,16 @@ const UploadMusic = () => {
   const getAudioDuration = (file: File): Promise<number> => {
     return new Promise((resolve) => {
       const audio = new Audio();
-      audio.onloadedmetadata = () => resolve(Math.round(audio.duration));
-      audio.onerror = () => resolve(0);
-      audio.src = URL.createObjectURL(file);
+      const objectUrl = URL.createObjectURL(file);
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(Math.round(audio.duration));
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(0);
+      };
+      audio.src = objectUrl;
     });
   };
 
