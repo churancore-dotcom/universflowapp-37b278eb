@@ -639,7 +639,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
             table: 'payment_requests',
             filter: `id=eq.${paymentRequestId}`,
           }, (payload) => {
-            const status = (payload.new as any)?.status;
+            const status = (payload.new as { status?: string } | null)?.status;
             if (status === 'approved' || status === 'auto_approved') {
               setVerifyStage(4);
             } else if (status === 'rejected') {
@@ -658,7 +658,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
         table: 'user_subscriptions',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        const row = (payload.new as any);
+        const row = payload.new as { status?: string; subscription_type?: string } | null;
         const isPrem = row?.status === 'active'
           && (row?.subscription_type === 'premium_monthly' || row?.subscription_type === 'premium_yearly');
         if (isPrem) {
@@ -990,7 +990,7 @@ const PendingProgressBanner = memo(function PendingProgressBanner({ pending }: P
 
       <div className="space-y-2 mb-4 relative">
         {steps.map((s, idx) => {
-          const done = stage > (idx + 1) as any;
+          const done = stage > (idx + 1);
           const active = stage === (idx + 1);
           const pendingStep = !done && !active;
           return (

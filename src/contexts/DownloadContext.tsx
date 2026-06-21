@@ -209,7 +209,7 @@ const getAllFromDB = async (): Promise<{ song: DownloadedSong; audioBlob: Blob; 
       
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
-        const results = request.result.map((item: any) => {
+        const results = request.result.map((item: Record<string, unknown> & { audioBlob?: Blob; coverBlob?: Blob }) => {
           const { audioBlob, coverBlob, ...song } = item;
           return { song, audioBlob, coverBlob };
         });

@@ -174,7 +174,7 @@ const Home = () => {
       .channel('songs-realtime-diff')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, (payload) => {
         const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE';
-        const newRow = payload.new as Partial<Song> & { id?: string };
+        const newRow = payload.new as Partial<Song> & { id?: string; is_visible?: boolean; show_in_new_releases?: boolean; show_in_trending?: boolean; is_premium_only?: boolean };
         const oldRow = payload.old as Partial<Song> & { id?: string };
 
         queryClient.setQueryData<Song[]>(HOME_SONGS_QUERY_KEY, (current) => {

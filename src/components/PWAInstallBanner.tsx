@@ -19,7 +19,7 @@ const PWAInstallBanner = memo(function PWAInstallBanner() {
   useEffect(() => {
     // Check if already installed as PWA
     const standalone = window.matchMedia('(display-mode: standalone)').matches 
-      || (window.navigator as any).standalone === true;
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
 
     // Check if iOS

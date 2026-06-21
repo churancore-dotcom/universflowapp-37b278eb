@@ -61,8 +61,8 @@ export default function ArtistPublic() {
 
       const [{ data: s }, { data: count }, { data: follow }] = await Promise.all([
         supabase.from('artist_songs').select('*').eq('artist_user_id', (p as Profile).user_id).eq('status', 'live').order('created_at', { ascending: false }),
-        (supabase.rpc as any)('get_artist_follower_count', { _artist_user_id: (p as Profile).user_id }),
-        user ? (supabase.rpc as any)('is_following_artist', { _artist_user_id: (p as Profile).user_id }) : Promise.resolve({ data: false }),
+        supabase.rpc('get_artist_follower_count' as never, { _artist_user_id: (p as Profile).user_id } as never),
+        user ? supabase.rpc('is_following_artist' as never, { _artist_user_id: (p as Profile).user_id } as never) : Promise.resolve({ data: false }),
       ]);
       const list = (s ?? []) as Song[];
       setSongs(list);
@@ -72,7 +72,7 @@ export default function ArtistPublic() {
 
       // Real-time Views: bump each song's view counter once per page visit
       list.forEach((song) => {
-        supabase.rpc('increment_artist_song_view' as any, { _song_id: song.id });
+        supabase.rpc('increment_artist_song_view' as never, { _song_id: song.id } as never);
       });
     })();
   }, [slug, user?.id]);
@@ -118,7 +118,7 @@ export default function ArtistPublic() {
     const queue = songs.map(toPlayerSong);
     player.playSong(toPlayerSong(s), null, queue);
     // Use SECURITY DEFINER RPC — a direct UPDATE is silently reverted by safety trigger
-    supabase.rpc('increment_artist_song_play' as any, { _song_id: s.id });
+    supabase.rpc('increment_artist_song_play' as never, { _song_id: s.id } as never);
   };
 
   if (loading) return <div className="min-h-[100dvh] bg-background" />;
