@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { detectCountrySilently } from '@/lib/geoCountry';
+import { useFilePreview } from '@/lib/useFilePreview';
 import {
   ID_DOC_LABELS,
   IdDocType,
