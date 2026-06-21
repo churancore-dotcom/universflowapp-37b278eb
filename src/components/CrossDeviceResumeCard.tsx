@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Laptop, Smartphone, Play, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,7 +41,7 @@ const CrossDeviceResumeCard = () => {
 
   const myDeviceId = getDeviceId();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
     const { data } = await supabase
@@ -51,9 +51,9 @@ const CrossDeviceResumeCard = () => {
       .maybeSingle();
     setRow((data as unknown as PlaybackRow) || null);
     setLoading(false);
-  };
+  }, [user]);
 
-  useEffect(() => { load(); }, [user?.id]);
+  useEffect(() => { load(); }, [load]);
 
   const handleResume = () => {
     if (!row?.song) return;

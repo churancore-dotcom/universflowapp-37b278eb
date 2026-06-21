@@ -56,7 +56,7 @@ const BackupExport = () => {
     
     try {
       const { data, error } = await supabase
-        .from(option.table as any)
+        .from(option.table as never)
         .select('*');
 
       if (error) throw error;
@@ -76,7 +76,7 @@ const BackupExport = () => {
 
       toast.success(`Exported ${option.name} successfully`);
       setLastExport(new Date());
-    } catch (error: any) {
+    } catch (error) {
       toast.error(`Failed to export ${option.name}: ${getDatabaseError(error)}`);
     } finally {
       setExporting(null);
@@ -90,13 +90,13 @@ const BackupExport = () => {
     }
 
     setExporting('all');
-    const exportData: Record<string, any[]> = {};
+    const exportData: Record<string, unknown[]> = {};
     
     try {
       for (const option of exportOptions) {
         if (selectedItems.has(option.id)) {
           const { data, error } = await supabase
-            .from(option.table as any)
+            .from(option.table as never)
             .select('*');
 
           if (!error && data) {
@@ -125,20 +125,20 @@ const BackupExport = () => {
 
       toast.success(`Full backup created with ${selectedItems.size} data types`);
       setLastExport(new Date());
-    } catch (error: any) {
+    } catch (error) {
       toast.error(`Backup failed: ${getDatabaseError(error)}`);
     } finally {
       setExporting(null);
     }
   };
 
-  const convertToCsv = (data: any[]): string => {
+  const convertToCsv = (data: unknown[]): string => {
     if (data.length === 0) return '';
-    
-    const headers = Object.keys(data[0]);
-    const rows = data.map(item => 
+
+    const headers = Object.keys(data[0] as Record<string, unknown>);
+    const rows = data.map(item =>
       headers.map(h => {
-        const val = item[h];
+        const val = (item as Record<string, unknown>)[h];
         if (val === null || val === undefined) return '';
         if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
         return `"${String(val).replace(/"/g, '""')}"`;

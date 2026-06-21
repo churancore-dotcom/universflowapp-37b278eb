@@ -15,7 +15,7 @@ const FreshReleasesSection = memo(({ songs }: Props) => {
   const { playSong } = usePlayer();
 
   const fresh = useMemo(() => {
-    const flagged = songs.filter((s) => (s as any).show_in_new_releases);
+    const flagged = songs.filter((s) => (s as Song & { show_in_new_releases?: boolean }).show_in_new_releases);
     const pool = flagged.length > 0
       ? flagged
       : [...songs].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));

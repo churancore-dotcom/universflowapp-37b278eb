@@ -209,9 +209,9 @@ const getAllFromDB = async (): Promise<{ song: DownloadedSong; audioBlob: Blob; 
       
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
-        const results = request.result.map((item: any) => {
+        const results = request.result.map((item: DownloadedSong & { audioBlob: Blob; coverBlob?: Blob }) => {
           const { audioBlob, coverBlob, ...song } = item;
-          return { song, audioBlob, coverBlob };
+          return { song: song as DownloadedSong, audioBlob, coverBlob };
         });
         resolve(results);
       };
@@ -425,7 +425,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       }, 2000);
 
-    } catch (error: any) {
+    } catch (error) {
       const wasCancelled = error?.name === 'AbortError' || cancelledIdsRef.current.has(song.id);
       if (wasCancelled) {
         toast.info('Download cancelled');

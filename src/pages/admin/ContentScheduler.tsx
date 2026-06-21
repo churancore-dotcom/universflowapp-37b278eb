@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -49,29 +49,31 @@ const ContentScheduler = () => {
   const [scheduledTime, setScheduledTime] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchSongs();
-    loadSchedules();
-    
-    // Check scheduled actions every minute
-    const interval = setInterval(checkScheduledActions, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchSongs = async () => {
+  const fetchSongs = useCallback(async () => {
     const { data } = await supabase
       .from('songs')
       .select('id, title, artist, cover_url, is_visible')
       .order('title');
-    
+
     if (data) setSongs(data);
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchSongs();
+    loadSchedules();
+
+    // Check scheduled actions every minute
+    const interval = setInterval(checkScheduledActions, 60000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const loadSchedules = () => {
     const saved = localStorage.getItem('scheduled_actions');
     if (saved) {
-      const parsed = JSON.parse(saved).map((s: any) => ({
+      const parsed = (JSON.parse(saved) as Array<ScheduledAction & { scheduledFor: string | Date }>).map((s) => ({
         ...s,
         scheduledFor: new Date(s.scheduledFor),
       }));

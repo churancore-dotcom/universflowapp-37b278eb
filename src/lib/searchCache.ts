@@ -17,7 +17,7 @@ interface Entry<T> {
   expiresAt: number;
 }
 
-const stores = new Map<string, Map<string, Entry<any>>>();
+const stores = new Map<string, Map<string, Entry<unknown>>>();
 
 const getStore = <T>(namespace: string): Map<string, Entry<T>> => {
   let s = stores.get(namespace);

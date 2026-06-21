@@ -68,7 +68,7 @@ const SupportInbox = () => {
         .select('user_id, username, email, avatar_url')
         .in('user_id', ids);
       const map: Record<string, ProfileLite> = {};
-      (profRows || []).forEach((p: any) => { map[p.user_id] = p; });
+      (profRows || []).forEach((p) => { map[p.user_id] = p as ProfileLite; });
       setProfiles(map);
     }
     setLoading(false);

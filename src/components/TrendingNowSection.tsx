@@ -15,7 +15,7 @@ const TrendingNowSection = memo(({ songs }: Props) => {
   const { playSong, currentSong } = usePlayer();
 
   const trending = useMemo(() => {
-    const flagged = songs.filter((s) => (s as any).show_in_trending);
+    const flagged = songs.filter((s) => (s as Song & { show_in_trending?: boolean }).show_in_trending);
     const pool = flagged.length > 0 ? flagged : songs;
     return pool.slice(0, 10);
   }, [songs]);

@@ -202,7 +202,7 @@ const PlaylistDetail = () => {
               ...(playlist.description ? { description: playlist.description } : {}),
               ...(playlist.cover_url ? { image: playlist.cover_url } : {}),
               numTracks: songs.length,
-              track: songs.slice(0, 50).map((s: any) => ({
+              track: songs.slice(0, 50).map((s) => ({
                 '@type': 'MusicRecording',
                 name: s.title,
                 ...(s.artist ? { byArtist: { '@type': 'MusicGroup', name: s.artist } } : {}),

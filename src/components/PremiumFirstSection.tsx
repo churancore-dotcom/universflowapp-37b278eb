@@ -19,7 +19,7 @@ const fetchPremiumFirst = async (): Promise<Song[]> => {
     .order('created_at', { ascending: false })
     .limit(15);
   if (error) throw error;
-  return (data ?? []).map((s: any) => ({
+  return (data ?? []).map((s) => ({
     id: s.id,
     title: s.title,
     artist: s.artist,

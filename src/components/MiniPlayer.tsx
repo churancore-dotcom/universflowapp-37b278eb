@@ -103,11 +103,11 @@ const MiniPlayer = memo(function MiniPlayer() {
     setIsDragging(true);
   }, []);
 
-  const handleDrag = useCallback((_: any, info: PanInfo) => {
+  const handleDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setDragX(info.offset.x);
   }, []);
 
-  const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+  const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const { offset, velocity } = info;
     
     if (offset.y < SWIPE_UP_THRESHOLD || velocity.y < -300) {

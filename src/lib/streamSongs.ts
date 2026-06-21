@@ -16,7 +16,39 @@ export interface LibrarySongRow {
   track_source?: string;
 }
 
-const songFromCatalog = (song: any): Song => ({
+interface CatalogSongRow {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string | null;
+  cover_url?: string | null;
+  audio_url: string;
+  duration?: number | null;
+  artist_id?: string | null;
+  artist_image_url?: string | null;
+}
+
+interface StreamSongRow {
+  track_id: string;
+  title: string;
+  artist: string;
+  album?: string | null;
+  cover_url?: string | null;
+  audio_url?: string | null;
+  duration?: number | null;
+  artist_image_url?: string | null;
+  source?: string | null;
+}
+
+interface PlaylistSongRefRow {
+  id?: string;
+  playlist_id?: string;
+  song_id: string;
+  position?: number;
+  track_source?: string | null;
+}
+
+const songFromCatalog = (song: CatalogSongRow): Song => ({
   id: song.id,
   title: song.title,
   artist: song.artist,
@@ -29,7 +61,7 @@ const songFromCatalog = (song: any): Song => ({
   source: 'library',
 });
 
-const songFromStream = (song: any): Song => ({
+const songFromStream = (song: StreamSongRow): Song => ({
   id: song.track_id,
   title: song.title,
   artist: song.artist,
@@ -78,10 +110,10 @@ export const loadLibrarySongs = async (userId: string) => {
   const [streamRes] = await Promise.all([
     streamIds.length
       ? supabase.from('stream_songs').select('*').in('track_id', streamIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as StreamSongRow[] }),
   ]);
 
-  const streamMap = new Map((streamRes.data || []).map((song: any) => [song.track_id, songFromStream(song)]));
+  const streamMap = new Map(((streamRes.data || []) as StreamSongRow[]).map((song) => [song.track_id, songFromStream(song)]));
 
   return rows
     .map((row) => streamMap.get(row.song_id))
@@ -100,31 +132,33 @@ export const hydratePlaylistCoverUrls = async <T extends { id: string; cover_url
 
   if (!rows?.length) return playlists;
 
-  const catalogIds = rows
-    .filter((row: any) => row.track_source === 'library' || isCatalogSongId(row.song_id))
-    .map((row: any) => row.song_id);
-  const streamIds = rows
-    .filter((row: any) => row.track_source !== 'library' && !isCatalogSongId(row.song_id))
-    .map((row: any) => row.song_id);
+  const typedRows = rows as PlaylistSongRefRow[];
+
+  const catalogIds = typedRows
+    .filter((row) => row.track_source === 'library' || isCatalogSongId(row.song_id))
+    .map((row) => row.song_id);
+  const streamIds = typedRows
+    .filter((row) => row.track_source !== 'library' && !isCatalogSongId(row.song_id))
+    .map((row) => row.song_id);
 
   const [catalogRes, streamRes] = await Promise.all([
     catalogIds.length
       ? supabase.from('songs').select('id, cover_url').in('id', catalogIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as Pick<CatalogSongRow, 'id' | 'cover_url'>[] }),
     streamIds.length
       ? supabase.from('stream_songs').select('track_id, cover_url').in('track_id', streamIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as Pick<StreamSongRow, 'track_id' | 'cover_url'>[] }),
   ]);
 
   const coverBySongId = new Map<string, string>();
-  (catalogRes.data || []).forEach((song: any) => song.cover_url && coverBySongId.set(song.id, song.cover_url));
-  (streamRes.data || []).forEach((song: any) => song.cover_url && coverBySongId.set(song.track_id, song.cover_url));
+  ((catalogRes.data || []) as Pick<CatalogSongRow, 'id' | 'cover_url'>[]).forEach((song) => { if (song.cover_url) coverBySongId.set(song.id, song.cover_url); });
+  ((streamRes.data || []) as Pick<StreamSongRow, 'track_id' | 'cover_url'>[]).forEach((song) => { if (song.cover_url) coverBySongId.set(song.track_id, song.cover_url); });
 
   // Collect up to 3 distinct artworks per playlist (in song order) for stacked cover
   const coversByPlaylistId = new Map<string, string[]>();
-  rows.forEach((row: any) => {
+  typedRows.forEach((row) => {
     const cover = coverBySongId.get(row.song_id);
-    if (!cover) return;
+    if (!cover || !row.playlist_id) return;
     const list = coversByPlaylistId.get(row.playlist_id) || [];
     if (list.length >= 3 || list.includes(cover)) return;
     list.push(cover);
@@ -150,26 +184,28 @@ export const loadPlaylistSongs = async (playlistId: string) => {
 
   if (error || !rows?.length) return [];
 
-  const catalogIds = rows
-    .filter((row: any) => row.track_source === 'library' || isCatalogSongId(row.song_id))
-    .map((row: any) => row.song_id);
-  const streamIds = rows
-    .filter((row: any) => row.track_source !== 'library' && !isCatalogSongId(row.song_id))
-    .map((row: any) => row.song_id);
+  const typedRows = rows as PlaylistSongRefRow[];
+
+  const catalogIds = typedRows
+    .filter((row) => row.track_source === 'library' || isCatalogSongId(row.song_id))
+    .map((row) => row.song_id);
+  const streamIds = typedRows
+    .filter((row) => row.track_source !== 'library' && !isCatalogSongId(row.song_id))
+    .map((row) => row.song_id);
 
   const [catalogRes, streamRes] = await Promise.all([
     catalogIds.length
       ? supabase.from('songs').select('*').in('id', catalogIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as CatalogSongRow[] }),
     streamIds.length
       ? supabase.from('stream_songs').select('*').in('track_id', streamIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as StreamSongRow[] }),
   ]);
 
-  const catalogMap = new Map((catalogRes.data || []).map((song: any) => [song.id, songFromCatalog(song)]));
-  const streamMap = new Map((streamRes.data || []).map((song: any) => [song.track_id, songFromStream(song)]));
+  const catalogMap = new Map(((catalogRes.data || []) as CatalogSongRow[]).map((song) => [song.id, songFromCatalog(song)]));
+  const streamMap = new Map(((streamRes.data || []) as StreamSongRow[]).map((song) => [song.track_id, songFromStream(song)]));
 
-  return rows
+  return typedRows
     .map((row) => {
       const song = (row.track_source === 'library' || isCatalogSongId(row.song_id))
         ? catalogMap.get(row.song_id)

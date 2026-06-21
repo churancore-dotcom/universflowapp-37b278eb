@@ -134,7 +134,7 @@ const SongCard = memo(({ song, index = 0, sectionSongs }: SongCardProps) => {
               artist: song.artist,
               cover_url: song.cover_url,
               audio_url: song.audio_url,
-              source: (song as any).source,
+              source: (song as { source?: string }).source,
             }}
           />
           <button

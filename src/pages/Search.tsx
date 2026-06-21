@@ -169,12 +169,12 @@ const Search = () => {
   useEffect(() => {
     const urlQuery = params.get('q')?.trim() || '';
     if (urlQuery && urlQuery !== query.trim()) setQuery(urlQuery);
-  }, [params]);
+  }, [params, query]);
 
   // Refresh history snapshot whenever the currently playing song changes
   useEffect(() => {
     if (currentSong) setSearchHistory(getSongHistory());
-  }, [currentSong?.id]);
+  }, [currentSong]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -566,11 +566,11 @@ const Search = () => {
                                     artist: track.artist,
                                     cover_url: track.cover_url,
                                     audio_url: track.audio_url,
-                                    source: (track as any).source === 'audius' ? 'audius' : 'indexed',
+                                    source: (track as { source?: string }).source === 'audius' ? 'audius' : 'indexed',
                                   }}
                                   variant="inline"
                                 />
-                                <LikeButton songId={track.id} song={{ id: track.id, title: track.title, artist: track.artist, cover_url: track.cover_url, audio_url: 'resolving', duration: track.duration, source: (track as any).source === 'audius' ? 'audius' : 'indexed' } as Song} size="sm" className="w-8 h-8" />
+                                <LikeButton songId={track.id} song={{ id: track.id, title: track.title, artist: track.artist, cover_url: track.cover_url, audio_url: 'resolving', duration: track.duration, source: (track as { source?: string }).source === 'audius' ? 'audius' : 'indexed' } as Song} size="sm" className="w-8 h-8" />
                               </>
                             )}
                           </div>

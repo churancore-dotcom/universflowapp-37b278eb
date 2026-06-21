@@ -25,7 +25,7 @@ interface ArtistOfWeek {
 const fadeUp = (i: number) => ({
   initial: { opacity: 0, y: 12 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] as any },
+  transition: { duration: 0.4, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
 });
 
 const MOOD_CHIPS = ['FOCUS', 'HYPE', 'CHILL', 'LATE NIGHT', 'RELAX', 'LOVE'];
@@ -44,8 +44,26 @@ const moodSearch = (m: string) => {
 const isCatalogId = (id?: string) =>
   !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
-const songFromRow = (s: any): Song => ({
-  id: s.id || s.track_id,
+type SongRowLike = {
+  id?: string;
+  track_id?: string;
+  title: string;
+  artist: string;
+  album?: string | null;
+  cover_url?: string | null;
+  audio_url?: string | null;
+  duration?: number | null;
+  genre?: string | null;
+  mood?: string | null;
+  created_at?: string | null;
+  last_seen_at?: string | null;
+  artist_id?: string | null;
+  artist_photo_url?: string | null;
+  artist_image_url?: string | null;
+};
+
+const songFromRow = (s: SongRowLike): Song => ({
+  id: s.id || s.track_id || '',
   title: s.title,
   artist: s.artist,
   album: s.album || undefined,
@@ -140,7 +158,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         .in('id', ids)
         .eq('is_visible', true);
       if (songError) throw songError;
-      const byId = new Map((rows || []).map((row: any) => [row.id, songFromRow(row)]));
+      const byId = new Map((rows || []).map((row) => [row.id, songFromRow(row as SongRowLike)]));
       return ids.map((id) => byId.get(id)).filter(Boolean) as Song[];
     },
   });
@@ -177,7 +195,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         .limit(200);
       if (rows && rows.length > 0) {
         const counts = new Map<string, { name: string; count: number; image: string | null }>();
-        for (const r of rows as any[]) {
+        for (const r of rows as Array<{ artist: string | null; cover_url: string | null; artist_image_url: string | null; last_seen_at: string }>) {
           if (!r.artist) continue;
           const key = r.artist.toLowerCase().trim();
           const existing = counts.get(key);
@@ -273,7 +291,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
                   width={88}
                   height={88}
                   decoding="async"
-                  {...({ fetchpriority: "high" } as any)}
+                  {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)}
                 />
               </div>
             )}
@@ -325,7 +343,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
               height={230}
               decoding="async"
               referrerPolicy="no-referrer"
-              {...({ fetchpriority: "high" } as any)}
+              {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)}
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-rose-500/30 to-rose-900/40" />

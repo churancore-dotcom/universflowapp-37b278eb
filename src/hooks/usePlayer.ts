@@ -1,17 +1,23 @@
 import { useState, useRef } from 'react';
 import { getSongStreamUrl, preloadNext } from '../lib/jiosaavn';
 
+interface QueueSong {
+  id: string;
+  title?: string;
+  streamUrl?: string;
+}
+
 export function usePlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(
     typeof window !== 'undefined' ? new Audio() : null
   );
-  const [current, setCurrent] = useState<any>(null);
+  const [current, setCurrent] = useState<unknown>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [queue, setQueue] = useState<any[]>([]);
+  const [queue, setQueue] = useState<QueueSong[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
 
-  async function playSong(songId: string, songQueue: any[] = [], index = 0) {
+  async function playSong(songId: string, songQueue: QueueSong[] = [], index = 0) {
     setLoading(true);
     const song = await getSongStreamUrl(songId);
     if (!song) { setLoading(false); return; }

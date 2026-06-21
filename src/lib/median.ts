@@ -1,5 +1,13 @@
 import { Capacitor } from '@capacitor/core';
 
+declare global {
+  interface Window {
+    isMedianApp?: boolean;
+    isMedianIOS?: boolean;
+    isMedianAndroid?: boolean;
+  }
+}
+
 // Global detection for native app shells. The APK is Capacitor-based, not Median,
 // so it must be treated as native too or `/` falls back to the APK download page.
 const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
@@ -13,7 +21,7 @@ const isCapacitorNative = (() => {
   }
 
   try {
-    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) return true;
+    if (typeof window !== 'undefined' && (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) return true;
   } catch {
     /* noop */
   }
@@ -29,9 +37,9 @@ export const isMedianAndroid = userAgent.indexOf('medianandroid') > -1 || (isCap
 
 // Also expose on window for easy access
 if (typeof window !== 'undefined') {
-  (window as any).isMedianApp = isMedianApp;
-  (window as any).isMedianIOS = isMedianIOS;
-  (window as any).isMedianAndroid = isMedianAndroid;
+  window.isMedianApp = isMedianApp;
+  window.isMedianIOS = isMedianIOS;
+  window.isMedianAndroid = isMedianAndroid;
 }
 
 // Lazy load Median SDK only when needed

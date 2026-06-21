@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { WifiOff, Play, Music, HardDrive, Shuffle, Download, LogIn } from 'lucide-react';
-import { usePlayer } from '@/contexts/PlayerContext';
+import { usePlayer, type Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -38,8 +38,8 @@ const OfflinePlayerShell = memo(function OfflinePlayerShell() {
   const handlePlayAll = () => {
     if (cachedSongs.length > 0) {
       triggerHaptic('impactMedium');
-      setQueue(cachedSongs as any);
-      playSong(cachedSongs[0] as any, cachedSongs[0].audio_url, cachedSongs as any);
+      setQueue(cachedSongs as Song[]);
+      playSong(cachedSongs[0] as Song, cachedSongs[0].audio_url, cachedSongs as Song[]);
     }
   };
 
@@ -47,14 +47,14 @@ const OfflinePlayerShell = memo(function OfflinePlayerShell() {
     if (cachedSongs.length > 0) {
       triggerHaptic('impactMedium');
       const shuffled = [...cachedSongs].sort(() => Math.random() - 0.5);
-      setQueue(shuffled as any);
-      playSong(shuffled[0] as any, shuffled[0].audio_url, shuffled as any);
+      setQueue(shuffled as Song[]);
+      playSong(shuffled[0] as Song, shuffled[0].audio_url, shuffled as Song[]);
     }
   };
 
   const handlePlaySong = (song: typeof cachedSongs[0]) => {
     triggerHaptic('impactLight');
-    playSong(song as any, song.audio_url, cachedSongs as any);
+    playSong(song as Song, song.audio_url, cachedSongs as Song[]);
   };
 
   const handleSignIn = () => {

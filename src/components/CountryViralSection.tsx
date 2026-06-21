@@ -38,7 +38,8 @@ async function getDeezerChart(limit = 30): Promise<IndexedTrack[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const items: any[] = Array.isArray(data?.data) ? data.data : [];
+    type DeezerTrack = { id: number | string; title?: string; title_short?: string; artist?: { name?: string }; album?: { cover_big?: string; cover_medium?: string }; duration?: number };
+    const items: DeezerTrack[] = Array.isArray(data?.data) ? data.data : [];
     return items.map((t) => ({
       id: `deezer-${t.id}`,
       title: t.title_short || t.title || 'Unknown',

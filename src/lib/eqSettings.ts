@@ -125,18 +125,18 @@ export function useUserEQSettingsSync(userId?: string | null) {
     let lastRemoteJSON = '';
 
     const loadRemote = async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('user_eq_settings')
         .select('settings, updated_at')
         .eq('user_id', userId)
         .maybeSingle();
       if (cancelled) return;
       if (data?.settings) {
-        const remote = normalizeEQSettings(data.settings);
+        const remote = normalizeEQSettings(data.settings as Partial<EQSettings>);
         lastRemoteJSON = JSON.stringify(remote);
         setEQSettings(remote);
       } else {
-        await (supabase as any).from('user_eq_settings').upsert({ user_id: userId, settings: getEQSettings() }, { onConflict: 'user_id' });
+        await supabase.from('user_eq_settings').upsert({ user_id: userId, settings: getEQSettings() as never }, { onConflict: 'user_id' });
       }
     };
 
@@ -147,14 +147,14 @@ export function useUserEQSettingsSync(userId?: string | null) {
       if (saveTimer) window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(async () => {
         lastRemoteJSON = JSON.stringify(getEQSettings());
-        await (supabase as any).from('user_eq_settings').upsert({ user_id: userId, settings: getEQSettings() }, { onConflict: 'user_id' });
+        await supabase.from('user_eq_settings').upsert({ user_id: userId, settings: getEQSettings() as never }, { onConflict: 'user_id' });
       }, 350);
     });
 
     const channel = supabase
       .channel(`user-eq-settings-${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_eq_settings', filter: `user_id=eq.${userId}` }, (payload) => {
-        const settings = normalizeEQSettings((payload.new as any)?.settings);
+        const settings = normalizeEQSettings((payload.new as { settings?: unknown })?.settings);
         lastRemoteJSON = JSON.stringify(settings);
         setEQSettings(settings);
       })

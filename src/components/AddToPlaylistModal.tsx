@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useCallback, useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Music, Check, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,13 +34,7 @@ const AddToPlaylistModal = memo(function AddToPlaylistModal({
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [addedTo, setAddedTo] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (isOpen && user) {
-      fetchPlaylists();
-    }
-  }, [isOpen, user]);
-
-  const fetchPlaylists = async () => {
+  const fetchPlaylists = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -59,7 +53,13 @@ const AddToPlaylistModal = memo(function AddToPlaylistModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchPlaylists();
+    }
+  }, [isOpen, user, fetchPlaylists]);
 
   const handleAddToPlaylist = async (playlistId: string) => {
     if (!song) return;

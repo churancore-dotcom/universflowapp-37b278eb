@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -52,11 +52,7 @@ const FeatureFlags = () => {
     { key: 'ads_enabled', label: 'Advertisements', description: 'Show ads to free users', icon: Megaphone, color: 'text-orange-400' },
   ];
 
-  useEffect(() => {
-    fetchFeatures();
-  }, []);
-
-  const fetchFeatures = async () => {
+  const fetchFeatures = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -88,7 +84,11 @@ const FeatureFlags = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchFeatures();
+  }, [fetchFeatures]);
 
   const toggleFeature = (key: string) => {
     setFeatures(prev => prev.map(f => 

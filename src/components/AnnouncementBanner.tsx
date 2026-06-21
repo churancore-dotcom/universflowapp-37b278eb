@@ -74,7 +74,7 @@ const AnnouncementBanner = () => {
       .limit(5);
     if (error) return;
     const now = Date.now();
-    const fresh = (data ?? []).filter((a: any) => !a.ends_at || new Date(a.ends_at).getTime() > now);
+    const fresh = (data ?? []).filter((a) => !a.ends_at || new Date(a.ends_at).getTime() > now);
     setItems(fresh as unknown as Announcement[]);
   }, [user, isPremium]);
 

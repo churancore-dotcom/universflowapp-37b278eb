@@ -23,7 +23,8 @@ interface StorageStats {
 
 const Analytics = () => {
   const [topSongs, setTopSongs] = useState<TopSong[]>([]);
-  const [recentPlays, setRecentPlays] = useState<any[]>([]);
+  type RecentPlay = { id: string; played_at: string; songs?: { title?: string; artist?: string; cover_url?: string | null } | null };
+  const [recentPlays, setRecentPlays] = useState<RecentPlay[]>([]);
   const [stats, setStats] = useState({
     totalPlays: 0,
     uniqueListeners: 0,
@@ -60,7 +61,7 @@ const Analytics = () => {
       .order('played_at', { ascending: false })
       .limit(20);
 
-    if (plays) setRecentPlays(plays);
+    if (plays) setRecentPlays(plays as unknown as RecentPlay[]);
 
     // Calculate stats
     const { data: allSongs } = await supabase.from('songs').select('play_count, created_at');

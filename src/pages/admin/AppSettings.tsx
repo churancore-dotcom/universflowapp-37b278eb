@@ -27,7 +27,7 @@ import {
 
 interface AppSettingRow {
   key: string;
-  value: any;
+  value: unknown;
   description: string | null;
 }
 
@@ -68,7 +68,7 @@ const AppSettings = () => {
     }
   };
 
-  const updateSetting = async (key: string, value: any) => {
+  const updateSetting = async (key: string, value: unknown) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
