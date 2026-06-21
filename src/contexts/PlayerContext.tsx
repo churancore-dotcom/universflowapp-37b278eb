@@ -1975,6 +1975,98 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [currentSong?.id, isPlaying]);
 
+  // Universflow Dynamic Island — system-wide floating pill on Android when the
+  // app is backgrounded. Auto-shows the first time a song plays in background
+  // (after the user has granted "Display over other apps" permission).
+  useEffect(() => {
+    let cancelled = false;
+    let removeAppListener: (() => void) | null = null;
+
+    (async () => {
+      const island = await import('@/lib/dynamicIsland');
+      if (cancelled || !island.isDynamicIslandSupported()) return;
+
+      island.setIslandHandlers({
+        onPlay: () => mediaSessionCallbacks.onPlay(),
+        onPause: () => mediaSessionCallbacks.onPause(),
+        onNext: () => mediaSessionCallbacks.onNext(),
+        onPrev: () => mediaSessionCallbacks.onPrev(),
+        onClose: () => { /* user dismissed; respect it for this song */ },
+      });
+
+      let shownForBg = false;
+
+      const showIfBg = async () => {
+        if (!currentSong) return;
+        const ok = await island.canShowIsland();
+        if (!ok) {
+          if (!island.hasPromptedIslandPermission()) {
+            await island.requestIslandPermission();
+          }
+          return;
+        }
+        await island.showIsland({
+          title: currentSong.title,
+          artist: currentSong.artist,
+          cover: currentSong.cover_url,
+          isPlaying,
+        });
+        shownForBg = true;
+      };
+
+      const hide = async () => {
+        if (!shownForBg) return;
+        shownForBg = false;
+        await island.hideIsland();
+      };
+
+      try {
+        const mod = (await import('@capacitor/app')) as unknown as CapacitorAppModule;
+        if (mod.App?.addListener) {
+          const sub = await mod.App.addListener('appStateChange', (s) => {
+            if (s.isActive) {
+              void hide();
+            } else {
+              void showIfBg();
+            }
+          });
+          removeAppListener = () => { try { sub.remove?.(); } catch { /* noop */ } };
+        }
+      } catch { /* @capacitor/app not present on web */ }
+
+      // Keep metadata fresh whenever the track or play-state changes.
+      if (shownForBg && currentSong) {
+        await island.showIsland({
+          title: currentSong.title,
+          artist: currentSong.artist,
+          cover: currentSong.cover_url,
+          isPlaying,
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      removeAppListener?.();
+    };
+  }, [currentSong?.id, isPlaying, mediaSessionCallbacks]);
+
+  // Push live position/duration to the Dynamic Island progress bar.
+  useEffect(() => {
+    let cancelled = false;
+    const id = window.setInterval(() => {
+      import('@/lib/dynamicIsland').then(({ updateIsland }) => {
+        if (cancelled) return;
+        updateIsland({
+          isPlaying,
+          position: Math.floor(playerProgressStore.getProgress()),
+          duration: Math.floor(liveDuration || 0),
+        });
+      }).catch(() => {});
+    }, 1000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, [isPlaying, liveDuration]);
+
   // Track each played song into local song-history (Spotify-style search history)
   useEffect(() => {
     if (!currentSong) return;

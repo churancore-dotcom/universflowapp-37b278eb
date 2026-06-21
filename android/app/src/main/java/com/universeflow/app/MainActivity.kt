@@ -11,6 +11,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.getcapacitor.BridgeActivity
 import com.universeflow.app.media.MediaNotificationPlugin
+import com.universeflow.app.island.DynamicIslandPlugin
 
 class MainActivity : BridgeActivity() {
 
@@ -19,6 +20,7 @@ class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(AudioFocusPlugin::class.java)
         registerPlugin(MediaNotificationPlugin::class.java)
+        registerPlugin(DynamicIslandPlugin::class.java)
         super.onCreate(savedInstanceState)
 
         // Ask camera permission up-front so the WebView face-check can use it.
