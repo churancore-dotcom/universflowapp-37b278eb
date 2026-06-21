@@ -76,6 +76,11 @@ public class DynamicIslandPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openOverlaySettings(PluginCall call) {
+        requestPermission(call);
+    }
+
+    @PluginMethod
     public void show(PluginCall call) {
         if (!canDrawOverlays()) {
             call.reject("overlay-permission-missing");
