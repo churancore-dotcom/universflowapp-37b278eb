@@ -53,7 +53,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           height={160}
           loading="eager"
           decoding="async"
-          {...({ fetchpriority: "high" } as any)}
+          {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)}
           className={`h-40 w-40 rounded-full object-cover transition-all duration-[600ms] ease-out ${logoScale}`}
           draggable={false}
         />

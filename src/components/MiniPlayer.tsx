@@ -103,7 +103,7 @@ const MiniPlayer = memo(function MiniPlayer() {
     setIsDragging(true);
   }, []);
 
-  const handleDrag = useCallback((_: any, info: PanInfo) => {
+  const handleDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setDragX(info.offset.x);
   }, []);
 

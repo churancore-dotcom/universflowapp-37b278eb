@@ -59,7 +59,7 @@ function makeCacheKey(artist: string, title: string) {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return;
-    const parsed = JSON.parse(raw) as Record<string, { url: string; expiresAt: number; meta?: any }>;
+    const parsed = JSON.parse(raw) as Record<string, { url: string; expiresAt: number; meta?: unknown }>;
     const now = Date.now();
     for (const [key, val] of Object.entries(parsed)) {
       if (val?.expiresAt > now && val?.url) streamCache.set(key, val);

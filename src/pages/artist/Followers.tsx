@@ -36,7 +36,7 @@ export default function ArtistFollowers() {
           .select('user_id, username, avatar_url')
           .in('user_id', ids);
         for (const p of profs ?? []) {
-          profilesMap[p.user_id] = { username: (p as any).username, avatar_url: (p as any).avatar_url };
+          profilesMap[p.user_id] = { username: p.username, avatar_url: p.avatar_url };
         }
       }
       setRows(

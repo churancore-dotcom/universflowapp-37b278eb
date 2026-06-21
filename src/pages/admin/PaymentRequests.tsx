@@ -66,7 +66,7 @@ export default function PaymentRequests() {
     setBusyId(id);
     const req = requests.find(r => r.id === id);
 
-    const { error } = await (supabase.rpc as any)('admin_review_payment_request', {
+    const { error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>)('admin_review_payment_request', {
       p_request_id: id,
       p_status: status,
     });

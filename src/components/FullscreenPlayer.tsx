@@ -135,7 +135,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
     }
   }, [currentSong?.id]);
 
-  const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+  const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.y > 100) {
       setExpanded(false);
     }
@@ -500,7 +500,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                     artist: currentSong.artist,
                     cover_url: currentSong.cover_url,
                     audio_url: currentSong.audio_url,
-                    source: (currentSong as any).source,
+                    source: (currentSong as { source?: string }).source,
                   }}
                   size="md"
                   variant="inline"

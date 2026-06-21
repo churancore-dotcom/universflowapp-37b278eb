@@ -48,8 +48,8 @@ const ManageSongs = () => {
           fetchSongs();
         } else if (payload.eventType === 'UPDATE') {
           // Check if only play_count changed - if so, skip refresh
-          const newData = payload.new as any;
-          const oldData = payload.old as any;
+          const newData = payload.new as Record<string, unknown>;
+          const oldData = payload.old as Record<string, unknown>;
           const onlyPlayCountChanged = 
             newData.play_count !== oldData.play_count &&
             newData.title === oldData.title &&
