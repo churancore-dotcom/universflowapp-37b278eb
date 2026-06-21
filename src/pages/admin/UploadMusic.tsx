@@ -301,7 +301,7 @@ const UploadMusic = () => {
           // Set thumbnail as cover URL if available
           if (extractionResult.thumbnail && !coverUrl && !coverFile) {
             setCoverUrl(extractionResult.thumbnail);
-            setCoverPreview(extractionResult.thumbnail);
+            setCoverUrlPreview(extractionResult.thumbnail);
           }
           
           setUrlValidated(true);
@@ -402,7 +402,6 @@ const UploadMusic = () => {
         const stats = getCompressionStats(originalSize, compressed.size);
         
         setCoverFile(compressed);
-        setCoverPreview(URL.createObjectURL(compressed));
         setCompressionSaved(stats);
         
         if (stats.savedPercent > 0) {
@@ -411,7 +410,6 @@ const UploadMusic = () => {
       } catch (err) {
         // Fallback to original if compression fails
         setCoverFile(file);
-        setCoverPreview(URL.createObjectURL(file));
         setCompressionSaved(null);
       } finally {
         setIsCompressing(false);
@@ -459,7 +457,6 @@ const UploadMusic = () => {
         const stats = getCompressionStats(originalSize, compressed.size);
         
         setCoverFile(compressed);
-        setCoverPreview(URL.createObjectURL(compressed));
         setCompressionSaved(stats);
         
         if (stats.savedPercent > 0) {
@@ -468,7 +465,6 @@ const UploadMusic = () => {
       } catch (err) {
         // Fallback to original if compression fails
         setCoverFile(file);
-        setCoverPreview(URL.createObjectURL(file));
         setCompressionSaved(null);
       } finally {
         setIsCompressing(false);
@@ -564,7 +560,7 @@ const UploadMusic = () => {
       setTimeout(() => {
         setAudioFile(null);
         setCoverFile(null);
-        setCoverPreview(null);
+        setCoverUrlPreview(null);
         setAudioDuration(0);
         setAudioUrl('');
         setCoverUrl('');
@@ -699,7 +695,7 @@ const UploadMusic = () => {
                 <div className="relative inline-block">
                   <img src={coverPreview} alt="Cover" className="w-24 h-24 rounded-xl object-cover mx-auto" />
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverPreview(null); setCompressionSaved(null); }}
+                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverUrlPreview(null); setCompressionSaved(null); }}
                     className="absolute -top-2 -right-2 z-10 p-1 bg-destructive rounded-full"
                   >
                     <X className="w-3 h-3" />
@@ -884,7 +880,7 @@ const UploadMusic = () => {
                 <div className="relative inline-block">
                   <img src={coverPreview} alt="Cover" className="w-20 h-20 rounded-xl object-cover mx-auto" />
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverPreview(null); setCompressionSaved(null); }}
+                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverUrlPreview(null); setCompressionSaved(null); }}
                     className="absolute -top-2 -right-2 z-10 p-1 bg-destructive rounded-full"
                   >
                     <X className="w-3 h-3" />
