@@ -9,13 +9,13 @@ Universflow Dynamic Island — a true system-wide overlay (Android only) that fl
 
 **Native:**
 - `android/app/src/main/java/com/universeflow/app/island/DynamicIslandPlugin.java` — Capacitor plugin (`DynamicIsland`).
-- `android/app/src/main/java/com/universeflow/app/island/DynamicIslandService.kt` — WindowManager overlay, fully programmatic (no XML/drawables).
-- Mirrored to `android-native/` kit.
+- `android/app/src/main/java/com/universeflow/app/island/DynamicIslandService.java` — WindowManager overlay, fully programmatic (no XML/drawables).
+- Mirrored to `android-native/java/` kit with `PACKAGE_PLACEHOLDER` for GitHub APK builds.
 - Requires `SYSTEM_ALERT_WINDOW` permission (added to AndroidManifest).
 - Registered in `MainActivity.kt`.
 
 **JS bridge:** `src/lib/dynamicIsland.ts` — `canShowIsland`, `requestIslandPermission`, `showIsland`, `updateIsland`, `hideIsland`, `setIslandHandlers`.
 
-**Wiring:** `src/contexts/PlayerContext.tsx` listens to `@capacitor/app` `appStateChange` — shows island when app goes background while a song is loaded, hides on foreground. Permission prompt opens once per session on first background.
+**Wiring:** `src/contexts/PlayerContext.tsx` shows island whenever a song is loaded after overlay permission is granted. Permission settings opens once per session on first play; returning to the app retries display.
 
 No-op on web and iOS.
