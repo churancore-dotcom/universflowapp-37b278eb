@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Music2, Disc3 } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
