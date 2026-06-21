@@ -375,7 +375,7 @@ const UploadMusic = () => {
       const name = file.name.replace(/\.[^/.]+$/, '');
       setMetadata(prev => ({ ...prev, title: prev.title || name }));
     }
-  }, []);
+  }, [validateAudioFile]);
 
   const handleCoverDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -414,7 +414,7 @@ const UploadMusic = () => {
         setIsCompressing(false);
       }
     }
-  }, []);
+  }, [validateCoverFile]);
 
   const handleAudioSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

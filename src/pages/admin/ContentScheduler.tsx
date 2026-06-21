@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -49,13 +49,24 @@ const ContentScheduler = () => {
   const [scheduledTime, setScheduledTime] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const fetchSongs = useCallback(async () => {
+    const { data } = await supabase
+      .from('songs')
+      .select('id, title, artist, cover_url, is_visible')
+      .order('title');
+
+    if (data) setSongs(data);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     fetchSongs();
     loadSchedules();
-    
+
     // Check scheduled actions every minute
     const interval = setInterval(checkScheduledActions, 60000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchSongs = async () => {
