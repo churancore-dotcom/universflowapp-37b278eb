@@ -38,13 +38,7 @@ const SocialShareModal = ({ isOpen, onClose, song }: SocialShareModalProps) => {
   const [generating, setGenerating] = useState(false);
   const appUrl = 'https://universflow.in';
 
-  useEffect(() => {
-    if (isOpen && song) {
-      generateCard();
-    }
-  }, [isOpen, song]);
-
-  const generateCard = async () => {
+  const generateCard = useCallback(async () => {
     if (!song || !canvasRef.current) return;
 
     setGenerating(true);
@@ -172,7 +166,13 @@ const SocialShareModal = ({ isOpen, onClose, song }: SocialShareModalProps) => {
     const url = canvas.toDataURL('image/png');
     setCardUrl(url);
     setGenerating(false);
-  };
+  }, [song]);
+
+  useEffect(() => {
+    if (isOpen && song) {
+      generateCard();
+    }
+  }, [isOpen, song, generateCard]);
 
   const truncateText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
     const metrics = ctx.measureText(text);

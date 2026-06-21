@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Activity, Crown, Globe, Smartphone, Music, PlayCircle, RefreshCw, TrendingUp, Headphones,
@@ -37,7 +37,7 @@ const LiveInsights = () => {
     users: 0, newUsers: 0, premium: 0, dauNow: 0, playsRange: 0, devices: 0,
   });
 
-  const load = async (showSpinner = true) => {
+  const load = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true); else setRefreshing(true);
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - range);
@@ -143,9 +143,9 @@ const LiveInsights = () => {
 
     setLoading(false);
     setRefreshing(false);
-  };
+  }, [range]);
 
-  useEffect(() => { load(true); }, [range]);
+  useEffect(() => { load(true); }, [load]);
 
   // Realtime: refresh quietly when new data lands
   useEffect(() => {
