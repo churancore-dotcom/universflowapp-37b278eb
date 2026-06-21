@@ -77,11 +77,12 @@ const SupportChatModal = ({ isOpen, onClose }: Props) => {
           table: 'support_messages',
           filter: `chat_id=eq.${cid}`,
         }, (payload) => {
+          const newMsg = payload.new as Message & { sender_role?: string };
           setMessages(prev => {
-            if (prev.find(m => m.id === (payload.new as any).id)) return prev;
-            return [...prev, payload.new as Message];
+            if (prev.find(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg as Message];
           });
-          if ((payload.new as any).sender_role === 'support') {
+          if (newMsg.sender_role === 'support') {
             triggerHaptic('impactLight');
             supabase.from('support_chats').update({ unread_for_user: 0 }).eq('id', cid);
           }
