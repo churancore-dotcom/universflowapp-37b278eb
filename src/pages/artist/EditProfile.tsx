@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { uploadArtistPhoto, uploadArtistCover } from '@/lib/artist';
+import { useFilePreview } from '@/lib/useFilePreview';
 import { ArtistProfile } from './_shared';
 
 type Ctx = { profile: ArtistProfile; user: { id: string } };
@@ -115,20 +116,29 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function PhotoField({
   label, current, file, onPick,
 }: { label: string; current: string | null; file: File | null; onPick: (f: File | null) => void }) {
-  const preview = file ? URL.createObjectURL(file) : current;
+  const preview = useFilePreview(file);
+  const src = preview || current;
   return (
     <label className="block">
       <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-2">{label}</span>
       <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-3 flex items-center gap-3 cursor-pointer">
         <div className="w-14 h-14 rounded-xl bg-white/[0.04] flex items-center justify-center overflow-hidden">
-          {preview
-            ? <img src={preview} className="w-full h-full object-cover" alt="" />
+          {src
+            ? <img src={src} className="w-full h-full object-cover" alt="" />
             : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
         </div>
         <span className="text-[12px] text-muted-foreground flex-1 truncate">
           {file ? file.name : preview ? 'Tap to replace' : 'Tap to upload'}
         </span>
-        <input type="file" accept="image/*" className="sr-only" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => {
+            onPick(e.target.files?.[0] ?? null);
+            e.target.value = '';
+          }}
+        />
       </div>
     </label>
   );

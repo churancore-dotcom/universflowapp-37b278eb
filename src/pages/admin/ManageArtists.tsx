@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from 'sonner';
 import { compressImage, formatBytes } from '@/lib/imageCompression';
 import { getDatabaseError } from '@/lib/errorMessages';
+import { useFilePreview } from '@/lib/useFilePreview';
 
 interface Artist {
   id: string;
@@ -50,7 +51,9 @@ const ManageArtists = () => {
     photo_url: '',
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoUrlPreview, setPhotoUrlPreview] = useState<string | null>(null);
+  const photoFilePreview = useFilePreview(photoFile);
+  const photoPreview = photoFilePreview || photoUrlPreview;
 
   useEffect(() => {
     fetchArtists();
@@ -149,10 +152,8 @@ const ManageArtists = () => {
     try {
       const compressed = await compressImage(file);
       setPhotoFile(compressed);
-      setPhotoPreview(URL.createObjectURL(compressed));
     } catch {
       setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
     }
   };
 
@@ -174,7 +175,7 @@ const ManageArtists = () => {
   const resetForm = () => {
     setFormData({ name: '', bio: '', genre: '', photo_url: '' });
     setPhotoFile(null);
-    setPhotoPreview(null);
+    setPhotoUrlPreview(null);
     setEditingArtist(null);
   };
 
@@ -186,7 +187,7 @@ const ManageArtists = () => {
       genre: artist.genre || '',
       photo_url: artist.photo_url || '',
     });
-    setPhotoPreview(artist.photo_url);
+    setPhotoUrlPreview(artist.photo_url);
     setIsDialogOpen(true);
   };
 
@@ -343,8 +344,8 @@ const ManageArtists = () => {
                     <input
                       type="file"
                       accept="image/*"
-                      className="hidden"
-                      onChange={handlePhotoSelect}
+                      className="sr-only"
+                      onChange={(e) => { handlePhotoSelect(e); e.target.value = ''; }}
                     />
                     <Button type="button" variant="outline" size="sm" asChild>
                       <span className="gap-2">
@@ -360,7 +361,7 @@ const ManageArtists = () => {
                       size="sm"
                       onClick={() => {
                         setPhotoFile(null);
-                        setPhotoPreview(null);
+                        setPhotoUrlPreview(null);
                         setFormData(prev => ({ ...prev, photo_url: '' }));
                       }}
                     >

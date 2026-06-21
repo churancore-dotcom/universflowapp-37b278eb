@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { compressImage, getCompressionStats, formatBytes } from '@/lib/imageCompression';
 import { getUploadError } from '@/lib/errorMessages';
+import { useFilePreview } from '@/lib/useFilePreview';
 
 const genres = ['Pop', 'Rock', 'Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Classical', 'Country', 'Indie', 'Metal', 'Phonk', 'Lo-Fi', 'Bollywood', 'Punjabi', 'Haryanvi'];
 const moods = ['Happy', 'Sad', 'Energetic', 'Calm', 'Romantic', 'Dark', 'Uplifting', 'Chill', 'Slow Reverb', 'Bass Boosted'];
@@ -44,7 +45,9 @@ const UploadMusic = () => {
   const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverUrlPreview, setCoverUrlPreview] = useState<string | null>(null);
+  const coverFilePreview = useFilePreview(coverFile);
+  const coverPreview = coverFilePreview || coverUrlPreview;
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isDraggingAudio, setIsDraggingAudio] = useState(false);
@@ -108,9 +111,16 @@ const UploadMusic = () => {
   const getAudioDuration = (file: File): Promise<number> => {
     return new Promise((resolve) => {
       const audio = new Audio();
-      audio.onloadedmetadata = () => resolve(Math.round(audio.duration));
-      audio.onerror = () => resolve(0);
-      audio.src = URL.createObjectURL(file);
+      const objectUrl = URL.createObjectURL(file);
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(Math.round(audio.duration));
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(0);
+      };
+      audio.src = objectUrl;
     });
   };
 
@@ -298,7 +308,7 @@ const UploadMusic = () => {
           // Set thumbnail as cover URL if available
           if (extractionResult.thumbnail && !coverUrl && !coverFile) {
             setCoverUrl(extractionResult.thumbnail);
-            setCoverPreview(extractionResult.thumbnail);
+            setCoverUrlPreview(extractionResult.thumbnail);
           }
           
           setUrlValidated(true);
@@ -399,7 +409,6 @@ const UploadMusic = () => {
         const stats = getCompressionStats(originalSize, compressed.size);
         
         setCoverFile(compressed);
-        setCoverPreview(URL.createObjectURL(compressed));
         setCompressionSaved(stats);
         
         if (stats.savedPercent > 0) {
@@ -408,7 +417,6 @@ const UploadMusic = () => {
       } catch (err) {
         // Fallback to original if compression fails
         setCoverFile(file);
-        setCoverPreview(URL.createObjectURL(file));
         setCompressionSaved(null);
       } finally {
         setIsCompressing(false);
@@ -456,7 +464,6 @@ const UploadMusic = () => {
         const stats = getCompressionStats(originalSize, compressed.size);
         
         setCoverFile(compressed);
-        setCoverPreview(URL.createObjectURL(compressed));
         setCompressionSaved(stats);
         
         if (stats.savedPercent > 0) {
@@ -465,7 +472,6 @@ const UploadMusic = () => {
       } catch (err) {
         // Fallback to original if compression fails
         setCoverFile(file);
-        setCoverPreview(URL.createObjectURL(file));
         setCompressionSaved(null);
       } finally {
         setIsCompressing(false);
@@ -561,7 +567,7 @@ const UploadMusic = () => {
       setTimeout(() => {
         setAudioFile(null);
         setCoverFile(null);
-        setCoverPreview(null);
+        setCoverUrlPreview(null);
         setAudioDuration(0);
         setAudioUrl('');
         setCoverUrl('');
@@ -696,7 +702,7 @@ const UploadMusic = () => {
                 <div className="relative inline-block">
                   <img src={coverPreview} alt="Cover" className="w-24 h-24 rounded-xl object-cover mx-auto" />
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverPreview(null); setCompressionSaved(null); }}
+                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverUrlPreview(null); setCompressionSaved(null); }}
                     className="absolute -top-2 -right-2 z-10 p-1 bg-destructive rounded-full"
                   >
                     <X className="w-3 h-3" />
@@ -881,7 +887,7 @@ const UploadMusic = () => {
                 <div className="relative inline-block">
                   <img src={coverPreview} alt="Cover" className="w-20 h-20 rounded-xl object-cover mx-auto" />
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverPreview(null); setCompressionSaved(null); }}
+                    onClick={(e) => { e.stopPropagation(); setCoverFile(null); setCoverUrlPreview(null); setCompressionSaved(null); }}
                     className="absolute -top-2 -right-2 z-10 p-1 bg-destructive rounded-full"
                   >
                     <X className="w-3 h-3" />

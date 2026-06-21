@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
 import { getDatabaseError } from '@/lib/errorMessages';
+import { useFilePreview } from '@/lib/useFilePreview';
 
 interface Album {
   id: string;
@@ -49,7 +50,9 @@ const ManageAlbums = () => {
     cover_url: '',
   });
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverUrlPreview, setCoverUrlPreview] = useState<string | null>(null);
+  const coverFilePreview = useFilePreview(coverFile);
+  const coverPreview = coverFilePreview || coverUrlPreview;
 
   useEffect(() => {
     fetchAlbums();
@@ -95,10 +98,8 @@ const ManageAlbums = () => {
     try {
       const compressed = await compressImage(file);
       setCoverFile(compressed);
-      setCoverPreview(URL.createObjectURL(compressed));
     } catch {
       setCoverFile(file);
-      setCoverPreview(URL.createObjectURL(file));
     }
   };
 
@@ -120,7 +121,7 @@ const ManageAlbums = () => {
   const resetForm = () => {
     setFormData({ title: '', artist: '', release_year: new Date().getFullYear(), cover_url: '' });
     setCoverFile(null);
-    setCoverPreview(null);
+    setCoverUrlPreview(null);
     setEditingAlbum(null);
   };
 
@@ -132,7 +133,7 @@ const ManageAlbums = () => {
       release_year: album.release_year || new Date().getFullYear(),
       cover_url: album.cover_url || '',
     });
-    setCoverPreview(album.cover_url);
+    setCoverUrlPreview(album.cover_url);
     setIsDialogOpen(true);
   };
 
@@ -250,8 +251,8 @@ const ManageAlbums = () => {
                     <input
                       type="file"
                       accept="image/*"
-                      className="hidden"
-                      onChange={handleCoverSelect}
+                      className="sr-only"
+                      onChange={(e) => { handleCoverSelect(e); e.target.value = ''; }}
                     />
                     <Button type="button" variant="outline" size="sm" asChild>
                       <span className="gap-2">
@@ -267,7 +268,7 @@ const ManageAlbums = () => {
                       size="sm"
                       onClick={() => {
                         setCoverFile(null);
-                        setCoverPreview(null);
+                        setCoverUrlPreview(null);
                         setFormData(prev => ({ ...prev, cover_url: '' }));
                       }}
                     >
