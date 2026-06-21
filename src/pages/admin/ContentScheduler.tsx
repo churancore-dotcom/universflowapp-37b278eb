@@ -69,15 +69,6 @@ const ContentScheduler = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchSongs = async () => {
-    const { data } = await supabase
-      .from('songs')
-      .select('id, title, artist, cover_url, is_visible')
-      .order('title');
-    
-    if (data) setSongs(data);
-    setLoading(false);
-  };
 
   const loadSchedules = () => {
     const saved = localStorage.getItem('scheduled_actions');
