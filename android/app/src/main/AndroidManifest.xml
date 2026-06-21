@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Universflow Dynamic Island — system-wide floating pill while music plays -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!-- Required for in-app face liveness check (artist KYC) -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -44,6 +47,11 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="false"
             android:stopWithTask="false" />
+
+        <service
+            android:name=".island.DynamicIslandService"
+            android:exported="false"
+            android:stopWithTask="true" />
 
         <receiver
             android:name="androidx.media.session.MediaButtonReceiver"
