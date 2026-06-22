@@ -118,7 +118,7 @@ function FilePicker({
   label,
   file,
   onPick,
-  accept = 'image/jpeg,image/png,image/webp',
+  accept = 'image/*',
 }: {
   label: string;
   file: File | null;
