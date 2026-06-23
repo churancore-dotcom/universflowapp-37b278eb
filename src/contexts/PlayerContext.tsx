@@ -1609,9 +1609,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       recentlyPlayedTimerRef.current = null;
       supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
+        // Jump Back In is per-device only — write to localStorage, NOT the cloud.
         if (isCatalogUuid) {
-          supabase.from('recently_played').insert({ user_id: user.id, song_id: song.id }).then(() => {});
+          import('@/lib/localRecentlyPlayed').then((m) => m.pushLocalRecent(user.id, song.id));
         }
+        // Anonymized aggregate analytics only (no per-user history reveal).
         supabase.from('song_play_events').insert({
           user_id: user.id,
           track_id: trackIdForEvent,
