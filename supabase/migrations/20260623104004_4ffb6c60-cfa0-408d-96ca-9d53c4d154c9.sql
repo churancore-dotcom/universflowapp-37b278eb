@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "artist_apps own select" ON public.artist_applications;
