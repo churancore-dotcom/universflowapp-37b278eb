@@ -17,6 +17,19 @@ export async function getArtistDestination(user?: User | null): Promise<ArtistDe
   if (!user) return null;
 
   try {
+    // Admins are NEVER trapped in the artist flow — even if they once applied
+    // as an artist and were rejected, "Back to App" / /home must never land
+    // them on /artist/status. Admin role takes priority over any artist intent.
+    const { data: isAdmin } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin',
+    });
+    if (isAdmin) return null;
+  } catch {
+    // If admin check fails, fall through — don't block the user.
+  }
+
+  try {
     const { data: hasArtistRole } = await supabase.rpc('has_role', {
       _user_id: user.id,
       _role: 'artist',

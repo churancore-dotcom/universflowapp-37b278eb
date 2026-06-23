@@ -24,11 +24,11 @@ const POSE_ARC: Record<Pose, { startDeg: number; endDeg: number }> = {
 // Thresholds for pose detection — derived from MediaPipe Face Landmarker
 // transformationMatrix yaw/pitch (in degrees). Calibrated to feel responsive
 // but not trigger on tiny head wobble.
-const YAW_LEFT_MIN  = 18;   // user turns head left   → yaw > +18°
-const YAW_RIGHT_MIN = 18;   // user turns head right  → yaw < -18°
-const PITCH_UP_MIN  = 14;   // user tilts head up     → pitch > +14°
-const CENTER_TOL    = 10;   // straight ahead         → |yaw|<10 && |pitch|<10
-const HOLD_MS       = 600;  // must hold the pose this long before capture
+const YAW_LEFT_MIN  = 15;   // user turns head left   → yaw > +15°
+const YAW_RIGHT_MIN = 15;   // user turns head right  → yaw < -15°
+const PITCH_UP_MIN  = 12;   // user tilts head up     → pitch > +12°
+const CENTER_TOL    = 12;   // straight ahead         → |yaw|<12 && |pitch|<12
+const HOLD_MS       = 280;  // must hold the pose this long before capture
 
 export interface LivenessShots {
   center: Blob;
@@ -73,7 +73,9 @@ function poseMatches(target: Pose, yawDeg: number, pitchDeg: number): boolean {
   }
 }
 
-// Singleton: load the FaceLandmarker once per session.
+// Singleton: load the FaceLandmarker once per session. We try GPU first; if
+// the device/driver rejects it we transparently fall back to CPU so the user
+// is never stuck on "Loading face model".
 let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 async function getLandmarker(): Promise<FaceLandmarker> {
   if (landmarkerPromise) return landmarkerPromise;
@@ -81,19 +83,33 @@ async function getLandmarker(): Promise<FaceLandmarker> {
     const fileset = await FilesetResolver.forVisionTasks(
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm',
     );
-    return FaceLandmarker.createFromOptions(fileset, {
-      baseOptions: {
-        modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-        delegate: 'GPU',
-      },
-      runningMode: 'VIDEO',
-      numFaces: 1,
-      outputFaceBlendshapes: false,
-      outputFacialTransformationMatrixes: true,
-    });
+    const make = (delegate: 'GPU' | 'CPU') =>
+      FaceLandmarker.createFromOptions(fileset, {
+        baseOptions: {
+          modelAssetPath:
+            'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+          delegate,
+        },
+        runningMode: 'VIDEO',
+        numFaces: 1,
+        outputFaceBlendshapes: false,
+        outputFacialTransformationMatrixes: true,
+      });
+    try {
+      return await make('GPU');
+    } catch (e) {
+      console.warn('Face GPU delegate failed, falling back to CPU', e);
+      return await make('CPU');
+    }
   })();
   return landmarkerPromise;
+}
+
+// Kick off model + WASM download as soon as this module is imported, so by
+// the time the user taps "Start camera" the model is usually ready.
+if (typeof window !== 'undefined') {
+  // best-effort, swallow errors — real load happens again in startCamera()
+  setTimeout(() => { void getLandmarker().catch(() => { landmarkerPromise = null; }); }, 50);
 }
 
 export default function FaceLivenessCapture({
@@ -137,7 +153,7 @@ export default function FaceLivenessCapture({
         );
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+        video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
         audio: false,
       });
       streamRef.current = stream;
@@ -268,7 +284,7 @@ export default function FaceLivenessCapture({
               setStepIdx(stepRef.current);
             }
             resolve();
-          }, 650);
+          }, 220);
         },
         'image/jpeg',
         0.85,
