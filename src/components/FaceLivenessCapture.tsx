@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Loader2, AlertTriangle, RotateCcw, Check } from 'lucide-react';
+import { Camera, Loader2, AlertTriangle, RotateCcw, Check, X } from 'lucide-react';
 import { FaceLandmarker, FilesetResolver, type FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
 type Pose = 'center' | 'left' | 'right' | 'up';
