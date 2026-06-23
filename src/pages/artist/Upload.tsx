@@ -150,9 +150,12 @@ export default function ArtistUpload() {
                   ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   : <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
                 <span>
-                  {linkState.ok
-                    ? `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we’ll stream it directly.`
-                    : linkState.reason}
+                  {(() => {
+                    if (linkState.ok) {
+                      return `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we’ll stream it directly.`;
+                    }
+                    return linkState.reason;
+                  })()}
                 </span>
               </motion.div>
             )}
