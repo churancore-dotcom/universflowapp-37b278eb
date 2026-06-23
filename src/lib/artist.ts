@@ -37,6 +37,12 @@ export function docsForCountry(cc: string): IdDocType[] {
 const KYC_BUCKET = 'artist-kyc';
 const COVERS_BUCKET = 'covers';
 
+function uniqueUploadId() {
+  const random = new Uint32Array(2);
+  globalThis.crypto?.getRandomValues?.(random);
+  return `${random[0].toString(36)}${random[1].toString(36)}${Math.random().toString(36).slice(2)}`;
+}
+
 async function compressKyc(file: File): Promise<File> {
   return compressImage(file, {
     maxWidth: 1200,
@@ -57,7 +63,7 @@ async function compressPhoto(file: File): Promise<File> {
 
 async function uploadFile(bucket: string, path: string, file: File) {
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
-    upsert: true,
+    upsert: false,
     contentType: file.type,
   });
   if (error) throw error;
@@ -70,13 +76,13 @@ export async function uploadKycFile(
   file: File,
 ): Promise<string> {
   const compressed = await compressKyc(file);
-  const path = `${userId}/${Date.now()}-${kind}.jpg`;
+  const path = `${userId}/${Date.now()}-${uniqueUploadId()}-${kind}.jpg`;
   return uploadFile(KYC_BUCKET, path, compressed);
 }
 
 export async function uploadArtistPhoto(userId: string, file: File): Promise<string> {
   const compressed = await compressPhoto(file);
-  const path = `artist-photos/${userId}/${Date.now()}.webp`;
+  const path = `artist-photos/${userId}/${Date.now()}-${uniqueUploadId()}.webp`;
   await uploadFile(COVERS_BUCKET, path, compressed);
   const { data } = supabase.storage.from(COVERS_BUCKET).getPublicUrl(path);
   return data.publicUrl;
@@ -84,7 +90,7 @@ export async function uploadArtistPhoto(userId: string, file: File): Promise<str
 
 export async function uploadArtistCover(userId: string, file: File): Promise<string> {
   const compressed = await compressPhoto(file);
-  const path = `artist-covers/${userId}/${Date.now()}.webp`;
+  const path = `artist-covers/${userId}/${Date.now()}-${uniqueUploadId()}.webp`;
   await uploadFile(COVERS_BUCKET, path, compressed);
   const { data } = supabase.storage.from(COVERS_BUCKET).getPublicUrl(path);
   return data.publicUrl;
