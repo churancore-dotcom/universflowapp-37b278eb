@@ -38,7 +38,9 @@ const KYC_BUCKET = 'artist-kyc';
 const COVERS_BUCKET = 'covers';
 
 function uniqueUploadId() {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const random = new Uint32Array(2);
+  globalThis.crypto?.getRandomValues?.(random);
+  return `${random[0].toString(36)}${random[1].toString(36)}${Math.random().toString(36).slice(2)}`;
 }
 
 async function compressKyc(file: File): Promise<File> {
