@@ -138,8 +138,29 @@ export default function FaceLivenessCapture({
   const [holdProgress, setHoldProgress] = useState(0); // 0..1
   const [faceDetected, setFaceDetected] = useState(false);
   const [debugYP, setDebugYP] = useState<{ y: number; p: number } | null>(null);
+  const [flash, setFlash] = useState(false);
 
   const pose = ORDER[stepIdx];
+
+  // Hard restart — stop camera, wipe shots, reset to "Start camera" screen.
+  const restart = () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    holdStartRef.current = null;
+    capturingRef.current = false;
+    shotsRef.current = {};
+    stepRef.current = 0;
+    setShots({});
+    setStepIdx(0);
+    setPoseOk(false);
+    setHoldProgress(0);
+    setFaceDetected(false);
+    setDebugYP(null);
+    setStreaming(false);
+    setStarted(false);
+    setErr(null);
+  };
 
   const startCamera = async () => {
     if (starting || streaming) return;
