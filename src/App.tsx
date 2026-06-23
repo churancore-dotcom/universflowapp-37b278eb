@@ -138,6 +138,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Same as ProtectedRoute but unauth users bounce to /artist/auth instead of /auth.
+// This keeps artists inside the artist sign-in flow and prevents any guest access
+// to artist pages.
+const ArtistProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isLoading, emailVerified } = useAuth();
+  if (isLoading) return <LazyFallback />;
+  if (!user) return <Navigate to="/artist/auth" replace />;
+  if (emailVerified === null) return <LazyFallback />;
+  if (emailVerified === false) return <Navigate to="/check-email" replace />;
+  return <>{children}</>;
+};
+
 const ListenerRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, emailVerified } = useAuth();
   const [artistDestination, setArtistDestination] = useState<ArtistDestination | undefined>(undefined);
