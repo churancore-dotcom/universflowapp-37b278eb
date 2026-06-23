@@ -191,15 +191,18 @@ export default function ArtistStatus() {
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, backTo = '/artist/status' }: { children: React.ReactNode; backTo?: string }) {
   const navigate = useNavigate();
+  const isSelf = backTo === '/artist/status';
   return (
     <div className="min-h-[100dvh] bg-background text-foreground">
       <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.04] active:scale-95">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          {!isSelf && (
+            <button onClick={() => navigate(backTo, { replace: true })} className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.04] active:scale-95">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
           <h1 className="text-[15px] font-semibold tracking-tight">Artist Application</h1>
         </div>
       </header>
@@ -207,3 +210,4 @@ function Shell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
