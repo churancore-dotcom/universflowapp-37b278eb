@@ -97,7 +97,8 @@ export default function ArtistStatus() {
   return (
     <FadeTransition>
       <SEOHead title="Artist Status — Universflow" description="Your Universflow artist application status." path="/artist/status" />
-      <Shell>
+      <Shell backTo={app.status === 'approved' ? '/artist/studio' : '/artist/status'}>
+
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
