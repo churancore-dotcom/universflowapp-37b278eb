@@ -10,6 +10,7 @@ import { triggerHaptic } from '@/hooks/useHaptics';
 import { usePlayerProgress } from '@/lib/playerProgressStore';
 import { getUserArtistPrefs } from '@/lib/userArtistPrefs';
 import { getFeaturedIndexedArtists } from '@/lib/indexedArtists';
+import { readLocalRecent } from '@/lib/localRecentlyPlayed';
 
 interface Props {
   songs: Song[];
