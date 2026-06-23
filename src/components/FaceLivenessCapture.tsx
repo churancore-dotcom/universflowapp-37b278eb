@@ -24,11 +24,11 @@ const POSE_ARC: Record<Pose, { startDeg: number; endDeg: number }> = {
 // Thresholds for pose detection — derived from MediaPipe Face Landmarker
 // transformationMatrix yaw/pitch (in degrees). Calibrated to feel responsive
 // but not trigger on tiny head wobble.
-const YAW_LEFT_MIN  = 18;   // user turns head left   → yaw > +18°
-const YAW_RIGHT_MIN = 18;   // user turns head right  → yaw < -18°
-const PITCH_UP_MIN  = 14;   // user tilts head up     → pitch > +14°
-const CENTER_TOL    = 10;   // straight ahead         → |yaw|<10 && |pitch|<10
-const HOLD_MS       = 600;  // must hold the pose this long before capture
+const YAW_LEFT_MIN  = 15;   // user turns head left   → yaw > +15°
+const YAW_RIGHT_MIN = 15;   // user turns head right  → yaw < -15°
+const PITCH_UP_MIN  = 12;   // user tilts head up     → pitch > +12°
+const CENTER_TOL    = 12;   // straight ahead         → |yaw|<12 && |pitch|<12
+const HOLD_MS       = 280;  // must hold the pose this long before capture
 
 export interface LivenessShots {
   center: Blob;
