@@ -686,6 +686,17 @@ Mounts `MiniPlayer`, `FullscreenPlayer`, and `LockScreenPlayer` overlays globall
 ### Admin routes (`/admin/*`)
 - Dashboard, Upload, Songs, Artists, Playlists, Users, Subscriptions, Announcements, Moderation, Analytics, Live Insights, Activity Logs, System Health, Revenue, Listener Insights, Promo Codes, Payments, Notifications, Devices, Engagement, Security, Support, App Updates, Performance, Artist Applications.
 
+### Home page (`/home`)
+- Built as a Bento grid in `HomeBento.tsx`.
+- Sections in order:
+  1. **Hero — Continue Listening**: rose gradient card with current/last song and live progress.
+  2. **Artist of the Week**: followed artist or top catalog/stream artist.
+  3. **Jump Back In**: last 3 per-device recent songs from localStorage.
+  4. **Moods**: chips (FOCUS, HYPE, CHILL, LATE NIGHT, RELAX, LOVE) → search by mood.
+  5. **New Release**: most recent catalog song by `created_at`.
+  6. **Global Top Tracks**: horizontal scroll of top trending songs.
+- Data sources: `songs` catalog + `stream_songs` fallback; Supabase Realtime invalidation for `songs`, `stream_songs`, `user_library`.
+
 ### Bottom navigation
 - 4 tabs: Listen Now (`/home`), Search (`/search`), Library (`/library`), Profile (`/profile`).
 - Scroll-responsive hide/show.
