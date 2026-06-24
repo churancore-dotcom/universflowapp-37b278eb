@@ -652,7 +652,7 @@ const queryClient = new QueryClient({
 ```
 
 ### DownloadContext
-- IndexedDB audio cache (`uf-audio-cache`).
+- IndexedDB audio cache (`MusicAppOffline` object store `songs`).
 - Download queue, progress callbacks, batch operations.
 - Blob URL creation/revocation, cache size via `navigator.storage.estimate()`.
 - `isDownloaded`, `getDownloadedUrl`, `clearAllDownloads`.
