@@ -1053,80 +1053,17 @@ async function resolveViaCobalt(videoId: string): Promise<{ streamUrl: string } 
   return null;
 }
 
-// YouTube Innertube /player (ANDROID_VR / Meta Quest client) — current
-// yt-dlp default in 2026: no PoToken required, no signature decipher.
-async function resolveViaYoutubeiVR(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 7000);
-    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
-        'X-Youtube-Client-Name': '28',
-        'X-Youtube-Client-Version': '1.65.10',
-        'Origin': 'https://www.youtube.com',
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'ANDROID_VR',
-            clientVersion: '1.65.10',
-            deviceMake: 'Oculus',
-            deviceModel: 'Quest 3',
-            androidSdkVersion: 32,
-            osName: 'Android',
-            osVersion: '12L',
-            hl: 'en',
-            gl: 'US',
-            userAgent: 'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
-          },
-        },
-        videoId,
-        contentCheckOk: true,
-        racyCheckOk: true,
-      }),
-    });
-    clearTimeout(t);
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      console.warn(`[resolve] youtubei-vr HTTP ${res.status} for ${videoId}: ${errBody.slice(0, 200)}`);
-      return null;
-    }
-    const data = await res.json().catch(() => null) as any;
-    const status = data?.playabilityStatus?.status;
-    if (status && status !== 'OK') {
-      console.warn(`[resolve] youtubei-vr playability=${status} reason=${data?.playabilityStatus?.reason || ''} for ${videoId}`);
-      return null;
-    }
-    const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
-    const audio = adaptive
-      .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
-      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-    if (!audio.length) {
-      console.warn(`[resolve] youtubei-vr no direct audio for ${videoId} (got ${adaptive.length} formats)`);
-      return null;
-    }
-    const m4a = audio.find((f) => /mp4a/i.test(f.mimeType));
-    const best = m4a || audio[0];
-    if (!best?.url) return null;
-    console.log(`[resolve] ✓ ${videoId} via youtubei-vr`);
-    return {
-      streamUrl: best.url,
-      duration: Number(data?.videoDetails?.lengthSeconds) || undefined,
-    };
-  } catch (e) {
-    console.warn(`[resolve] youtubei-vr failed for ${videoId}:`, (e as Error).message);
-    return null;
-  }
-}
+// NOTE on direct YouTube Innertube /player extraction:
+// We tested ANDROID_VR, TVHTML5_SIMPLY_EMBEDDED_PLAYER, and IOS clients from
+// the edge runtime. ALL of them get blocked with either "LOGIN_REQUIRED — Sign
+// in to confirm you're not a bot" or "FAILED_PRECONDITION" because Supabase
+// edge functions run on Cloudflare/Deno datacenter IPs that YouTube flags.
+// Bypassing this requires either a PoToken solver (needs a real browser
+// WebView) or a residential proxy — neither is feasible in a stateless edge
+// function. We rely on third-party Piped/Invidious instances which use
+// residential or dedicated IPs YouTube does not block.
 
 async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
-  // 1) Try YouTube Innertube ANDROID_VR (own server → YouTube, no third-party instance).
-  const it = await resolveViaYoutubeiVR(videoId);
-  if (it) return it;
 
   const piped = getPipedInstances();
   const inv = getInvidiousInstances();
