@@ -854,18 +854,23 @@ Every new `public` table must have explicit `GRANT` statements in the same migra
 - 1.2s native splash, then React `SplashScreen` takes over.
 
 ### GitHub Actions (`build-android.yml`)
-- Trigger: `workflow_dispatch`.
+- Triggers: `workflow_dispatch` + push to `main` (ignoring `.md`/`.gitignore`).
 - Node 22, Java 21 Temurin.
 - `npm install --legacy-peer-deps`.
-- Generate sitemap, build web with Supabase env vars.
+- Generate sitemap, build web with Supabase env vars from GitHub Secrets (fails hard if missing).
 - Copy `capacitor.config.prod.ts` over `capacitor.config.ts`.
-- `npx cap add android && npx cap sync android`.
-- `./gradlew assembleDebug`.
+- `npx cap add android` (skips if `android/build.gradle` exists; merges `android-overlay/`).
+- Install `android-config/google-services.json` into `android/app/`.
+- Wire Firebase Gradle plugin (classpath + apply plugin + firebase-messaging dependency).
+- Programmatically write `MainActivity.java` registering `MediaNotificationPlugin` + `DynamicIslandPlugin`.
+- Integrate `MediaNotificationPlugin` sources from `android-native/java/` for lockscreen/notification controls.
+- `npx cap sync android` and `./gradlew assembleDebug`.
 - Upload `app-debug.apk` artifact.
 
 ### Required secrets
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_PROJECT_ID`
 
 ---
 
