@@ -1053,13 +1053,73 @@ async function resolveViaCobalt(videoId: string): Promise<{ streamUrl: string } 
   return null;
 }
 
+// YouTube Innertube /player (IOS client) — direct, signature-free audio URLs.
+// Most reliable resolver: no third-party instance, no API key, no decipher.
+async function resolveViaYoutubeiIOS(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
+  const KEY = 'AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc'; // public IOS player key (not a secret)
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 7000);
+    const res = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${KEY}&prettyPrint=false`, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)',
+        'X-Youtube-Client-Name': '5',
+        'X-Youtube-Client-Version': '19.45.4',
+        'Origin': 'https://www.youtube.com',
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'IOS',
+            clientVersion: '19.45.4',
+            deviceMake: 'Apple',
+            deviceModel: 'iPhone16,2',
+            osName: 'iPhone',
+            osVersion: '18.1.0.22B83',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+      }),
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null) as any;
+    const status = data?.playabilityStatus?.status;
+    if (status && status !== 'OK') return null;
+    const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
+    const audio = adaptive
+      .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    // Prefer m4a (mp4a) for cross-browser HTML5 audio compatibility.
+    const m4a = audio.find((f) => /mp4a/i.test(f.mimeType));
+    const best = m4a || audio[0];
+    if (!best?.url) return null;
+    console.log(`[resolve] ✓ ${videoId} via youtubei-ios`);
+    return {
+      streamUrl: best.url,
+      duration: Number(data?.videoDetails?.lengthSeconds) || undefined,
+    };
+  } catch (e) {
+    console.warn(`[resolve] youtubei-ios failed for ${videoId}:`, (e as Error).message);
+    return null;
+  }
+}
+
 async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
-  // NOTE: Cobalt is disabled — its hosts (co.wuk.sh / cobalt.tools) are not
-  // resolvable from the edge runtime (DNS NXDOMAIN), and the 8s timeout
-  // added massive latency to every resolve. Go straight to Piped/Invidious.
+  // 1) Try YouTube Innertube IOS (own server → YouTube, no third-party instance).
+  const it = await resolveViaYoutubeiIOS(videoId);
+  if (it) return it;
 
   const piped = getPipedInstances();
   const inv = getInvidiousInstances();
+
 
   // Piped adminforge currently redirects /streams to the invalid host
   // "adminforge.destreams". Use the working Invidious audio proxy first.
