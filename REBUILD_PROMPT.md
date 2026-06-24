@@ -597,10 +597,22 @@ interface PlayerContextType {
 ```
 
 ### Audio engine / Web Audio
-- `AudioEngine` service for EQ, reverb, binaural crossfeed (headphone 3D), late-night loudness.
+- `AudioEngine` service (`src/services/AudioEngine.ts`) for EQ, reverb, binaural crossfeed (headphone 3D), late-night loudness.
 - `AudioBufferLoader` for prefetch.
+- `audioEngine.ts` (`src/lib/audioEngine.ts`) helper functions.
 - `stream-proxy` edge function proxies CORS-restricted external audio so Web Audio effects can be applied.
 - `useGlobalAudioEngine` / `useAudioPlayer` hooks.
+- EQ is active only when the user enables it; proxy usage gated by `isEqProcessingEnabled()` to avoid unnecessary latency.
+- Stream URL formats handled: `http(s)://` direct CDN, `yt-video:<id>` IFrame fallback, `'resolving'` placeholder, `blob:` offline.
+
+### Stream resolution chain (`src/lib/musicIndexer.ts`)
+`resolveIndexedTrack(artist, title)` resolves a playable URL in this order:
+1. **Memory cache** (`streamCache` Map, 55 min TTL) — instant return.
+2. **DB cache** (`stream_songs` table, stale if > 4h) — shared fast cache.
+3. **JioSaavn** (`findSongStreamUrl`) — direct CORS-safe CDN audio.
+4. **music-indexer edge function** (`action=resolve`) — Piped/Invidious YouTube extraction.
+
+The resolved URL is stored in `stream_songs` and returned to the player.
 
 ---
 
