@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { prefetchIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { useTasteProfile } from '@/hooks/useTasteProfile';
+import { rerank } from '@/lib/feedPersonalizer';
 
 type ChartType = 'trending' | 'viral' | 'latest';
 
