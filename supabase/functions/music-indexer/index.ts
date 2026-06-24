@@ -1053,10 +1053,9 @@ async function resolveViaCobalt(videoId: string): Promise<{ streamUrl: string } 
   return null;
 }
 
-// YouTube Innertube /player (TVHTML5 embedded client) — most reliable resolver
-// in 2026: no PoToken required, no signature decipher, no third-party instance.
-// Same client yt-dlp uses by default.
-async function resolveViaYoutubeiTV(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
+// YouTube Innertube /player (ANDROID_VR / Meta Quest client) — current
+// yt-dlp default in 2026: no PoToken required, no signature decipher.
+async function resolveViaYoutubeiVR(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 7000);
@@ -1065,69 +1064,68 @@ async function resolveViaYoutubeiTV(videoId: string): Promise<{ streamUrl: strin
       signal: ctrl.signal,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (PlayStation; PlayStation 4/12.00) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
-        'X-Youtube-Client-Name': '85',
-        'X-Youtube-Client-Version': '2.0',
+        'User-Agent': 'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
+        'X-Youtube-Client-Name': '28',
+        'X-Youtube-Client-Version': '1.65.10',
         'Origin': 'https://www.youtube.com',
-        'Referer': 'https://www.youtube.com/',
       },
       body: JSON.stringify({
         context: {
           client: {
-            clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
-            clientVersion: '2.0',
+            clientName: 'ANDROID_VR',
+            clientVersion: '1.65.10',
+            deviceMake: 'Oculus',
+            deviceModel: 'Quest 3',
+            androidSdkVersion: 32,
+            osName: 'Android',
+            osVersion: '12L',
             hl: 'en',
             gl: 'US',
-            clientScreen: 'EMBED',
+            userAgent: 'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
           },
-          thirdParty: { embedUrl: 'https://www.youtube.com/' },
         },
         videoId,
         contentCheckOk: true,
         racyCheckOk: true,
-        playbackContext: {
-          contentPlaybackContext: { html5Preference: 'HTML5_PREF_WANTS' },
-        },
       }),
     });
     clearTimeout(t);
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      console.warn(`[resolve] youtubei-tv HTTP ${res.status} for ${videoId}: ${errBody.slice(0, 200)}`);
+      console.warn(`[resolve] youtubei-vr HTTP ${res.status} for ${videoId}: ${errBody.slice(0, 200)}`);
       return null;
     }
     const data = await res.json().catch(() => null) as any;
     const status = data?.playabilityStatus?.status;
     if (status && status !== 'OK') {
-      console.warn(`[resolve] youtubei-tv playability=${status} reason=${data?.playabilityStatus?.reason || ''} for ${videoId}`);
+      console.warn(`[resolve] youtubei-vr playability=${status} reason=${data?.playabilityStatus?.reason || ''} for ${videoId}`);
       return null;
     }
     const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
-    // TV client returns un-ciphered direct URLs in `url` (no signatureCipher).
     const audio = adaptive
       .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
       .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
     if (!audio.length) {
-      console.warn(`[resolve] youtubei-tv no direct audio for ${videoId} (got ${adaptive.length} formats)`);
+      console.warn(`[resolve] youtubei-vr no direct audio for ${videoId} (got ${adaptive.length} formats)`);
       return null;
     }
     const m4a = audio.find((f) => /mp4a/i.test(f.mimeType));
     const best = m4a || audio[0];
     if (!best?.url) return null;
-    console.log(`[resolve] ✓ ${videoId} via youtubei-tv`);
+    console.log(`[resolve] ✓ ${videoId} via youtubei-vr`);
     return {
       streamUrl: best.url,
       duration: Number(data?.videoDetails?.lengthSeconds) || undefined,
     };
   } catch (e) {
-    console.warn(`[resolve] youtubei-tv failed for ${videoId}:`, (e as Error).message);
+    console.warn(`[resolve] youtubei-vr failed for ${videoId}:`, (e as Error).message);
     return null;
   }
 }
 
 async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
-  // 1) Try YouTube Innertube TV (own server → YouTube, no third-party instance).
-  const it = await resolveViaYoutubeiTV(videoId);
+  // 1) Try YouTube Innertube ANDROID_VR (own server → YouTube, no third-party instance).
+  const it = await resolveViaYoutubeiVR(videoId);
   if (it) return it;
 
   const piped = getPipedInstances();
