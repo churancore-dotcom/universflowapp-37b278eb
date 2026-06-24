@@ -1089,12 +1089,24 @@ async function resolveViaYoutubeiIOS(videoId: string): Promise<{ streamUrl: stri
       }),
     });
     clearTimeout(t);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[resolve] youtubei-ios HTTP ${res.status} for ${videoId}`);
+      return null;
+    }
     const data = await res.json().catch(() => null) as any;
     const status = data?.playabilityStatus?.status;
-    if (status && status !== 'OK') return null;
+    if (status && status !== 'OK') {
+      console.warn(`[resolve] youtubei-ios playability=${status} for ${videoId}`);
+      return null;
+    }
     const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
+    if (!adaptive.length) {
+      console.warn(`[resolve] youtubei-ios no adaptiveFormats for ${videoId}`);
+      return null;
+    }
     const audio = adaptive
+      .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
       .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
       .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
     // Prefer m4a (mp4a) for cross-browser HTML5 audio compatibility.
