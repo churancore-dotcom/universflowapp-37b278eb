@@ -466,16 +466,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const recoverBackgroundPlayback = () => {
       const a = audioRef.current;
       if (!a || !a.src || intentionalPauseRef.current) return;
+      // Only act if the OS actually stalled us. Don't write progress on every
+      // tick — the lockscreen/MediaSession already tracks position natively.
       if (wasPlayingRef.current && a.paused) {
         a.play().catch(() => {});
-      } else if (!a.paused) {
-        playerProgressStore.setProgress(a.currentTime);
       }
     };
 
     const startBackgroundHeartbeat = () => {
       if (backgroundHeartbeatRef.current != null) return;
-      backgroundHeartbeatRef.current = window.setInterval(recoverBackgroundPlayback, 3500);
+      // Battery: was 3.5s (burns ~6%/hr keeping JS thread awake). 20s is
+      // enough to recover from an OS pause without preventing doze.
+      backgroundHeartbeatRef.current = window.setInterval(recoverBackgroundPlayback, 20000);
     };
 
     const stopBackgroundHeartbeat = () => {
