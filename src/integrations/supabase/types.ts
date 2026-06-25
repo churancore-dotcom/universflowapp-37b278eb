@@ -920,6 +920,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ip_rate_limits: {
+        Row: {
+          endpoint: string
+          ip_hash: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          endpoint: string
+          ip_hash: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          endpoint?: string
+          ip_hash?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       listening_session_members: {
         Row: {
           id: string
@@ -2032,6 +2053,10 @@ export type Database = {
       admin_review_payment_request: {
         Args: { p_request_id: string; p_status: string }
         Returns: Json
+      }
+      check_and_increment_ip_rate_limit: {
+        Args: { _endpoint: string; _ip_hash: string; _max_per_minute: number }
+        Returns: boolean
       }
       check_and_increment_rate_limit: {
         Args: { _endpoint: string; _max_per_minute: number; _user_id: string }
