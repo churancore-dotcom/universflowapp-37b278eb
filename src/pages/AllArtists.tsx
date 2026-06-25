@@ -115,11 +115,16 @@ const AllArtists = () => {
     Indie: ['indie', 'indie pop'],
   }), []);
 
-  // Initial load: catalog artists + curated list + trending live artists + user follows
+  // Initial load: platform artists + catalog + curated + trending live artists + user follows
   useEffect(() => {
     const load = async () => {
       try {
-        const [catalogRes, trendingRes, prefs] = await Promise.all([
+        const [platformRes, catalogRes, trendingRes, prefs] = await Promise.all([
+          supabase
+            .from('artist_profiles')
+            .select('user_id, stage_name, slug, avatar_url, total_followers, total_plays, is_verified')
+            .order('total_followers', { ascending: false })
+            .limit(200),
           supabase.from('artists').select('id, name, photo_url, genre').limit(200),
           getTopArtistsByTag('pop', 40).catch(() => []),
           user ? getUserArtistPrefs(user.id).catch(() => []) : Promise.resolve([]),
@@ -127,9 +132,24 @@ const AllArtists = () => {
 
         const map = new Map<string, ArtistEntry>();
 
-        // 1) Catalog artists (highest priority — admin-uploaded images)
+        // 1) Platform artists (verified Universflow artists — top priority, shown first)
+        for (const p of platformRes.data || []) {
+          if (!p.stage_name) continue;
+          map.set(p.stage_name.toLowerCase(), {
+            name: p.stage_name,
+            image_url: p.avatar_url || undefined,
+            listeners: p.total_followers ?? undefined,
+            category: 'Universflow',
+            source: 'platform',
+            platformSlug: p.slug || undefined,
+          });
+        }
+
+        // 2) Catalog artists (admin-uploaded)
         for (const a of catalogRes.data || []) {
-          map.set(a.name.toLowerCase(), {
+          const key = a.name.toLowerCase();
+          if (map.has(key)) continue;
+          map.set(key, {
             name: a.name,
             image_url: a.photo_url || undefined,
             category: a.genre || 'Catalog',
@@ -138,7 +158,7 @@ const AllArtists = () => {
           });
         }
 
-        // 2) Curated artists (well-known names by category)
+        // 3) Curated artists (well-known names by category)
         for (const c of CURATED_ARTISTS) {
           const key = c.name.toLowerCase();
           if (!map.has(key)) {
