@@ -143,6 +143,7 @@ async function searchUploadedArtistSongs(query: string): Promise<UploadedArtistT
   if (rawQuery.length < 2) return [];
 
   const likeTerms = [...new Set([rawQuery, ...tokens].map(ilikeSafeTerm).filter((term) => term.length > 1))].slice(0, 8);
+  if (!likeTerms.length) return [];
   const titleFilter = buildIlikeOr('title', likeTerms);
   const profileFilter = buildIlikeOr('stage_name', likeTerms);
   const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
@@ -165,7 +166,9 @@ async function searchUploadedArtistSongs(query: string): Promise<UploadedArtistT
 
   if (titleSongResult.error) {
     console.warn('Uploaded artist song search failed:', titleSongResult.error.message);
-    return [];
+  }
+  if (matchedProfileResult.error) {
+    console.warn('Uploaded artist profile search failed:', matchedProfileResult.error.message);
   }
 
   const matchedProfiles = (matchedProfileResult.data ?? []) as ArtistProfileSearchRow[];
