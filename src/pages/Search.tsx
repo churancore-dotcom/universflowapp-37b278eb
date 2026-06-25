@@ -705,9 +705,9 @@ const Search = () => {
                       <p className="text-2xl leading-none font-display tracking-wide text-white truncate mt-1">{featuredArtist.name}</p>
                     </div>
                   </button>
-                  {artistResults.length > 1 && (
+                  {matchedArtists.length > 1 && (
                     <div className="flex gap-2 overflow-x-auto no-scrollbar mt-3 -mx-1 px-1">
-                      {artistResults.slice(1).map((a) => (
+                      {matchedArtists.slice(1).map((a) => (
                         <button
                           key={a.name}
                           type="button"
