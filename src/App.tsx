@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { PlayerProvider, usePlayer } from "./contexts/PlayerContext";
+import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
 import { DownloadProvider } from "./contexts/DownloadContext";
 import SplashScreen from "./components/SplashScreen";
 import MobileShell from "./components/MobileShell";
