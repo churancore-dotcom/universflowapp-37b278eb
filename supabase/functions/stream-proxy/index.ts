@@ -55,6 +55,15 @@ const ALLOWED_HOST_SUFFIXES = [
   'audius.co',
   '.the-standard.io',
   'the-standard.io',
+  // Artist uploads — Google Drive + Dropbox public share links
+  'drive.google.com',
+  'drive.usercontent.google.com',
+  '.googleusercontent.com',
+  'docs.google.com',
+  'dropbox.com',
+  'www.dropbox.com',
+  'dl.dropboxusercontent.com',
+  '.dropboxusercontent.com',
 ];
 
 const CORS_HEADERS: Record<string, string> = {
