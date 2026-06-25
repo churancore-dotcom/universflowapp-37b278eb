@@ -9,6 +9,7 @@ import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
 import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
 import { initNativeBridge } from '@/services/NativeBridge';
+import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 
 interface YouTubePlayer {
@@ -67,6 +68,27 @@ export interface Song {
 
 const getSongIdentity = (song: Pick<Song, 'id' | 'title' | 'artist'>) =>
   `${song.id ?? ''}::${(song.artist ?? '').trim().toLowerCase()}::${(song.title ?? '').trim().toLowerCase()}`;
+
+type SavedPlayerState = {
+  queue: Song[];
+  index: number;
+  song: Song | null;
+  progress?: number;
+  duration?: number;
+  wasPlaying?: boolean;
+  savedAt?: number;
+};
+
+const PLAYER_QUEUE_STATE_KEY = 'player_queue_state';
+const NATIVE_RESTORE_WINDOW_MS = 45 * 60 * 1000;
+
+const isNativeRuntime = () => {
+  try {
+    return Capacitor.isNativePlatform?.() === true;
+  } catch {
+    return false;
+  }
+};
 
 interface PlayerContextType {
   currentSong: Song | null;
@@ -324,6 +346,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // recommendations forever.
   const autoMixInFlightRef = useRef(false);
   const autoMixSeenRef = useRef<Set<string>>(new Set());
+  const pendingNativeRestoreRef = useRef<SavedPlayerState | null>(null);
+  const nativeRestoreAttemptedRef = useRef(false);
 
   useEffect(() => {
     queueRef.current = queue;
@@ -341,32 +365,71 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (queueRestoredRef.current) return;
     queueRestoredRef.current = true;
     try {
-      const raw = localStorage.getItem('player_queue_state');
+      const raw = localStorage.getItem(PLAYER_QUEUE_STATE_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as { queue: Song[]; index: number; song: Song | null };
+      const saved = JSON.parse(raw) as SavedPlayerState;
       if (Array.isArray(saved.queue) && saved.queue.length > 0) {
         setQueueState(saved.queue);
         setCurrentIndex(Math.max(0, Math.min(saved.index || 0, saved.queue.length - 1)));
         if (saved.song) setCurrentSong(saved.song);
+        if (typeof saved.progress === 'number') setProgress(saved.progress);
+        if (typeof saved.duration === 'number') setDuration(saved.duration);
+        if (
+          saved.song &&
+          saved.wasPlaying &&
+          isNativeRuntime() &&
+          Date.now() - (saved.savedAt || 0) < NATIVE_RESTORE_WINDOW_MS
+        ) {
+          pendingNativeRestoreRef.current = saved;
+        }
       }
     } catch { /* ignore corrupt cache */ }
   }, []);
 
-  useEffect(() => {
+  const persistPlayerSnapshot = useCallback(() => {
     if (!queueRestoredRef.current) return;
     try {
       const trimmed = queue.slice(0, 100);
-      localStorage.setItem('player_queue_state', JSON.stringify({
+      localStorage.setItem(PLAYER_QUEUE_STATE_KEY, JSON.stringify({
         queue: trimmed,
         index: Math.min(currentIndex, trimmed.length - 1),
         song: currentSong,
+        progress: playerProgressStore.getEstimatedProgress(),
+        duration: playerProgressStore.getDuration(),
+        wasPlaying: isPlaying,
+        savedAt: Date.now(),
       }));
     } catch { /* quota or disabled */ }
-  }, [queue, currentIndex, currentSong]);
+  }, [queue, currentIndex, currentSong, isPlaying]);
+
+  const persistPlayerSnapshotRef = useRef(persistPlayerSnapshot);
+  useEffect(() => {
+    persistPlayerSnapshotRef.current = persistPlayerSnapshot;
+  }, [persistPlayerSnapshot]);
+
+  useEffect(() => {
+    persistPlayerSnapshot();
+  }, [persistPlayerSnapshot]);
+
+  useEffect(() => {
+    const persistIfHidden = () => {
+      if (document.visibilityState === 'hidden') persistPlayerSnapshot();
+    };
+    const persist = () => persistPlayerSnapshot();
+    document.addEventListener('visibilitychange', persistIfHidden);
+    window.addEventListener('pagehide', persist);
+    const id = window.setInterval(persist, isPlaying ? 5000 : 15000);
+    return () => {
+      document.removeEventListener('visibilitychange', persistIfHidden);
+      window.removeEventListener('pagehide', persist);
+      window.clearInterval(id);
+    };
+  }, [persistPlayerSnapshot, isPlaying]);
 
   // Track whether audio was playing before going to background
   const wasPlayingRef = useRef(false);
   const keepAliveRef = useRef<number | null>(null);
+  const backgroundHeartbeatRef = useRef<number | null>(null);
   const intentionalPauseRef = useRef(false);
   const backgroundRecoveryTimerRef = useRef<number | null>(null);
 
@@ -397,12 +460,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     nextAudio.setAttribute('x-webkit-airplay', 'allow');
     nextAudioRef.current = nextAudio;
 
+    const recoverBackgroundPlayback = () => {
+      const a = audioRef.current;
+      if (!a || !a.src || intentionalPauseRef.current) return;
+      if (wasPlayingRef.current && a.paused) {
+        a.play().catch(() => {});
+      } else if (!a.paused) {
+        playerProgressStore.setProgress(a.currentTime);
+      }
+    };
+
+    const startBackgroundHeartbeat = () => {
+      if (backgroundHeartbeatRef.current != null) return;
+      backgroundHeartbeatRef.current = window.setInterval(recoverBackgroundPlayback, 3500);
+    };
+
+    const stopBackgroundHeartbeat = () => {
+      if (backgroundHeartbeatRef.current == null) return;
+      window.clearInterval(backgroundHeartbeatRef.current);
+      backgroundHeartbeatRef.current = null;
+    };
+
     // Track playing state before going to background
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         // Entering background — remember if we were playing
         wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
+        persistPlayerSnapshotRef.current();
+        if (wasPlayingRef.current) startBackgroundHeartbeat();
       } else if (document.visibilityState === 'visible') {
+        stopBackgroundHeartbeat();
         if (backgroundRecoveryTimerRef.current) {
           window.clearTimeout(backgroundRecoveryTimerRef.current);
           backgroundRecoveryTimerRef.current = null;
@@ -412,6 +499,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           audioRef.current.play().catch(() => {});
         }
       }
+    };
+
+    const handlePageHide = () => {
+      wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
+      persistPlayerSnapshotRef.current();
+      if (wasPlayingRef.current) startBackgroundHeartbeat();
+    };
+
+    const handlePageShow = () => {
+      stopBackgroundHeartbeat();
+      resumeAudioEngine();
+      recoverBackgroundPlayback();
     };
     
     const handleFocus = () => {
@@ -473,6 +572,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     audio.addEventListener('playing', handlePlaying);
     audio.addEventListener('loadstart', handleLoadStartPerf);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('freeze', handlePageHide);
+    window.addEventListener('resume', handlePageShow);
     window.addEventListener('focus', handleFocus);
 
 
@@ -486,8 +589,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const handle = await mod.App.addListener('appStateChange', (state: { isActive: boolean }) => {
           if (!state?.isActive) {
             wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
+            persistPlayerSnapshotRef.current();
+            if (wasPlayingRef.current) startBackgroundHeartbeat();
             return;
           }
+          stopBackgroundHeartbeat();
           // Returning to foreground from native background:
           // 1) resume the Web Audio context (Android suspends it while backgrounded)
           // 2) clear any stale 'error' UI state by re-checking the audio element
@@ -513,9 +619,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio.removeEventListener('playing', handlePlaying);
       audio.removeEventListener('loadstart', handleLoadStartPerf);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('freeze', handlePageHide);
+      window.removeEventListener('resume', handlePageShow);
       window.removeEventListener('focus', handleFocus);
       if (appResumeRemove) appResumeRemove();
       if (keepAliveRef.current) clearInterval(keepAliveRef.current);
+      stopBackgroundHeartbeat();
       if (backgroundRecoveryTimerRef.current) clearTimeout(backgroundRecoveryTimerRef.current);
 
       audio.pause();
@@ -1633,6 +1744,48 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Spotify-like behavior: a tap must start playback immediately. Ads/premium
     // checks must never block the audio pipeline.
     playActualSong(song, offlineUrl, songsQueue);
+  }, [playActualSong]);
+
+  useEffect(() => {
+    const saved = pendingNativeRestoreRef.current;
+    if (!saved || nativeRestoreAttemptedRef.current || !saved.song || !audioRef.current) return;
+    nativeRestoreAttemptedRef.current = true;
+    pendingNativeRestoreRef.current = null;
+
+    const restoredQueue = saved.queue.length > 0 ? saved.queue : [saved.song];
+    const restoredSong = restoredQueue[Math.max(0, Math.min(saved.index || 0, restoredQueue.length - 1))] || saved.song;
+    const restoreAt = Math.max(0, saved.progress || 0);
+    const restoreIdentity = getSongIdentity(restoredSong);
+    let restoredPosition = false;
+    let restoreTimer: number | null = null;
+
+    const applyPosition = () => {
+      if (restoredPosition) return;
+      const a = audioRef.current;
+      if (!a || activeSongIdentityRef.current !== restoreIdentity) return;
+      if (restoreAt > 0 && (!Number.isFinite(a.duration) || a.duration <= 0 || restoreAt < a.duration - 1)) {
+        try { a.currentTime = restoreAt; } catch { /* ignore */ }
+        setProgress(restoreAt);
+      }
+      restoredPosition = true;
+      a.removeEventListener('loadedmetadata', applyPosition);
+      a.removeEventListener('canplay', applyPosition);
+      if (restoreTimer != null) window.clearTimeout(restoreTimer);
+    };
+
+    audioRef.current.addEventListener('loadedmetadata', applyPosition);
+    audioRef.current.addEventListener('canplay', applyPosition);
+    restoreTimer = window.setTimeout(applyPosition, 1400);
+    playActualSong(restoredSong, undefined, restoredQueue);
+
+    return () => {
+      const a = audioRef.current;
+      if (a) {
+        a.removeEventListener('loadedmetadata', applyPosition);
+        a.removeEventListener('canplay', applyPosition);
+      }
+      if (restoreTimer != null) window.clearTimeout(restoreTimer);
+    };
   }, [playActualSong]);
 
   const onPrerollAdComplete = useCallback(() => {

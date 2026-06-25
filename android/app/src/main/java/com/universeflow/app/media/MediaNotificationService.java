@@ -20,6 +20,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.net.wifi.WifiManager;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -61,6 +62,7 @@ public class MediaNotificationService extends Service {
     private Bitmap currentArt = null;
     private String loadedArtUrl = null;
     private PowerManager.WakeLock wakeLock = null;
+    private WifiManager.WifiLock wifiLock = null;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -130,11 +132,39 @@ public class MediaNotificationService extends Service {
         } catch (Exception ignore) {}
     }
 
+    private void acquireWifiLockIfNeeded() {
+        if (wifiLock != null && wifiLock.isHeld()) return;
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm == null) return;
+            wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "UniversFlow:MediaWifi");
+            wifiLock.setReferenceCounted(false);
+            wifiLock.acquire();
+        } catch (Exception ignore) {}
+    }
+
+    private void acquirePlaybackLocks() {
+        acquireWakeLockIfNeeded();
+        acquireWifiLockIfNeeded();
+    }
+
     private void releaseWakeLock() {
         try {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         } catch (Exception ignore) {}
         wakeLock = null;
+    }
+
+    private void releaseWifiLock() {
+        try {
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+        } catch (Exception ignore) {}
+        wifiLock = null;
+    }
+
+    private void releasePlaybackLocks() {
+        releaseWakeLock();
+        releaseWifiLock();
     }
 
     @Override
@@ -159,7 +189,7 @@ public class MediaNotificationService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || intent.getAction() == null) {
-            return START_NOT_STICKY;
+            return START_STICKY;
         }
         String action = intent.getAction();
 
@@ -171,15 +201,15 @@ public class MediaNotificationService extends Service {
                 coverUrl = safe(intent.getStringExtra("cover"));
                 durationMs = intent.getLongExtra("duration", 0L);
                 isPlaying = intent.getBooleanExtra("isPlaying", false);
-                if (isPlaying) { acquireWakeLockIfNeeded(); requestAudioFocus(); registerNoisyReceiver(); }
-                else { releaseWakeLock(); }
+                if (isPlaying) { acquirePlaybackLocks(); requestAudioFocus(); registerNoisyReceiver(); }
+                else { releasePlaybackLocks(); unregisterNoisyReceiver(); }
                 refresh(true);
                 break;
             }
             case ACTION_STATE: {
                 isPlaying = intent.getBooleanExtra("isPlaying", isPlaying);
-                if (isPlaying) { acquireWakeLockIfNeeded(); requestAudioFocus(); registerNoisyReceiver(); }
-                else { releaseWakeLock(); }
+                if (isPlaying) { acquirePlaybackLocks(); requestAudioFocus(); registerNoisyReceiver(); }
+                else { releasePlaybackLocks(); unregisterNoisyReceiver(); }
                 if (intent.hasExtra("position")) {
                     positionMs = intent.getLongExtra("position", 0L);
                 }
@@ -462,7 +492,7 @@ public class MediaNotificationService extends Service {
     public void onDestroy() {
         unregisterNoisyReceiver();
         abandonAudioFocus();
-        releaseWakeLock();
+        releasePlaybackLocks();
         stopForegroundCompat();
         super.onDestroy();
     }
