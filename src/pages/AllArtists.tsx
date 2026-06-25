@@ -276,13 +276,27 @@ const AllArtists = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return allArtists.filter(a => {
+    const list = allArtists.filter(a => {
+      if (activeCategory === 'Universflow' && a.source !== 'platform') return false;
       if (activeCategory === 'Trending' && a.category !== 'Trending') return false;
-      if (activeCategory !== 'All' && activeCategory !== 'Trending' && a.category !== activeCategory) return false;
+      if (
+        activeCategory !== 'All' &&
+        activeCategory !== 'Trending' &&
+        activeCategory !== 'Universflow' &&
+        a.category !== activeCategory
+      ) return false;
       if (q && !a.name.toLowerCase().includes(q)) return false;
       return true;
     });
+    // Always pin Universflow's own artists to the top
+    return list.sort((a, b) => {
+      const ap = a.source === 'platform' ? 0 : 1;
+      const bp = b.source === 'platform' ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return (b.listeners || 0) - (a.listeners || 0);
+    });
   }, [allArtists, activeCategory, query]);
+
 
   const handleFollow = useCallback(async (artist: ArtistEntry) => {
     if (!user) {
