@@ -6,6 +6,7 @@ import OptimizedImage from './OptimizedImage';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { useTasteProfile } from '@/hooks/useTasteProfile';
 import { rerank } from '@/lib/feedPersonalizer';
+import { isSpamSong } from '@/pages/Search';
 
 interface Props { songs: Song[] }
 
@@ -18,10 +19,11 @@ const FreshReleasesSection = memo(({ songs }: Props) => {
   const taste = useTasteProfile();
 
   const fresh = useMemo(() => {
-    const flagged = songs.filter((s) => (s as Song & { show_in_new_releases?: boolean }).show_in_new_releases);
+    const clean = songs.filter((s) => !isSpamSong(s));
+    const flagged = clean.filter((s) => (s as Song & { show_in_new_releases?: boolean }).show_in_new_releases);
     const pool = flagged.length > 0
       ? flagged
-      : [...songs].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      : [...clean].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     // Widen window, silently re-rank to the user's taste, then trim to the hero set.
     const window = pool.slice(0, 20);
     return rerank(window, taste).slice(0, 5);
