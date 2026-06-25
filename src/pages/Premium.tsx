@@ -30,7 +30,7 @@ const LogoBadge = ({ size = 56 }: { size?: number }) => (
       boxShadow: '0 10px 30px -10px hsl(var(--primary) / 0.5)',
     }}
   >
-    <img src={appLogo} alt="Universflow" className="w-[68%] h-[68%] object-contain" />
+    <img src={appLogo} alt="Universflow app logo" className="w-[68%] h-[68%] object-contain" />
   </div>
 );
 
