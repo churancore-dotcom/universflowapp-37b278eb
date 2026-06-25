@@ -43,9 +43,9 @@ class MainActivity : BridgeActivity() {
             web.settings.mediaPlaybackRequiresUserGesture = false
             web.settings.allowFileAccess = true
             web.settings.allowContentAccess = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
-            }
+            // Renderer priority is now managed by MediaNotificationPlugin —
+            // IMPORTANT only while music plays, WAIVED otherwise. This lets
+            // Android reclaim ~120 MB when the user isn't actively listening.
             web.webChromeClient = object : BridgeWebChromeClient(bridge) {
                 override fun onPermissionRequest(request: PermissionRequest) {
                     runOnUiThread {
