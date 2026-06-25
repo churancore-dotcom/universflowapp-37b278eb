@@ -6,6 +6,7 @@ import OptimizedImage from './OptimizedImage';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { useTasteProfile } from '@/hooks/useTasteProfile';
 import { rerank } from '@/lib/feedPersonalizer';
+import { isSpamSong } from '@/pages/Search';
 
 interface Props { songs: Song[] }
 
@@ -18,8 +19,9 @@ const TrendingNowSection = memo(({ songs }: Props) => {
   const taste = useTasteProfile();
 
   const trending = useMemo(() => {
-    const flagged = songs.filter((s) => (s as Song & { show_in_trending?: boolean }).show_in_trending);
-    const pool = flagged.length > 0 ? flagged : songs;
+    const clean = songs.filter((s) => !isSpamSong(s));
+    const flagged = clean.filter((s) => (s as Song & { show_in_trending?: boolean }).show_in_trending);
+    const pool = flagged.length > 0 ? flagged : clean;
     // Pull a larger window then silently re-rank to user taste, finally trim.
     const window = pool.slice(0, 30);
     return rerank(window, taste).slice(0, 10);
