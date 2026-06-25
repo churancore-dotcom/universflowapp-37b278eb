@@ -1,7 +1,9 @@
 // LRU AudioBuffer cache — max 10 tracks. Oldest entries evicted automatically
 // so long listening sessions don't balloon RAM on mid-range Android devices.
 
-const MAX_BUFFERS = 10;
+// Battery/RAM: a decoded 4-min track is ~40 MB. Cap at 3 to keep peak
+// AudioBuffer RAM around ~120 MB instead of ~400 MB on mid-range devices.
+const MAX_BUFFERS = 3;
 const cache = new Map<string, AudioBuffer>();
 
 export function getBuffer(key: string): AudioBuffer | undefined {
