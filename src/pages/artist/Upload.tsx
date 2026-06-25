@@ -96,17 +96,24 @@ export default function ArtistUpload() {
     setSaving(true);
     try {
       const coverUrl = cover ? await uploadArtistCover(user.id, cover) : null;
-      const { error } = await supabase.from('artist_songs').insert({
-        artist_user_id: user.id,
-        title: title.trim(),
-        stream_url: linkState.normalized,
-        cover_url: coverUrl,
-      });
+      const { data, error } = await supabase
+        .from('artist_songs')
+        .insert({
+          artist_user_id: user.id,
+          title: title.trim(),
+          stream_url: linkState.normalized,
+          cover_url: coverUrl,
+        })
+        .select('id')
+        .single();
       if (error) throw error;
+      if (!data?.id) throw new Error('Insert returned no row — check artist permissions.');
       toast.success('Song published ✓');
-      navigate('/artist/studio/songs');
+      navigate('/artist/studio/songs', { replace: true });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not publish song.');
+      const msg = e instanceof Error ? e.message : 'Could not publish song.';
+      console.error('[artist-upload] publish failed:', e);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
