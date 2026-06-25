@@ -35,13 +35,23 @@ const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
 const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
-const SEARCH_CACHE_NAMESPACE = 'stable-search-v6';
+const SEARCH_CACHE_NAMESPACE = 'stable-search-v7-nuke-spam';
 const SPAM_RESULT_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
-  /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|full album|all songs)\b/i,
-  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone)\b/i,
+  /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|full\s*album|all\s*songs)\b/i,
+  /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?|reverb(ed)?)\b/i,
+  /\b(karaoke|instrumental|backing\s*track|minus\s*one)\b/i,
+  /\b(cover(\s*by)?|cover\s*version|fan\s*made|unofficial|tribute|ai\s*cover|ai\s*voice|ai\s*song)\b/i,
+  /\b(lyric\s*video|with\s*lyrics?|tutorial|reaction|breakdown|explained)\b/i,
+  /\b(whatsapp\s*status|ringtone|bgm|status\s*video|loop(ed)?|tiktok\s*version|reels?\s*version|shorts?)\b/i,
   /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
+  /\b(dj\s*remix|remix\s*by|club\s*mix|extended\s*mix|edm\s*remix|trap\s*remix|phonk\s*remix)\b/i,
+  /\b(speed\s*up|slow(ed)?\s*down|reverb\s*nation|nightcore\s*mania|speed\s*songs?|slowed\s*songs?)\b/i,
+];
+const SPAM_ARTIST_PATTERNS = [
+  /\b(speed\s*songs?|slowed\s*songs?|reverb\s*nation|nightcore|lofi\s*girl|ai\s*cover|topic\s*music|music\s*lover\s*\d+)\b/i,
+  /\b(remix\s*king|remix\s*world|karaoke\s*world|cover\s*world|status\s*king|whatsapp\s*status)\b/i,
 ];
 
 const ilikeSafeTerm = (value: string) => value.replace(/[%_,()]/g, ' ').replace(/\s+/g, ' ').trim();
