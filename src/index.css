@@ -205,11 +205,8 @@
     color: hsl(18 100% 82%);
   }
   
-  /* iOS Dynamic Island style blur */
-  .dynamic-island {
-    @apply backdrop-blur-3xl rounded-[2.5rem];
-    background: rgba(0, 0, 0, 0.85);
-  }
+
+
   
   /* Premium Gradient text */
   .gradient-text {
