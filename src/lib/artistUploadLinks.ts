@@ -13,7 +13,7 @@ export type LinkValidation =
   | { ok: true; source: UploadSource; normalized: string }
   | { ok: false; reason: string };
 
-const DRIVE_HOSTS = ['drive.google.com', 'docs.google.com'];
+const DRIVE_HOSTS = ['drive.google.com', 'docs.google.com', 'drive.usercontent.google.com'];
 const DROPBOX_HOSTS = ['dropbox.com', 'www.dropbox.com', 'dl.dropboxusercontent.com'];
 
 function safeUrl(raw: string): URL | null {
