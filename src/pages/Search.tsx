@@ -332,10 +332,34 @@ const Search = () => {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<SongHistoryEntry[]>(() => getSongHistory());
   const [hiddenResults, setHiddenResults] = useState<HiddenSearchEntry[]>(() => loadHiddenResults());
+  const [verifiedArtistNames, setVerifiedArtistNames] = useState<Set<string>>(() => new Set());
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+
+  // Load all verified Universflow artist stage_names once (cached in-memory).
+  // Used to restrict song search results to platform artists only.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('artist_profiles')
+          .select('stage_name')
+          .eq('is_verified', true)
+          .limit(5000);
+        if (cancelled || !data) return;
+        const set = new Set<string>();
+        for (const row of data) {
+          const n = normalizeText(row.stage_name || '');
+          if (n) set.add(n);
+        }
+        setVerifiedArtistNames(set);
+      } catch {/* ignore */}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const urlQuery = params.get('q')?.trim() || '';
