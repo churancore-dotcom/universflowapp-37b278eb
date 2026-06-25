@@ -34,7 +34,6 @@ async function triggerCapacitorHaptic(style: HapticStyle): Promise<boolean> {
 }
 
 
-type HapticStyle = 'impactLight' | 'impactMedium' | 'impactHeavy' | 'selection' | 'success' | 'warning' | 'error';
 
 // Global haptics enabled state (can be toggled from settings)
 let hapticsEnabled = true;
