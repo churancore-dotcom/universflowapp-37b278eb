@@ -73,10 +73,15 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Expose-Headers': 'content-length, content-range, accept-ranges, content-type',
 };
 
-// Per-IP sliding-window rate limiter (in-memory; resets per cold start).
+// Per-IP rate limit — DB-backed so state is shared across edge instances.
+// In-memory map is kept as a hot cache to dampen DB writes within the same
+// instance during a burst, and to short-circuit clearly abusive callers.
 const RATE_LIMIT_MAX = 240;          // 240 reqs/min/IP — generous for seek + range bursts
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const ipHits = new Map<string, number[]>();
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 function clientIp(req: Request): string {
   return (
@@ -87,12 +92,38 @@ function clientIp(req: Request): string {
   );
 }
 
-function checkRate(ip: string): boolean {
+async function hashIp(ip: string): Promise<string> {
+  const data = new TextEncoder().encode(ip + '|stream-proxy');
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function checkRate(ip: string): Promise<boolean> {
   const now = Date.now();
   const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   hits.push(now);
   ipHits.set(ip, hits);
-  return hits.length <= RATE_LIMIT_MAX;
+  // Local fast-fail before touching DB
+  if (hits.length > RATE_LIMIT_MAX) return false;
+
+  if (!SUPABASE_URL || !SERVICE_ROLE) return true; // fail-open if misconfigured
+  try {
+    const ipHash = await hashIp(ip);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_and_increment_ip_rate_limit`, {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE_ROLE,
+        Authorization: `Bearer ${SERVICE_ROLE}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ _ip_hash: ipHash, _endpoint: 'stream-proxy', _max_per_minute: RATE_LIMIT_MAX }),
+    });
+    if (!res.ok) return true; // fail-open on infra error
+    const allowed = await res.json();
+    return allowed === true;
+  } catch {
+    return true; // fail-open on network error
+  }
 }
 
 function isAllowed(target: string): boolean {
@@ -151,7 +182,7 @@ Deno.serve(async (req) => {
   }
 
   const ip = clientIp(req);
-  if (!checkRate(ip)) {
+  if (!(await checkRate(ip))) {
     return new Response('Too many requests', {
       status: 429,
       headers: { ...CORS_HEADERS, 'retry-after': '60' },
