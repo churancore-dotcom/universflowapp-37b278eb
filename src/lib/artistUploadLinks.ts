@@ -13,7 +13,7 @@ export type LinkValidation =
   | { ok: true; source: UploadSource; normalized: string }
   | { ok: false; reason: string };
 
-const DRIVE_HOSTS = ['drive.google.com', 'docs.google.com'];
+const DRIVE_HOSTS = ['drive.google.com', 'docs.google.com', 'drive.usercontent.google.com'];
 const DROPBOX_HOSTS = ['dropbox.com', 'www.dropbox.com', 'dl.dropboxusercontent.com'];
 
 function safeUrl(raw: string): URL | null {
@@ -66,10 +66,13 @@ export function validateUploadLink(raw: string): LinkValidation {
   if (DRIVE_HOSTS.includes(u.hostname)) {
     const id = extractDriveId(trimmed);
     if (!id) return { ok: false, reason: 'Couldn’t read a file id from that Google Drive link.' };
+    // drive.usercontent.google.com with confirm=t auto-bypasses the virus-scan
+    // warning page that drive.google.com/uc returns for files > ~25MB. The
+    // /uc endpoint returns HTML in that case, which breaks <audio> playback.
     return {
       ok: true,
       source: 'drive',
-      normalized: `https://drive.google.com/uc?export=download&id=${id}`,
+      normalized: `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`,
     };
   }
 
