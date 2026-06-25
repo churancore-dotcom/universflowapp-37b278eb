@@ -205,11 +205,8 @@
     color: hsl(18 100% 82%);
   }
   
-  /* iOS Dynamic Island style blur */
-  .dynamic-island {
-    @apply backdrop-blur-3xl rounded-[2.5rem];
-    background: rgba(0, 0, 0, 0.85);
-  }
+
+
   
   /* Premium Gradient text */
   .gradient-text {
@@ -585,7 +582,7 @@
 
 /* WebView compatibility - simpler animations for older WebViews */
 @supports not (backdrop-filter: blur(10px)) {
-  .glass, .glass-strong, .glass-ultra, .dynamic-island, .ios-card {
+  .glass, .glass-strong, .glass-ultra, .ios-card {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     background: rgba(28, 28, 30, 0.95) !important;
