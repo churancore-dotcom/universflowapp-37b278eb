@@ -207,9 +207,10 @@ const AllArtists = () => {
 
   // Lazy-load tag-based artists when user picks a category (so list keeps growing)
   useEffect(() => {
-    if (activeCategory === 'All' || enrichmentTriggered.current.has(activeCategory)) return;
+    if (activeCategory === 'All' || activeCategory === 'Universflow') return;
+    if (enrichmentTriggered.current.has(activeCategory)) return;
     enrichmentTriggered.current.add(activeCategory);
-    const tags = CATEGORY_TAGS[activeCategory] || [];
+    const tags = CATEGORY_TAGS[activeCategory as ArtistCategory] || [];
     if (!tags.length) return;
     Promise.all(tags.map((tag) => getTopArtistsByTag(tag, 40).catch(() => [])))
       .then((buckets) => {
