@@ -25,8 +25,9 @@ interface ArtistEntry {
   image_url?: string;
   listeners?: number;
   category: string;
-  source: 'catalog' | 'lastfm';
+  source: 'catalog' | 'lastfm' | 'platform';
   catalogId?: string;
+  platformSlug?: string;
 }
 
 const ArtistRow = memo(({ artist, isFollowed, onFollow, onPlay, onOpen }: {
@@ -58,7 +59,7 @@ const ArtistRow = memo(({ artist, isFollowed, onFollow, onPlay, onOpen }: {
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm truncate text-foreground">{artist.name}</p>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">
-          {artist.category} · <span className="text-primary">{artist.source === 'catalog' ? 'Catalog' : 'Web Stream'}</span>
+          {artist.category} · <span className="text-primary">{artist.source === 'platform' ? 'Universflow Artist' : artist.source === 'catalog' ? 'Catalog' : 'Web Stream'}</span>
         </p>
       </div>
     </button>
@@ -85,7 +86,7 @@ const AllArtists = () => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const [allArtists, setAllArtists] = useState<ArtistEntry[]>([]);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
-  const [activeCategory, setActiveCategory] = useState<'All' | ArtistCategory>('All');
+  const [activeCategory, setActiveCategory] = useState<'All' | 'Universflow' | ArtistCategory>('All');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -114,11 +115,16 @@ const AllArtists = () => {
     Indie: ['indie', 'indie pop'],
   }), []);
 
-  // Initial load: catalog artists + curated list + trending live artists + user follows
+  // Initial load: platform artists + catalog + curated + trending live artists + user follows
   useEffect(() => {
     const load = async () => {
       try {
-        const [catalogRes, trendingRes, prefs] = await Promise.all([
+        const [platformRes, catalogRes, trendingRes, prefs] = await Promise.all([
+          supabase
+            .from('artist_profiles')
+            .select('user_id, stage_name, slug, avatar_url, total_followers, total_plays, is_verified')
+            .order('total_followers', { ascending: false })
+            .limit(200),
           supabase.from('artists').select('id, name, photo_url, genre').limit(200),
           getTopArtistsByTag('pop', 40).catch(() => []),
           user ? getUserArtistPrefs(user.id).catch(() => []) : Promise.resolve([]),
@@ -126,9 +132,24 @@ const AllArtists = () => {
 
         const map = new Map<string, ArtistEntry>();
 
-        // 1) Catalog artists (highest priority — admin-uploaded images)
+        // 1) Platform artists (verified Universflow artists — top priority, shown first)
+        for (const p of platformRes.data || []) {
+          if (!p.stage_name) continue;
+          map.set(p.stage_name.toLowerCase(), {
+            name: p.stage_name,
+            image_url: p.avatar_url || undefined,
+            listeners: p.total_followers ?? undefined,
+            category: 'Universflow',
+            source: 'platform',
+            platformSlug: p.slug || undefined,
+          });
+        }
+
+        // 2) Catalog artists (admin-uploaded)
         for (const a of catalogRes.data || []) {
-          map.set(a.name.toLowerCase(), {
+          const key = a.name.toLowerCase();
+          if (map.has(key)) continue;
+          map.set(key, {
             name: a.name,
             image_url: a.photo_url || undefined,
             category: a.genre || 'Catalog',
@@ -137,7 +158,7 @@ const AllArtists = () => {
           });
         }
 
-        // 2) Curated artists (well-known names by category)
+        // 3) Curated artists (well-known names by category)
         for (const c of CURATED_ARTISTS) {
           const key = c.name.toLowerCase();
           if (!map.has(key)) {
@@ -186,9 +207,10 @@ const AllArtists = () => {
 
   // Lazy-load tag-based artists when user picks a category (so list keeps growing)
   useEffect(() => {
-    if (activeCategory === 'All' || enrichmentTriggered.current.has(activeCategory)) return;
+    if (activeCategory === 'All' || activeCategory === 'Universflow') return;
+    if (enrichmentTriggered.current.has(activeCategory)) return;
     enrichmentTriggered.current.add(activeCategory);
-    const tags = CATEGORY_TAGS[activeCategory] || [];
+    const tags = CATEGORY_TAGS[activeCategory as ArtistCategory] || [];
     if (!tags.length) return;
     Promise.all(tags.map((tag) => getTopArtistsByTag(tag, 40).catch(() => [])))
       .then((buckets) => {
@@ -255,13 +277,27 @@ const AllArtists = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return allArtists.filter(a => {
+    const list = allArtists.filter(a => {
+      if (activeCategory === 'Universflow' && a.source !== 'platform') return false;
       if (activeCategory === 'Trending' && a.category !== 'Trending') return false;
-      if (activeCategory !== 'All' && activeCategory !== 'Trending' && a.category !== activeCategory) return false;
+      if (
+        activeCategory !== 'All' &&
+        activeCategory !== 'Trending' &&
+        activeCategory !== 'Universflow' &&
+        a.category !== activeCategory
+      ) return false;
       if (q && !a.name.toLowerCase().includes(q)) return false;
       return true;
     });
+    // Always pin Universflow's own artists to the top
+    return list.sort((a, b) => {
+      const ap = a.source === 'platform' ? 0 : 1;
+      const bp = b.source === 'platform' ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return (b.listeners || 0) - (a.listeners || 0);
+    });
   }, [allArtists, activeCategory, query]);
+
 
   const handleFollow = useCallback(async (artist: ArtistEntry) => {
     if (!user) {
@@ -278,7 +314,7 @@ const AllArtists = () => {
     });
     const ok = isFollowed
       ? await unfollowArtist(user.id, artist.name)
-      : await followArtist(user.id, artist.name, { image: artist.image_url || null, source: artist.source });
+      : await followArtist(user.id, artist.name, { image: artist.image_url || null, source: artist.source === 'platform' ? 'catalog' : artist.source });
     if (!ok) {
       // rollback
       setFollowed(prev => {
@@ -344,7 +380,7 @@ const AllArtists = () => {
     }
   }, [playSong, artistSongs]);
 
-  const categoriesWithAll = useMemo(() => ['All', ...ARTIST_CATEGORIES] as const, []);
+  const categoriesWithAll = useMemo(() => ['All', 'Universflow', ...ARTIST_CATEGORIES] as const, []);
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
@@ -406,7 +442,7 @@ const AllArtists = () => {
                   return (
                     <button
                       key={cat}
-                      onClick={() => { triggerHaptic('selection'); setActiveCategory(cat as ArtistCategory | 'All'); }}
+                      onClick={() => { triggerHaptic('selection'); setActiveCategory(cat as ArtistCategory | 'All' | 'Universflow'); }}
                       className="px-3 h-8 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
                       style={{
                         background: active ? 'hsl(var(--primary))' : 'rgba(255,255,255,0.06)',
