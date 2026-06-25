@@ -279,7 +279,7 @@ const AllArtists = () => {
     });
     const ok = isFollowed
       ? await unfollowArtist(user.id, artist.name)
-      : await followArtist(user.id, artist.name, { image: artist.image_url || null, source: artist.source });
+      : await followArtist(user.id, artist.name, { image: artist.image_url || null, source: artist.source === 'platform' ? 'catalog' : artist.source });
     if (!ok) {
       // rollback
       setFollowed(prev => {
