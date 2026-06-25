@@ -59,7 +59,7 @@ const ArtistRow = memo(({ artist, isFollowed, onFollow, onPlay, onOpen }: {
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm truncate text-foreground">{artist.name}</p>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">
-          {artist.category} · <span className="text-primary">{artist.source === 'catalog' ? 'Catalog' : 'Web Stream'}</span>
+          {artist.category} · <span className="text-primary">{artist.source === 'platform' ? 'Universflow Artist' : artist.source === 'catalog' ? 'Catalog' : 'Web Stream'}</span>
         </p>
       </div>
     </button>
