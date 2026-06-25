@@ -412,19 +412,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [persistPlayerSnapshot]);
 
   useEffect(() => {
+    // Battery: snapshot only on real lifecycle events (hide / pagehide) and
+    // a slow 30s safety tick. The previous 5s tick blocked the main thread
+    // on every write for no real benefit.
     const persistIfHidden = () => {
       if (document.visibilityState === 'hidden') persistPlayerSnapshot();
     };
     const persist = () => persistPlayerSnapshot();
     document.addEventListener('visibilitychange', persistIfHidden);
     window.addEventListener('pagehide', persist);
-    const id = window.setInterval(persist, isPlaying ? 5000 : 15000);
+    const id = window.setInterval(persist, 30000);
     return () => {
       document.removeEventListener('visibilitychange', persistIfHidden);
       window.removeEventListener('pagehide', persist);
       window.clearInterval(id);
     };
-  }, [persistPlayerSnapshot, isPlaying]);
+  }, [persistPlayerSnapshot]);
 
   // Track whether audio was playing before going to background
   const wasPlayingRef = useRef(false);
@@ -463,16 +466,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const recoverBackgroundPlayback = () => {
       const a = audioRef.current;
       if (!a || !a.src || intentionalPauseRef.current) return;
+      // Only act if the OS actually stalled us. Don't write progress on every
+      // tick — the lockscreen/MediaSession already tracks position natively.
       if (wasPlayingRef.current && a.paused) {
         a.play().catch(() => {});
-      } else if (!a.paused) {
-        playerProgressStore.setProgress(a.currentTime);
       }
     };
 
     const startBackgroundHeartbeat = () => {
       if (backgroundHeartbeatRef.current != null) return;
-      backgroundHeartbeatRef.current = window.setInterval(recoverBackgroundPlayback, 3500);
+      // Battery: was 3.5s (burns ~6%/hr keeping JS thread awake). 20s is
+      // enough to recover from an OS pause without preventing doze.
+      backgroundHeartbeatRef.current = window.setInterval(recoverBackgroundPlayback, 20000);
     };
 
     const stopBackgroundHeartbeat = () => {

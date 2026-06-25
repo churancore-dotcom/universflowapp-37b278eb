@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.webkit.WebView;
 
 import androidx.core.content.ContextCompat;
 
@@ -83,7 +84,9 @@ public class MediaNotificationPlugin extends Plugin {
         i.putExtra("album", call.getString("album", ""));
         i.putExtra("cover", call.getString("cover", ""));
         i.putExtra("duration", call.getInt("duration", 0).longValue() * 1000L);
-        i.putExtra("isPlaying", call.getBoolean("isPlaying", false));
+        boolean playing = call.getBoolean("isPlaying", false);
+        i.putExtra("isPlaying", playing);
+        applyRendererPriority(playing);
 
         startMediaService(i);
         call.resolve();
@@ -93,12 +96,35 @@ public class MediaNotificationPlugin extends Plugin {
     public void update(PluginCall call) {
         Intent i = new Intent(getContext(), MediaNotificationService.class);
         i.setAction(MediaNotificationService.ACTION_STATE);
-        i.putExtra("isPlaying", call.getBoolean("isPlaying", false));
+        boolean playing = call.getBoolean("isPlaying", false);
+        i.putExtra("isPlaying", playing);
+        applyRendererPriority(playing);
         if (call.getInt("position") != null) {
             i.putExtra("position", call.getInt("position", 0).longValue() * 1000L);
         }
         startMediaService(i);
         call.resolve();
+    }
+
+    /**
+     * Battery/RAM: keep the WebView renderer "IMPORTANT" only while music is
+     * actually playing. When paused/idle we drop to WAIVED so Android can
+     * trim the renderer (~120 MB) under memory pressure instead of pinning it.
+     */
+    private void applyRendererPriority(final boolean playing) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        try {
+            final WebView web = getBridge() != null ? getBridge().getWebView() : null;
+            if (web == null) return;
+            web.post(() -> {
+                try {
+                    int level = playing
+                        ? WebView.RENDERER_PRIORITY_IMPORTANT
+                        : WebView.RENDERER_PRIORITY_WAIVED;
+                    web.setRendererPriorityPolicy(level, false);
+                } catch (Throwable ignored) {}
+            });
+        } catch (Throwable ignored) {}
     }
 
     @PluginMethod
