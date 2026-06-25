@@ -14,8 +14,7 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
 
-    <!-- Universflow Dynamic Island — system-wide floating pill while music plays -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
 
     <!-- Required for in-app face liveness check (artist KYC) -->
     <uses-permission android:name="android.permission.CAMERA" />
