@@ -3,6 +3,7 @@ import { Song } from './PlayerContext';
 import { toast } from 'sonner';
 import { canDownloadSong, getDownloadUnavailableMessage } from '@/lib/songSupport';
 import { resolveIndexedTrack } from '@/lib/musicIndexer';
+import { getRuntimePremium } from '@/lib/premiumState';
 
 // Build a proxy URL for cross-origin streams that fail direct fetch.
 // Uses the same music-indexer audio proxy that the player uses.
@@ -89,6 +90,12 @@ interface DownloadContextType {
 }
 
 const DownloadContext = createContext<DownloadContextType | undefined>(undefined);
+
+const requirePremiumDownload = (): boolean => {
+  if (getRuntimePremium()) return true;
+  toast.error('Downloads are a Premium feature');
+  return false;
+};
 
 const DB_NAME = 'MusicAppOffline';
 const STORE_NAME = 'songs';
@@ -300,6 +307,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const downloadSong = useCallback(async (song: Song) => {
+    if (!requirePremiumDownload()) return;
+
     if (!canDownloadSong(song)) {
       toast.error(getDownloadUnavailableMessage(song));
       return;
@@ -518,6 +527,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Queue management functions
   const addToQueue = useCallback((songs: Song[]) => {
+    if (!requirePremiumDownload()) return;
+
     const newQueueItems: QueuedSong[] = songs
       .filter(song => !isDownloaded(song.id) && !isInQueue(song.id))
       .map((song, index) => ({

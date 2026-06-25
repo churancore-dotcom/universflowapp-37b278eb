@@ -22,6 +22,14 @@ function getAdminClient() {
   return _adminClient;
 }
 
+async function getAuthenticatedUserId(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get('authorization') || '';
+  const admin = getAdminClient();
+  if (!authHeader.startsWith('Bearer ') || !admin) return null;
+  const { data } = await admin.auth.getUser(authHeader.slice(7));
+  return data?.user?.id ?? null;
+}
+
 function dbCacheKey(artist: string, title: string) {
   return `resolve:${artist.toLowerCase().trim()}::${title.toLowerCase().trim()}`.slice(0, 200);
 }
@@ -233,7 +241,11 @@ async function refreshInstances() {
     if (Array.isArray(data)) {
       dynamicPiped = data
         .filter((d: any) => d.api_url && !d.api_url.includes('.onion'))
-        .map((d: any) => d.api_url.replace(/\/$/, ''));
+        .map((d: any) => d.api_url.replace(/\/$/, ''))
+        .filter((url: string) => {
+          try { return hostnameMatchesAllowedSuffix(new URL(url).hostname); }
+          catch { return false; }
+        });
     }
   } catch { /* keep stale list */ }
   try {
@@ -242,7 +254,11 @@ async function refreshInstances() {
       dynamicInvidious = data
         .filter(([, info]: any) => info?.api && info?.type === 'https')
         .slice(0, 10)
-        .map(([, info]: any) => info.uri.replace(/\/$/, ''));
+        .map(([, info]: any) => info.uri.replace(/\/$/, ''))
+        .filter((url: string) => {
+          try { return hostnameMatchesAllowedSuffix(new URL(url).hostname); }
+          catch { return false; }
+        });
     }
   } catch { /* keep stale list */ }
 }
@@ -946,6 +962,29 @@ function isAllowedAudioProxyUrl(value: string) {
   }
 }
 
+async function fetchAllowedAudioProxyTarget(audioTarget: string, req: Request, range: string | null, redirects = 0): Promise<Response> {
+  if (!isAllowedAudioProxyUrl(audioTarget)) throw new Error('Invalid audio source');
+  const upstream = await fetch(audioTarget, {
+    method: req.method,
+    headers: {
+      ...(range ? { range } : {}),
+      'user-agent': 'Mozilla/5.0 (UniversFlow Audio Proxy)',
+      accept: '*/*',
+    },
+    redirect: 'manual',
+  });
+
+  if (upstream.status >= 300 && upstream.status < 400) {
+    if (redirects >= 2) throw new Error('Too many redirects');
+    const location = upstream.headers.get('location');
+    if (!location) throw new Error('Redirect missing Location');
+    const next = new URL(location, audioTarget).toString();
+    return fetchAllowedAudioProxyTarget(next, req, range, redirects + 1);
+  }
+
+  return upstream;
+}
+
 function pickBestStream(data: Record<string, any>, instance: string) {
   const adaptive = Array.isArray(data.adaptiveFormats) ? data.adaptiveFormats : [];
   const audio = adaptive
@@ -1239,14 +1278,7 @@ serve(async (req) => {
       }
 
       const range = req.headers.get('range');
-      const upstream = await fetch(audioTarget, {
-        method: req.method,
-        headers: {
-          ...(range ? { range } : {}),
-          'user-agent': 'Mozilla/5.0 (UniversFlow Audio Proxy)',
-          accept: '*/*',
-        },
-      });
+      const upstream = await fetchAllowedAudioProxyTarget(audioTarget, req, range);
 
       const headers = new Headers(corsHeaders);
       ['content-type', 'content-length', 'content-range', 'accept-ranges', 'cache-control', 'etag', 'last-modified'].forEach((name) => {
@@ -1342,6 +1374,26 @@ serve(async (req) => {
     }
 
     if (action === 'enrich-artist-images') {
+      const userId = await getAuthenticatedUserId(req);
+      if (!userId) {
+        return new Response(JSON.stringify({ success: false, error: 'Authentication required' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const admin = getAdminClient();
+      if (admin) {
+        const { data: allowed } = await admin.rpc('check_and_increment_rate_limit', {
+          _user_id: userId,
+          _endpoint: 'music-indexer:enrich-artist-images',
+          _max_per_minute: 20,
+        });
+        if (allowed === false) {
+          return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded' }), {
+            status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
       const names = Array.isArray(body.names) ? body.names.filter((n: unknown): n is string => typeof n === 'string').slice(0, 60) : [];
       if (!names.length) {
         return new Response(JSON.stringify({ success: true, results: {} }), {

@@ -25,6 +25,7 @@ import CheckEmail from "./pages/CheckEmail";
 import NotFound from "./pages/NotFound";
 import { usePushRegistration } from "./hooks/usePushRegistration";
 import { usePlaybackSync } from "./hooks/usePlaybackSync";
+import { usePremium } from "./hooks/usePremium";
 import { useUserEQSettingsSync } from "./lib/eqSettings";
 
 // Eager load main tabs for INSTANT navigation (Spotify-like feel).
@@ -143,12 +144,41 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Same as ProtectedRoute but unauth users bounce to /artist/auth instead of /auth.
 // This keeps artists inside the artist sign-in flow and prevents any guest access
 // to artist pages.
-const ArtistProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ArtistProtectedRoute = ({ children, requireArtistRole = false }: { children: React.ReactNode; requireArtistRole?: boolean }) => {
   const { user, isLoading, emailVerified } = useAuth();
+  const [verifiedArtist, setVerifiedArtist] = useState<null | boolean>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!requireArtistRole) {
+      setVerifiedArtist(true);
+      return;
+    }
+    if (!user || emailVerified !== true) {
+      setVerifiedArtist(false);
+      return;
+    }
+    setVerifiedArtist(null);
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('has_role', {
+          _user_id: user.id,
+          _role: 'artist',
+        });
+        if (!cancelled) setVerifiedArtist(!error && !!data);
+      } catch {
+        if (!cancelled) setVerifiedArtist(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, emailVerified, requireArtistRole]);
+
   if (isLoading) return <LazyFallback />;
   if (!user) return <Navigate to="/artist/auth" replace />;
   if (emailVerified === null) return <LazyFallback />;
   if (emailVerified === false) return <Navigate to="/check-email" replace />;
+  if (verifiedArtist === null) return <LazyFallback />;
+  if (!verifiedArtist) return <Navigate to="/artist/status" replace />;
   return <>{children}</>;
 };
 
@@ -296,7 +326,7 @@ const AnimatedRoutes = () => {
           <Route path="/artist/auth" element={user ? <Navigate to="/" replace /> : <ArtistAuth />} />
           <Route path="/artist/apply" element={<ArtistProtectedRoute><ArtistApply /></ArtistProtectedRoute>} />
           <Route path="/artist/status" element={<ArtistProtectedRoute><ArtistStatus /></ArtistProtectedRoute>} />
-          <Route path="/artist/studio" element={<ArtistProtectedRoute><ArtistLayout /></ArtistProtectedRoute>}>
+          <Route path="/artist/studio" element={<ArtistProtectedRoute requireArtistRole><ArtistLayout /></ArtistProtectedRoute>}>
             <Route index element={<ArtistOverview />} />
             <Route path="upload" element={<ArtistUploadPage />} />
             <Route path="songs" element={<ArtistSongsPage />} />
@@ -467,19 +497,26 @@ const AppContent = () => {
   );
 };
 
+const PremiumRuntimeSync = ({ children }: { children: React.ReactNode }) => {
+  usePremium();
+  return <>{children}</>;
+};
+
 const App = () => {
   return (
     <SentryErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <AuthProvider>
-            <PlayerProvider>
-              <DownloadProvider>
-                <TooltipProvider>
-                  <AppContent />
-                </TooltipProvider>
-              </DownloadProvider>
-            </PlayerProvider>
+            <PremiumRuntimeSync>
+              <PlayerProvider>
+                <DownloadProvider>
+                  <TooltipProvider>
+                    <AppContent />
+                  </TooltipProvider>
+                </DownloadProvider>
+              </PlayerProvider>
+            </PremiumRuntimeSync>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

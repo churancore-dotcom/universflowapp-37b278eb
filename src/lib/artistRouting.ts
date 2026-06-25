@@ -5,12 +5,9 @@ export type ArtistDestination = '/artist/studio' | '/artist/status' | '/artist/a
 
 export function hasArtistSignupIntent(user?: User | null): boolean {
   const metadata = (user?.user_metadata || {}) as Record<string, unknown>;
-  if (metadata.account_type === 'artist') return true;
-  if (typeof window === 'undefined') return false;
-  return (
-    localStorage.getItem('uf_post_verify_next')?.startsWith('/artist') ||
-    !!localStorage.getItem('uf_artist_signup')
-  );
+  // Do not trust localStorage for auth/routing decisions — any user can modify
+  // it in DevTools. Artist intent must come from Supabase auth metadata only.
+  return metadata.account_type === 'artist';
 }
 
 export async function getArtistDestination(user?: User | null): Promise<ArtistDestination> {

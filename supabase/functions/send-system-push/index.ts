@@ -24,6 +24,21 @@ interface FirebaseServiceAccount {
   private_key: string;
 }
 
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function validDeepLink(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 200) return null;
+  if (/^\/[a-z0-9_/?=&.#%-]*$/i.test(value)) return value;
+  if (/^universflow:\/\/[a-z0-9_/?=&.#%-]*$/i.test(value)) return value;
+  return null;
+}
+
 function base64url(input: ArrayBuffer | Uint8Array | string): string {
   let bytes: Uint8Array;
   if (typeof input === "string") bytes = new TextEncoder().encode(input);
@@ -112,14 +127,13 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Auth: either service-role bearer or matching DB system token.
-    const auth = req.headers.get("Authorization") ?? "";
-    const bearer = auth.replace(/^Bearer\s+/i, "");
-    let isAuthorized = bearer === SERVICE_ROLE;
-    if (!isAuthorized && typeof body.system_token === "string" && body.system_token.length > 0) {
+    // Auth: only the DB-backed system token is accepted over HTTP. Never accept
+    // the long-lived Supabase service-role key as a bearer token in requests/logs.
+    let isAuthorized = false;
+    if (typeof body.system_token === "string" && body.system_token.length > 0) {
       const { data: secret } = await admin
         .from("internal_secrets").select("value").eq("key", "system_push_token").maybeSingle();
-      if (secret?.value && body.system_token === secret.value) isAuthorized = true;
+      if (secret?.value && safeEqual(body.system_token, secret.value)) isAuthorized = true;
     }
     if (!isAuthorized) {
       return new Response(JSON.stringify({ error: "Unauthorized" }),
@@ -128,6 +142,12 @@ Deno.serve(async (req) => {
 
     if (!body.user_ids?.length || !body.title || !body.body) {
       return new Response(JSON.stringify({ error: "user_ids, title, body required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const deepLink = validDeepLink(body.deep_link) ?? "/premium";
+    if (body.deep_link && !validDeepLink(body.deep_link)) {
+      return new Response(JSON.stringify({ error: "Invalid deep_link" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -149,7 +169,7 @@ Deno.serve(async (req) => {
     if (tokens.length === 0) {
       await admin.from("push_history").insert({
         title: body.title, body: body.body,
-        deep_link: body.deep_link ?? null,
+        deep_link: deepLink,
         target_audience: "specific",
         target_user_ids: body.user_ids,
         sent_count: 0, success_count: 0, failure_count: 0,
@@ -177,7 +197,7 @@ Deno.serve(async (req) => {
               message: {
                 token,
                 notification: { title: body.title, body: body.body },
-                data: { deep_link: body.deep_link ?? "/premium" },
+                data: { deep_link: deepLink },
                 android: {
                   priority: "HIGH",
                   notification: { sound: "default", channel_id: "universflow_default" },
@@ -208,7 +228,7 @@ Deno.serve(async (req) => {
 
     await admin.from("push_history").insert({
       title: body.title, body: body.body,
-      deep_link: body.deep_link ?? null,
+      deep_link: deepLink,
       target_audience: "specific",
       target_user_ids: body.user_ids,
       sent_count: tokens.length,
