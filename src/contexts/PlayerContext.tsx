@@ -402,6 +402,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch { /* quota or disabled */ }
   }, [queue, currentIndex, currentSong, isPlaying]);
 
+  const persistPlayerSnapshotRef = useRef(persistPlayerSnapshot);
+  useEffect(() => {
+    persistPlayerSnapshotRef.current = persistPlayerSnapshot;
+  }, [persistPlayerSnapshot]);
+
   useEffect(() => {
     persistPlayerSnapshot();
   }, [persistPlayerSnapshot]);
@@ -481,7 +486,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (document.visibilityState === 'hidden') {
         // Entering background — remember if we were playing
         wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
-        persistPlayerSnapshot();
+        persistPlayerSnapshotRef.current();
         if (wasPlayingRef.current) startBackgroundHeartbeat();
       } else if (document.visibilityState === 'visible') {
         stopBackgroundHeartbeat();
@@ -498,7 +503,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const handlePageHide = () => {
       wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
-      persistPlayerSnapshot();
+      persistPlayerSnapshotRef.current();
       if (wasPlayingRef.current) startBackgroundHeartbeat();
     };
 
@@ -584,7 +589,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const handle = await mod.App.addListener('appStateChange', (state: { isActive: boolean }) => {
           if (!state?.isActive) {
             wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
-            persistPlayerSnapshot();
+            persistPlayerSnapshotRef.current();
             if (wasPlayingRef.current) startBackgroundHeartbeat();
             return;
           }
@@ -635,7 +640,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [persistPlayerSnapshot]);
+  }, []);
 
   // Update volume on audio element
   useEffect(() => {
