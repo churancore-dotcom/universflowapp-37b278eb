@@ -11,51 +11,69 @@ import androidx.core.content.ContextCompat
 import com.getcapacitor.BridgeActivity
 import com.getcapacitor.BridgeWebChromeClient
 import com.universeflow.app.media.MediaNotificationPlugin
-import com.universeflow.app.island.DynamicIslandPlugin
 
 class MainActivity : BridgeActivity() {
 
     private val cameraReqCode = 4711
+    private var pendingPermissionRequest: PermissionRequest? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(AudioFocusPlugin::class.java)
         registerPlugin(MediaNotificationPlugin::class.java)
-        registerPlugin(DynamicIslandPlugin::class.java)
         super.onCreate(savedInstanceState)
 
-        // Ask camera permission up-front so the WebView face-check can use it.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.CAMERA),
-                    cameraReqCode
-                )
-            }
-        }
-
-        // Allow getUserMedia() inside the Capacitor WebView (face liveness, etc.).
-        // Without overriding onPermissionRequest the camera silently fails on APK.
+        // IMPORTANT: We do NOT request CAMERA up-front. The runtime prompt is
+        // deferred until the WebView's face-liveness step actually calls
+        // getUserMedia(); see onPermissionRequest below.
         bridge.webView?.let { web: WebView ->
             web.settings.javaScriptEnabled = true
             web.settings.mediaPlaybackRequiresUserGesture = false
             web.settings.allowFileAccess = true
             web.settings.allowContentAccess = true
-            // Renderer priority is now managed by MediaNotificationPlugin —
-            // IMPORTANT only while music plays, WAIVED otherwise. This lets
-            // Android reclaim ~120 MB when the user isn't actively listening.
             web.webChromeClient = object : BridgeWebChromeClient(bridge) {
                 override fun onPermissionRequest(request: PermissionRequest) {
                     runOnUiThread {
-                        try {
-                            // Grant whatever the page asked for (camera/mic).
-                            request.grant(request.resources)
-                        } catch (_: Throwable) {
-                            request.deny()
+                        val needsCamera = request.resources.any {
+                            it == PermissionRequest.RESOURCE_VIDEO_CAPTURE
+                        }
+                        if (needsCamera
+                            && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                            && ContextCompat.checkSelfPermission(
+                                this@MainActivity, Manifest.permission.CAMERA
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            pendingPermissionRequest = request
+                            ActivityCompat.requestPermissions(
+                                this@MainActivity,
+                                arrayOf(Manifest.permission.CAMERA),
+                                cameraReqCode
+                            )
+                        } else {
+                            try { request.grant(request.resources) }
+                            catch (_: Throwable) { request.deny() }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == cameraReqCode) {
+            val req = pendingPermissionRequest
+            pendingPermissionRequest = null
+            if (req != null) {
+                val granted = grantResults.isNotEmpty()
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                runOnUiThread {
+                    try {
+                        if (granted) req.grant(req.resources) else req.deny()
+                    } catch (_: Throwable) { /* noop */ }
                 }
             }
         }
