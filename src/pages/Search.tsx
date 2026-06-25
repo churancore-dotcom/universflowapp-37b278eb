@@ -476,14 +476,28 @@ const Search = () => {
   const featuredArtist = matchedArtists[0];
   const artistNameSearch = matchedArtists.length > 0;
   const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
+  // Restrict song results to verified Universflow artists only.
+  // Uploaded artist tracks always pass (their owner is verified by definition).
+  const universflowFilteredResults = visibleIndexedResults.filter((track) => {
+    if (isUploadedArtistTrack(track)) return true;
+    if (verifiedArtistNames.size === 0) return false;
+    const artistNorm = normalizeText(track.artist || '');
+    if (!artistNorm) return false;
+    if (verifiedArtistNames.has(artistNorm)) return true;
+    // Allow multi-artist credits like "A & B" or "A, B" if any token matches a verified name.
+    for (const name of verifiedArtistNames) {
+      if (artistNorm.includes(name) || name.includes(artistNorm)) return true;
+    }
+    return false;
+  });
   const displayedIndexedResults = artistNameSearch
-    ? visibleIndexedResults.filter((track) => {
+    ? universflowFilteredResults.filter((track) => {
         if (isUploadedArtistTrack(track)) return true;
         const artist = normalizeText(track.artist);
         const q = normalizeText(query);
         return artist.includes(q) || matchedArtists.some((result) => artist.includes(normalizeText(result.name)) || normalizeText(result.name).includes(artist));
       })
-    : visibleIndexedResults;
+    : universflowFilteredResults;
 
   const handleHideIndexed = useCallback((track: IndexedTrack) => {
     hideSearchTrack(track);
