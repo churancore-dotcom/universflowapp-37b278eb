@@ -419,6 +419,7 @@ export default function ArtistApply() {
           .catch((e) => console.warn('verify-checks invoke failed', e));
       }
 
+      try { sessionStorage.setItem('uf_artist_just_submitted', String(Date.now())); } catch { /* ignore */ }
       toast.success(isLockedReapply ? 'Verification re-submitted ✓' : 'Application submitted ✓ Auto-verification running…');
       navigate('/artist/status', { replace: true });
     } catch (e: unknown) {
