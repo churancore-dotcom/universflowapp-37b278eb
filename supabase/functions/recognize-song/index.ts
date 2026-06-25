@@ -1,8 +1,30 @@
 // AudD.io song recognition proxy.
 // Receives an audio blob from the client, forwards to AudD, returns match.
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
 const AUDD_TOKEN = Deno.env.get('AUDD_API_TOKEN') ?? '';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+const ALLOWED_ORIGINS = new Set([
+  'https://universflow.in',
+  'https://www.universflow.in',
+  'https://universflowapp.lovable.app',
+  'http://localhost:8080',
+  'http://localhost:5173',
+  'capacitor://localhost',
+  'https://localhost',
+]);
+
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') ?? '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://universflow.in',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  };
+}
 
 interface AuddResult {
   artist?: string;
@@ -15,12 +37,49 @@ interface AuddResult {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   if (!AUDD_TOKEN) {
     return new Response(
       JSON.stringify({ error: 'AUDD_API_TOKEN is not configured' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ error: 'Authentication required' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  const { data: userData, error: authError } = await authClient.auth.getUser(token);
+  if (authError || !userData?.user) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid authentication' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: allowed } = await adminClient.rpc('check_and_increment_rate_limit', {
+    _user_id: userData.user.id,
+    _endpoint: 'recognize-song',
+    _max_per_minute: 8,
+  });
+  if (allowed === false) {
+    return new Response(
+      JSON.stringify({ error: 'Rate limit exceeded. Try again in a minute.' }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } },
     );
   }
 

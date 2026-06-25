@@ -18,6 +18,14 @@ interface SendPushBody {
   image_url?: string;
 }
 
+function validDeepLink(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 200) return null;
+  if (/^\/[a-z0-9_/?=&.#%-]*$/i.test(value)) return value;
+  if (/^universflow:\/\/[a-z0-9_/?=&.#%-]*$/i.test(value)) return value;
+  return null;
+}
+
 interface FirebaseServiceAccount {
   project_id: string;
   client_email: string;
@@ -292,6 +300,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const deepLink = validDeepLink(body.deep_link) ?? "/home";
+    if (body.deep_link && !validDeepLink(body.deep_link)) {
+      return new Response(JSON.stringify({ error: "Invalid deep_link" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Resolve target user IDs
     let userIds: string[] = [];
@@ -337,7 +352,7 @@ Deno.serve(async (req) => {
       await admin.from("push_history").insert({
         title: body.title,
         body: body.body,
-        deep_link: body.deep_link ?? null,
+        deep_link: deepLink,
         target_audience: body.target_audience,
         target_user_ids: body.target_audience === "specific" ? body.target_user_ids ?? null : null,
         sent_count: 0,
@@ -395,7 +410,7 @@ Deno.serve(async (req) => {
                     ...(body.image_url ? { image: body.image_url } : {}),
                   },
                   data: {
-                    deep_link: body.deep_link ?? "/home",
+                    deep_link: deepLink,
                   },
                   android: {
                     priority: "HIGH",
@@ -441,7 +456,7 @@ Deno.serve(async (req) => {
     await admin.from("push_history").insert({
       title: body.title,
       body: body.body,
-      deep_link: body.deep_link ?? null,
+      deep_link: deepLink,
       target_audience: body.target_audience,
       target_user_ids: body.target_audience === "specific" ? body.target_user_ids ?? null : null,
       sent_count: tokens.length,

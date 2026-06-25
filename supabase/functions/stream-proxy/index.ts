@@ -97,6 +97,31 @@ function isAllowed(target: string): boolean {
   });
 }
 
+async function fetchAllowedTarget(target: string, req: Request, range: string | null, redirects = 0): Promise<Response> {
+  if (!isAllowed(target)) throw new Error('Redirect target not allowed');
+  const upstream = await fetch(target, {
+    method: req.method,
+    headers: {
+      ...(range ? { range } : {}),
+      'user-agent': 'Mozilla/5.0 (UniversFlow Stream Proxy)',
+      accept: '*/*',
+    },
+    // Never auto-follow redirects. Validate every Location first to prevent
+    // allowlisted mirrors redirecting the edge runtime to internal/cloud IPs.
+    redirect: 'manual',
+  });
+
+  if (upstream.status >= 300 && upstream.status < 400) {
+    if (redirects >= 2) throw new Error('Too many redirects');
+    const location = upstream.headers.get('location');
+    if (!location) throw new Error('Redirect missing Location');
+    const next = new URL(location, target).toString();
+    return fetchAllowedTarget(next, req, range, redirects + 1);
+  }
+
+  return upstream;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
@@ -127,15 +152,7 @@ Deno.serve(async (req) => {
   const range = req.headers.get('range');
   let upstream: Response;
   try {
-    upstream = await fetch(target, {
-      method: req.method,
-      headers: {
-        ...(range ? { range } : {}),
-        'user-agent': 'Mozilla/5.0 (UniversFlow Stream Proxy)',
-        accept: '*/*',
-      },
-      redirect: 'follow',
-    });
+    upstream = await fetchAllowedTarget(target, req, range);
   } catch (err) {
     console.error('[stream-proxy] upstream fetch failed:', err);
     return new Response('Upstream fetch failed', { status: 502, headers: CORS_HEADERS });

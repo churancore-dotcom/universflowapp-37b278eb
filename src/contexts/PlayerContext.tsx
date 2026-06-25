@@ -8,6 +8,7 @@ import { recordPerfEvent } from '@/lib/perfMonitor';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
 import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
+import { getRuntimePremium } from '@/lib/premiumState';
 import { initNativeBridge } from '@/services/NativeBridge';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
@@ -306,7 +307,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'off' | 'all' | 'one'>('off');
   const [isExpanded, setExpanded] = useState(false);
-  const [crossfade, setCrossfade] = useState(() => localStorage.getItem('uf_crossfade') === 'true');
+  const [crossfade, setCrossfade] = useState(() => getRuntimePremium() && localStorage.getItem('uf_crossfade') === 'true');
   const [crossfadeDuration, setCrossfadeDurationState] = useState(() => {
     const v = Number(localStorage.getItem('uf_crossfade_duration'));
     return Number.isFinite(v) && v >= 1 && v <= 12 ? v : 3;
@@ -315,7 +316,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const v = localStorage.getItem('uf_crossfade_curve');
     return (v === 'linear' || v === 'equal-power' || v === 'smooth' || v === 'exponential') ? v : 'equal-power';
   });
-  const [gaplessPro, setGaplessPro] = useState(() => localStorage.getItem('uf_gapless_pro') === 'true');
+  const [gaplessPro, setGaplessPro] = useState(() => getRuntimePremium() && localStorage.getItem('uf_gapless_pro') === 'true');
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [showPrerollAd, setShowPrerollAd] = useState(false);
   const [adType, setAdType] = useState<'start' | 'end'>('start');
@@ -1363,13 +1364,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!isCrossfading.current) {
         playerProgressStore.setProgress(audio.currentTime);
       }
-      // Crossfade logic — runs for all users (premium gate removed so the toggle actually works)
-      if (crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
+      // Premium audio transitions are gated in the engine itself — never trust
+      // localStorage/UI toggles because users can tamper with them in DevTools.
+      const premiumAudioTransitions = getRuntimePremium();
+      if (premiumAudioTransitions && crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
         const timeLeft = audio.duration - audio.currentTime;
         if (timeLeft <= crossfadeDuration && timeLeft > 0) {
           startCrossfade();
         }
-      } else if (gaplessPro && !crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
+      } else if (premiumAudioTransitions && gaplessPro && !crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
         // Gapless Pro — fire a ~0.45s overlap right before end so the swap is
         // truly seamless even when the next track needs a beat to decode.
         const timeLeft = audio.duration - audio.currentTime;
@@ -1997,6 +2000,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const toggleCrossfade = useCallback(() => {
+    if (!getRuntimePremium()) {
+      setCrossfade(false);
+      try { localStorage.setItem('uf_crossfade', 'false'); } catch { /* noop */ }
+      toast.error('Crossfade is a Premium feature');
+      return;
+    }
     setCrossfade(prev => {
       const next = !prev;
       try { localStorage.setItem('uf_crossfade', String(next)); } catch { /* noop */ }
@@ -2016,6 +2025,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const toggleGaplessPro = useCallback(() => {
+    if (!getRuntimePremium()) {
+      setGaplessPro(false);
+      try { localStorage.setItem('uf_gapless_pro', 'false'); } catch { /* noop */ }
+      toast.error('Gapless Pro is a Premium feature');
+      return;
+    }
     setGaplessPro(prev => {
       const next = !prev;
       try { localStorage.setItem('uf_gapless_pro', String(next)); } catch { /* noop */ }
