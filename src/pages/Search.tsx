@@ -222,15 +222,20 @@ const Search = () => {
           .slice(0, 300);
 
         setCached(SEARCH_CACHE_NAMESPACE, trimmedQuery, merged);
-        // Only surface artist PFP for clearly real, popular artists — never fake/no-name results.
-        // Requires a real photo AND meaningful listener count (Last.fm signal).
-        const MIN_ARTIST_LISTENERS = 100_000;
-        const verifiedArtists = artists.filter((a) =>
-          !!a.image_url &&
-          typeof a.listeners === 'number' &&
-          a.listeners >= MIN_ARTIST_LISTENERS
-        );
-        setArtistResults(verifiedArtists.slice(0, 1));
+        // Surface artists more liberally — Last.fm doesn't track every regional /
+        // indie artist, so requiring 100k listeners was dropping legitimate hits.
+        // Rule: keep any artist that has a real photo AND either (a) a matching
+        // listener signal, or (b) a name that visibly matches the user's query.
+        const qNorm = normalizeText(trimmedQuery);
+        const MIN_ARTIST_LISTENERS = 25_000;
+        const verifiedArtists = artists.filter((a) => {
+          if (!a.image_url) return false;
+          const nameNorm = normalizeText(a.name || '');
+          const nameMatches = nameNorm === qNorm || nameNorm.includes(qNorm) || qNorm.includes(nameNorm);
+          const hasListeners = typeof a.listeners === 'number' && a.listeners >= MIN_ARTIST_LISTENERS;
+          return nameMatches || hasListeners;
+        });
+        setArtistResults(verifiedArtists.slice(0, 6));
         setIndexedResults(merged);
         setSearchHistory(getSongHistory());
       } catch {
