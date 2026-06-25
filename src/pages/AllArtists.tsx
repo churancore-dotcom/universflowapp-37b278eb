@@ -25,8 +25,9 @@ interface ArtistEntry {
   image_url?: string;
   listeners?: number;
   category: string;
-  source: 'catalog' | 'lastfm';
+  source: 'catalog' | 'lastfm' | 'platform';
   catalogId?: string;
+  platformSlug?: string;
 }
 
 const ArtistRow = memo(({ artist, isFollowed, onFollow, onPlay, onOpen }: {
