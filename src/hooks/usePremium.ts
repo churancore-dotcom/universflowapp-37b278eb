@@ -145,11 +145,16 @@ export const usePremium = (): UsePremiumReturn => {
     fetchSubscription();
   }, [fetchSubscription]);
 
+  const fetchSubscriptionRef = useRef(fetchSubscription);
+  useEffect(() => { fetchSubscriptionRef.current = fetchSubscription; }, [fetchSubscription]);
+
   useEffect(() => {
     if (!user) return;
 
+    // Unique channel name per mount avoids Supabase reusing an already-subscribed
+    // channel (which would throw "cannot add postgres_changes after subscribe()").
     const channel = supabase
-      .channel(`premium-status-${user.id}`)
+      .channel(`premium-status-${user.id}-${Math.random().toString(36).slice(2, 10)}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -157,12 +162,12 @@ export const usePremium = (): UsePremiumReturn => {
         filter: `user_id=eq.${user.id}`,
       }, () => {
         setLastRealtimeUpdate(new Date().toISOString());
-        fetchSubscription();
+        fetchSubscriptionRef.current();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, fetchSubscription]);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
