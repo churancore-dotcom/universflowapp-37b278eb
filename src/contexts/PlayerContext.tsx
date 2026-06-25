@@ -1746,6 +1746,48 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     playActualSong(song, offlineUrl, songsQueue);
   }, [playActualSong]);
 
+  useEffect(() => {
+    const saved = pendingNativeRestoreRef.current;
+    if (!saved || nativeRestoreAttemptedRef.current || !saved.song || !audioRef.current) return;
+    nativeRestoreAttemptedRef.current = true;
+    pendingNativeRestoreRef.current = null;
+
+    const restoredQueue = saved.queue.length > 0 ? saved.queue : [saved.song];
+    const restoredSong = restoredQueue[Math.max(0, Math.min(saved.index || 0, restoredQueue.length - 1))] || saved.song;
+    const restoreAt = Math.max(0, saved.progress || 0);
+    const restoreIdentity = getSongIdentity(restoredSong);
+    let restoredPosition = false;
+    let restoreTimer: number | null = null;
+
+    const applyPosition = () => {
+      if (restoredPosition) return;
+      const a = audioRef.current;
+      if (!a || activeSongIdentityRef.current !== restoreIdentity) return;
+      if (restoreAt > 0 && (!Number.isFinite(a.duration) || a.duration <= 0 || restoreAt < a.duration - 1)) {
+        try { a.currentTime = restoreAt; } catch { /* ignore */ }
+        setProgress(restoreAt);
+      }
+      restoredPosition = true;
+      a.removeEventListener('loadedmetadata', applyPosition);
+      a.removeEventListener('canplay', applyPosition);
+      if (restoreTimer != null) window.clearTimeout(restoreTimer);
+    };
+
+    audioRef.current.addEventListener('loadedmetadata', applyPosition);
+    audioRef.current.addEventListener('canplay', applyPosition);
+    restoreTimer = window.setTimeout(applyPosition, 1400);
+    playActualSong(restoredSong, undefined, restoredQueue);
+
+    return () => {
+      const a = audioRef.current;
+      if (a) {
+        a.removeEventListener('loadedmetadata', applyPosition);
+        a.removeEventListener('canplay', applyPosition);
+      }
+      if (restoreTimer != null) window.clearTimeout(restoreTimer);
+    };
+  }, [playActualSong]);
+
   const onPrerollAdComplete = useCallback(() => {
     setShowPrerollAd(false);
     if (pendingSong) {
