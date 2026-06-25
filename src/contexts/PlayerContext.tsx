@@ -412,19 +412,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [persistPlayerSnapshot]);
 
   useEffect(() => {
+    // Battery: snapshot only on real lifecycle events (hide / pagehide) and
+    // a slow 30s safety tick. The previous 5s tick blocked the main thread
+    // on every write for no real benefit.
     const persistIfHidden = () => {
       if (document.visibilityState === 'hidden') persistPlayerSnapshot();
     };
     const persist = () => persistPlayerSnapshot();
     document.addEventListener('visibilitychange', persistIfHidden);
     window.addEventListener('pagehide', persist);
-    const id = window.setInterval(persist, isPlaying ? 5000 : 15000);
+    const id = window.setInterval(persist, 30000);
     return () => {
       document.removeEventListener('visibilitychange', persistIfHidden);
       window.removeEventListener('pagehide', persist);
       window.clearInterval(id);
     };
-  }, [persistPlayerSnapshot, isPlaying]);
+  }, [persistPlayerSnapshot]);
 
   // Track whether audio was playing before going to background
   const wasPlayingRef = useRef(false);
