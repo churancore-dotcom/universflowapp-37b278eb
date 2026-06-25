@@ -111,9 +111,12 @@ const clean = (value = '') => decodeEntities(value).toLowerCase().replace(/[^a-z
 const SPAM_TRACK_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
-  /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|full album|all songs)\b/i,
-  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone)\b/i,
+  /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|full\s*album|all\s*songs)\b/i,
+  /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?|reverb(ed)?)\b/i,
+  /\b(karaoke|instrumental|backing\s*track|cover(\s*by)?|unofficial|tribute|ai\s*cover|ai\s*voice)\b/i,
+  /\b(lyric\s*video|with\s*lyrics?|tutorial|reaction|whatsapp\s*status|ringtone|bgm|loop(ed)?|tiktok\s*version|reels?\s*version|shorts?)\b/i,
   /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
+  /\b(dj\s*remix|club\s*mix|extended\s*mix|edm\s*remix|trap\s*remix|phonk\s*remix)\b/i,
 ];
 
 function numericPlayCount(value: SaavnSong['playCount']): number | undefined {
