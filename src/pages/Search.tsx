@@ -457,7 +457,7 @@ const Search = () => {
         if (isUploadedArtistTrack(track)) return true;
         const artist = normalizeText(track.artist);
         const q = normalizeText(query);
-        return artist.includes(q) || artistResults.some((result) => artist.includes(normalizeText(result.name)) || normalizeText(result.name).includes(artist));
+        return artist.includes(q) || matchedArtists.some((result) => artist.includes(normalizeText(result.name)) || normalizeText(result.name).includes(artist));
       })
     : visibleIndexedResults;
 
