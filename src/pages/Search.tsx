@@ -14,6 +14,7 @@ import RoseHero from '@/components/RoseHero';
 import RecognizeSongButton from '@/components/RecognizeSongButton';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
+import { supabase } from '@/integrations/supabase/client';
 import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
 import { searchSongsAsTracks as searchJioSaavnTracks } from '@/lib/jiosaavn';
 import { isCatalogSongId } from '@/lib/songSupport';
@@ -34,7 +35,7 @@ const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
 const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
-const SEARCH_CACHE_NAMESPACE = 'stable-search-v5';
+const SEARCH_CACHE_NAMESPACE = 'stable-search-v6';
 const SPAM_RESULT_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
@@ -42,6 +43,35 @@ const SPAM_RESULT_PATTERNS = [
   /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone)\b/i,
   /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
 ];
+
+const ilikeSafeTerm = (value: string) => value.replace(/[%_,()]/g, ' ').replace(/\s+/g, ' ').trim();
+const ilikePattern = (value: string) => `%${ilikeSafeTerm(value)}%`;
+const buildIlikeOr = (column: string, terms: string[]) =>
+  terms.map((term) => `${column}.ilike.${ilikePattern(term)}`).join(',');
+
+type UploadedArtistTrack = IndexedTrack & {
+  source: 'artist_upload';
+  artistSongId: string;
+  artistSlug?: string | null;
+};
+
+type ArtistSongSearchRow = {
+  id: string;
+  artist_user_id: string;
+  title: string;
+  cover_url: string | null;
+  stream_url: string;
+  duration: number | null;
+  play_count: number | null;
+  created_at?: string | null;
+};
+
+type ArtistProfileSearchRow = {
+  user_id: string;
+  stage_name: string;
+  slug: string | null;
+  avatar_url: string | null;
+};
 
 type HiddenSearchEntry = {
   key: string;
@@ -100,6 +130,143 @@ function isSpamTrack(track: IndexedTrack, query: string) {
   if (/\boriginals?\b/.test(normalizeText(track.artist)) && !q.includes('original')) return true;
   if (!q.includes('lofi') && /\blo\s*fi\b|\blofi\b/.test(normalizedHaystack)) return true;
   return SPAM_RESULT_PATTERNS.some((pattern) => pattern.test(haystack));
+}
+
+function isUploadedArtistTrack(track: IndexedTrack): track is UploadedArtistTrack {
+  return (track as { source?: string }).source === 'artist_upload';
+}
+
+async function searchUploadedArtistSongs(query: string): Promise<UploadedArtistTrack[]> {
+  const rawQuery = query.trim();
+  const qNorm = normalizeText(query);
+  const tokens = queryTokens(query);
+  if (rawQuery.length < 2) return [];
+
+  const likeTerms = [...new Set([rawQuery, ...tokens].map(ilikeSafeTerm).filter((term) => term.length > 1))].slice(0, 8);
+  const titleFilter = buildIlikeOr('title', likeTerms);
+  const profileFilter = buildIlikeOr('stage_name', likeTerms);
+  const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+  const currentUserId = sessionData.session?.user?.id ?? null;
+
+  const [titleSongResult, matchedProfileResult] = await Promise.all([
+    supabase
+      .from('artist_songs')
+      .select('id, artist_user_id, title, cover_url, stream_url, duration, play_count, created_at')
+      .eq('status', 'live')
+      .or(titleFilter)
+      .order('created_at', { ascending: false })
+      .limit(60),
+    supabase
+      .from('artist_profiles')
+      .select('user_id, stage_name, slug, avatar_url')
+      .or(profileFilter)
+      .limit(20),
+  ]);
+
+  if (titleSongResult.error) {
+    console.warn('Uploaded artist song search failed:', titleSongResult.error.message);
+    return [];
+  }
+
+  const matchedProfiles = (matchedProfileResult.data ?? []) as ArtistProfileSearchRow[];
+  const matchedArtistIds = matchedProfiles.map((profile) => profile.user_id).filter(Boolean);
+  const ownerProfileMatched = Boolean(currentUserId && matchedArtistIds.includes(currentUserId));
+  const [artistSongResult, ownerTitleSongResult, ownerArtistSongResult] = await Promise.all([
+    matchedArtistIds.length
+      ? supabase
+          .from('artist_songs')
+          .select('id, artist_user_id, title, cover_url, stream_url, duration, play_count, created_at')
+          .eq('status', 'live')
+          .in('artist_user_id', matchedArtistIds)
+          .order('created_at', { ascending: false })
+          .limit(80)
+      : Promise.resolve({ data: [] as ArtistSongSearchRow[] }),
+    currentUserId
+      ? supabase
+          .from('artist_songs')
+          .select('id, artist_user_id, title, cover_url, stream_url, duration, play_count, created_at')
+          .eq('artist_user_id', currentUserId)
+          .neq('status', 'taken_down')
+          .or(titleFilter)
+          .order('created_at', { ascending: false })
+          .limit(80)
+      : Promise.resolve({ data: [] as ArtistSongSearchRow[] }),
+    ownerProfileMatched && currentUserId
+      ? supabase
+          .from('artist_songs')
+          .select('id, artist_user_id, title, cover_url, stream_url, duration, play_count, created_at')
+          .eq('artist_user_id', currentUserId)
+          .neq('status', 'taken_down')
+          .order('created_at', { ascending: false })
+          .limit(120)
+      : Promise.resolve({ data: [] as ArtistSongSearchRow[] }),
+  ]);
+
+  const songMap = new Map<string, ArtistSongSearchRow>();
+  ([
+    ...(titleSongResult.data ?? []),
+    ...(artistSongResult.data ?? []),
+    ...(ownerTitleSongResult.data ?? []),
+    ...(ownerArtistSongResult.data ?? []),
+  ] as ArtistSongSearchRow[]).forEach((song) => {
+    songMap.set(song.id, song);
+  });
+  const songs = [...songMap.values()];
+  if (!songs.length) return [];
+
+  const matchedProfileMap = new Map(matchedProfiles.map((profile) => [profile.user_id, profile]));
+  const missingArtistIds = [...new Set(songs.map((song) => song.artist_user_id).filter(Boolean))]
+    .filter((id) => !matchedProfileMap.has(id));
+  const { data: profileRows } = missingArtistIds.length
+    ? await supabase
+        .from('artist_profiles')
+        .select('user_id, stage_name, slug, avatar_url')
+        .in('user_id', missingArtistIds)
+    : { data: [] };
+
+  const profiles = new Map(
+    ([...matchedProfiles, ...((profileRows ?? []) as ArtistProfileSearchRow[])]).map((profile) => [profile.user_id, profile]),
+  );
+
+  return songs
+    .map((song) => {
+      const profile = profiles.get(song.artist_user_id);
+      const artist = profile?.stage_name || 'Universflow Artist';
+      const rawHaystack = `${song.title} ${artist}`.toLocaleLowerCase();
+      const titleNorm = normalizeText(song.title);
+      const artistNorm = normalizeText(artist);
+      const haystack = `${titleNorm} ${artistNorm}`;
+      const tokenHits = tokens.reduce((sum, token) => sum + (haystack.includes(token) ? 1 : 0), 0);
+      const titlePhrase = qNorm.length > 1 && titleNorm.includes(qNorm);
+      const rawPhrase = rawHaystack.includes(rawQuery.toLocaleLowerCase());
+      if (!rawPhrase && !titlePhrase && (tokens.length > 0 ? tokenHits === 0 : true)) return null;
+
+      return {
+        id: `as_${song.id}`,
+        title: song.title,
+        artist,
+        audio_url: song.stream_url,
+        album: 'Universflow Artist Upload',
+        cover_url: song.cover_url || profile?.avatar_url || undefined,
+        duration: song.duration || undefined,
+        listeners: Math.max(1, Number(song.play_count || 0)),
+        rank: titlePhrase ? 1 : 10 + tokenHits,
+        source: 'artist_upload' as const,
+        artistSongId: song.id,
+        artistSlug: profile?.slug ?? null,
+      } satisfies UploadedArtistTrack;
+    })
+    .filter(Boolean) as UploadedArtistTrack[];
+}
+
+function mergeUploadedArtistSongs(uploaded: UploadedArtistTrack[], tracks: IndexedTrack[]) {
+  if (!uploaded.length) return tracks;
+  const uploadedKeys = new Set(uploaded.map(resultKey));
+  const uploadedIds = new Set(uploaded.map((track) => track.id));
+  return [
+    ...uploaded,
+    ...tracks.filter((track) => !uploadedIds.has(track.id) && !uploadedKeys.has(resultKey(track))),
+  ];
 }
 
 function rankAndDedupeResults(query: string, youtube: IndexedTrack[], literal: IndexedTrack[], tagSets: IndexedTrack[][], allowDiscoveryFallback = false) {
@@ -197,8 +364,12 @@ const Search = () => {
       try {
         const cached = getCached<IndexedTrack[]>(SEARCH_CACHE_NAMESPACE, trimmedQuery);
         if (cached) {
+          const uploaded = await searchUploadedArtistSongs(trimmedQuery);
           if (!cancelled) {
-            setIndexedResults(cached.filter((track) => !isHiddenTrack(track, hiddenResults)));
+            setIndexedResults(
+              mergeUploadedArtistSongs(uploaded, cached)
+                .filter((track) => !isHiddenTrack(track, hiddenResults)),
+            );
             setSearching(false);
           }
           return;
@@ -211,13 +382,14 @@ const Search = () => {
         const literalJob = searchIndexedTracks(trimmedQuery, 200);
         const youtubeJob = searchYouTubeMusicTracks(smartQuery, 120);
         const saavnJob = searchJioSaavnTracks(trimmedQuery, 60).catch(() => [] as IndexedTrack[]);
+        const uploadedJob = searchUploadedArtistSongs(trimmedQuery);
 
         const artistJob = searchArtistDirectory(trimmedQuery, 30);
-        const [youtube, literal, saavn, artists, ...tagSets] = await Promise.all([youtubeJob, literalJob, saavnJob, artistJob, ...tagJobs]);
+        const [youtube, literal, saavn, uploaded, artists, ...tagSets] = await Promise.all([youtubeJob, literalJob, saavnJob, uploadedJob, artistJob, ...tagJobs]);
         if (cancelled) return;
 
         const literalMerged = [...saavn, ...literal];
-        const merged = rankAndDedupeResults(trimmedQuery, youtube, literalMerged, tagSets, pureBrowse)
+        const merged = mergeUploadedArtistSongs(uploaded, rankAndDedupeResults(trimmedQuery, youtube, literalMerged, tagSets, pureBrowse))
           .filter((track) => !isHiddenTrack(track, hiddenResults))
           .slice(0, 300);
 
@@ -269,6 +441,7 @@ const Search = () => {
   const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
   const displayedIndexedResults = artistNameSearch
     ? visibleIndexedResults.filter((track) => {
+        if (isUploadedArtistTrack(track)) return true;
         const artist = normalizeText(track.artist);
         const q = normalizeText(query);
         return artist.includes(q) || artistResults.some((result) => artist.includes(normalizeText(result.name)) || normalizeText(result.name).includes(artist));
