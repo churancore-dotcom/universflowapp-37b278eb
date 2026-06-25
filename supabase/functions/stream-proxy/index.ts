@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
   }
 
   const ip = clientIp(req);
-  if (!checkRate(ip)) {
+  if (!(await checkRate(ip))) {
     return new Response('Too many requests', {
       status: 429,
       headers: { ...CORS_HEADERS, 'retry-after': '60' },
