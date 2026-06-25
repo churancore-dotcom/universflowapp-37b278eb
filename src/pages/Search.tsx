@@ -519,6 +519,29 @@ const Search = () => {
                       <p className="text-2xl leading-none font-display tracking-wide text-white truncate mt-1">{featuredArtist.name}</p>
                     </div>
                   </button>
+                  {artistResults.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar mt-3 -mx-1 px-1">
+                      {artistResults.slice(1).map((a) => (
+                        <button
+                          key={a.name}
+                          type="button"
+                          onClick={() => navigate(`/artists?focus=${encodeURIComponent(a.name)}`)}
+                          className="flex items-center gap-2 flex-shrink-0 bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 rounded-full pl-1 pr-3 py-1 transition"
+                        >
+                          {a.image_url && (
+                            <img
+                              src={a.image_url}
+                              alt=""
+                              className="w-7 h-7 rounded-full object-cover"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                          <span className="text-xs font-semibold text-white truncate max-w-[140px]">{a.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               )}
 
