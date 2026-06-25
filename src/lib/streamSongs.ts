@@ -105,18 +105,37 @@ export const loadLibrarySongs = async (userId: string) => {
 
   if (error || !rows?.length) return [];
 
-  const streamIds = rows.map((row) => row.song_id).filter((id) => !isCatalogSongId(id));
+  const catalogIds = rows
+    .filter((row) => row.track_source === 'library' || isCatalogSongId(row.song_id))
+    .map((row) => row.song_id);
+  const streamIds = rows
+    .filter((row) => row.track_source !== 'library' && !isCatalogSongId(row.song_id))
+    .map((row) => row.song_id);
 
-  const [streamRes] = await Promise.all([
+  const [catalogRes, streamRes] = await Promise.all([
+    catalogIds.length
+      ? supabase.from('songs').select('id, title, artist, album, cover_url, audio_url, duration, artist_id, artists(photo_url)').in('id', catalogIds)
+      : Promise.resolve({ data: [] as any[] }),
     streamIds.length
       ? supabase.from('stream_songs').select('*').in('track_id', streamIds)
       : Promise.resolve({ data: [] as StreamSongRow[] }),
   ]);
 
-  const streamMap = new Map(((streamRes.data || []) as StreamSongRow[]).map((song) => [song.track_id, songFromStream(song)]));
+  const catalogMap = new Map(
+    ((catalogRes.data || []) as any[]).map((song) => [
+      song.id,
+      songFromCatalog({
+        ...song,
+        artist_image_url: song.artists?.photo_url ?? null,
+      } as CatalogSongRow),
+    ]),
+  );
+  const streamMap = new Map(
+    ((streamRes.data || []) as StreamSongRow[]).map((song) => [song.track_id, songFromStream(song)]),
+  );
 
   return rows
-    .map((row) => streamMap.get(row.song_id))
+    .map((row) => catalogMap.get(row.song_id) || streamMap.get(row.song_id))
     .filter(Boolean) as Song[];
 };
 
