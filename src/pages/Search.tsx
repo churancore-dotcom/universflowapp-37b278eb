@@ -434,13 +434,23 @@ const Search = () => {
 
   const libraryResults: Song[] = [];
   const hasQuery = query.length > 1;
-  const featuredArtist = artistResults[0];
-
-  const artistNameSearch = hasQuery && artistResults.some((artist) => {
-    const artistName = normalizeText(artist.name);
-    const q = normalizeText(query);
-    return artistName === q || artistName.includes(q) || q.includes(artistName);
-  });
+  // Only treat an artist as a "real match" when the query clearly names them —
+  // exact match, query starts with the artist name, or the artist name starts
+  // with the query. This prevents tag-based / unrelated artists from being
+  // surfaced when the user is actually searching for a song or lyric line.
+  const qForArtist = normalizeText(query);
+  const isStrongArtistMatch = (name: string) => {
+    const n = normalizeText(name);
+    if (!n || !qForArtist) return false;
+    if (n === qForArtist) return true;
+    // Require a meaningful overlap, not a stray substring
+    if (qForArtist.length >= 3 && n.startsWith(qForArtist)) return true;
+    if (n.length >= 3 && qForArtist.startsWith(n)) return true;
+    return false;
+  };
+  const matchedArtists = hasQuery ? artistResults.filter((a) => isStrongArtistMatch(a.name)) : [];
+  const featuredArtist = matchedArtists[0];
+  const artistNameSearch = matchedArtists.length > 0;
   const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
   const displayedIndexedResults = artistNameSearch
     ? visibleIndexedResults.filter((track) => {
