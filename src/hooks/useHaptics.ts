@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { isMedianApp, getMedian } from '@/lib/median';
 
+type HapticStyle = 'impactLight' | 'impactMedium' | 'impactHeavy' | 'selection' | 'success' | 'warning' | 'error';
+
 const isCapacitorNative = Capacitor.isNativePlatform();
+
 
 async function triggerCapacitorHaptic(style: HapticStyle): Promise<boolean> {
   if (!isCapacitorNative) return false;
