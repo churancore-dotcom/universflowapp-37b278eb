@@ -333,18 +333,25 @@ Deno.serve(async (req) => {
       userIds = (allP ?? []).map((p) => p.user_id).filter((id) => !premSet.has(id));
     }
 
-    // Fetch device tokens for those users
+    // Fetch device tokens for those users — dedupe by user_id, keep most recent token only.
+    // Without this, users with stale/re-installed tokens receive the same push twice.
     let tokens: string[] = [];
     if (userIds.length) {
-      // chunk by 500 to stay under filter limits
+      const latestTokenByUser = new Map<string, string>();
       for (let i = 0; i < userIds.length; i += 500) {
         const chunk = userIds.slice(i, i + 500);
         const { data } = await admin
           .from("device_tokens")
-          .select("token")
-          .in("user_id", chunk);
-        tokens.push(...(data ?? []).map((t) => t.token));
+          .select("user_id, token, updated_at")
+          .in("user_id", chunk)
+          .order("updated_at", { ascending: false });
+        for (const row of data ?? []) {
+          if (row.user_id && row.token && !latestTokenByUser.has(row.user_id)) {
+            latestTokenByUser.set(row.user_id, row.token);
+          }
+        }
       }
+      tokens = [...new Set(latestTokenByUser.values())];
     }
 
     if (tokens.length === 0) {

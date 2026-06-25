@@ -46,9 +46,19 @@ export default function ArtistStatus() {
   const load = async () => {
     if (!user) return;
     let data = await getMyApplication(user.id);
-    if (!data) {
+    // Race-proof: if we just submitted, replication can lag a few seconds.
+    let justSubmittedAt = 0;
+    try { justSubmittedAt = Number(sessionStorage.getItem('uf_artist_just_submitted') || '0'); } catch { /* ignore */ }
+    const submittedRecently = justSubmittedAt > 0 && Date.now() - justSubmittedAt < 60_000;
+    const maxAttempts = submittedRecently ? 12 : 3;
+    let attempt = 0;
+    while (!data && attempt < maxAttempts) {
       await new Promise((r) => setTimeout(r, 600));
       data = await getMyApplication(user.id);
+      attempt++;
+    }
+    if (data) {
+      try { sessionStorage.removeItem('uf_artist_just_submitted'); } catch { /* ignore */ }
     }
     setApp(data);
     setLoading(false);
