@@ -139,7 +139,20 @@ function isSpamTrack(track: IndexedTrack, query: string) {
   if (duration && (duration < 75 || (!allowLongForm && duration > 540))) return true;
   if (/\boriginals?\b/.test(normalizeText(track.artist)) && !q.includes('original')) return true;
   if (!q.includes('lofi') && /\blo\s*fi\b|\blofi\b/.test(normalizedHaystack)) return true;
+  if (SPAM_ARTIST_PATTERNS.some((pattern) => pattern.test(track.artist || ''))) return true;
   return SPAM_RESULT_PATTERNS.some((pattern) => pattern.test(haystack));
+}
+
+// Lightweight spam check for home rails (Trending/Fresh) — no query context.
+export function isSpamSong(input: { title?: string | null; artist?: string | null; album?: string | null; duration?: number | null }): boolean {
+  const title = input.title || '';
+  const artist = input.artist || '';
+  const haystack = `${title} ${artist} ${input.album || ''}`;
+  if (!title || !artist) return true;
+  const duration = Number(input.duration || 0);
+  if (duration && (duration < 75 || duration > 600)) return true;
+  if (SPAM_ARTIST_PATTERNS.some((p) => p.test(artist))) return true;
+  return SPAM_RESULT_PATTERNS.some((p) => p.test(haystack));
 }
 
 function isUploadedArtistTrack(track: IndexedTrack): track is UploadedArtistTrack {
