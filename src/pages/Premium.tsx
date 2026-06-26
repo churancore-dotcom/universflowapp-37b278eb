@@ -261,38 +261,17 @@ const PremiumPage = memo(function PremiumPage() {
         </motion.header>
 
         <main className="relative px-5">
-          {/* ─── HERO — equalizer signature ─── */}
-          <section className="pt-8 pb-8 text-center">
-            {/* Animated EQ bars — the music-app signature */}
-            <div className="flex items-end justify-center gap-1.5 h-16 mb-6">
-              {[0.45, 0.85, 0.6, 1, 0.5, 0.9, 0.7, 0.4, 0.95, 0.55, 0.8, 0.65].map((h, i) => (
-                <motion.span
-                  key={i}
-                  className="w-[5px] rounded-full"
-                  style={{
-                    background: 'linear-gradient(to top, hsl(var(--primary)), hsl(var(--primary) / 0.4))',
-                    height: `${h * 100}%`,
-                    boxShadow: '0 0 12px hsl(var(--primary) / 0.4)',
-                  }}
-                  animate={{ scaleY: [1, 0.35 + Math.random() * 0.65, 1] }}
-                  transition={{
-                    duration: 1.4 + (i % 4) * 0.2,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: i * 0.08,
-                  }}
-                />
-              ))}
-            </div>
-
-            <p className="text-[11px] font-bold tracking-[0.28em] uppercase text-primary mb-3">
+          {/* ─── HERO — editorial, calm ─── */}
+          <section className="pt-10 pb-8">
+            <div className="mb-5"><LogoBadge size={64} /></div>
+            <p className="text-[10.5px] font-bold tracking-[0.32em] uppercase text-primary mb-3">
               Universflow Premium
             </p>
-            <h1 className="text-[40px] leading-[1.05] font-bold tracking-tight mb-3 px-2">
-              Univers Flow Premium —<br />
-              <span className="text-primary">Ad-Free Music &amp; Spatial Audio</span>
+            <h1 className="text-[36px] leading-[1.04] font-bold tracking-tight mb-3">
+              Music, the way<br />
+              <span className="text-primary">it's meant to sound.</span>
             </h1>
-            <p className="text-[15px] leading-snug text-muted-foreground max-w-[320px] mx-auto">
+            <p className="text-[15px] leading-snug text-muted-foreground max-w-[340px]">
               Spatial audio, studio EQ, zero ads. Built for people who actually listen.
             </p>
           </section>
