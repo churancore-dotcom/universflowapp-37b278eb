@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Play } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
@@ -11,9 +11,8 @@ import { searchYouTubeMusicTracks } from '@/lib/musicIndexer';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Made For You — builds a personalized mix from the user's last ~5 plays.
- * Reads song_ids from localStorage, hydrates artist names from `stream_songs`,
- * then seeds parallel YouTube Music searches and merges the results.
+ * "The Feature" — full-bleed editorial cover spread with a personalized mix.
+ * Real YouTube Music data seeded from the user's last ~5 plays.
  */
 const MadeForYouSection = memo(() => {
   const { user } = useAuth();
@@ -78,80 +77,97 @@ const MadeForYouSection = memo(() => {
 
   if (!mix.length) return null;
   const hero = mix[0];
-  const rest = mix.slice(1, 7);
+  const rest = mix.slice(1, 5);
   const play = (s: Song) => { triggerHaptic('selection'); playSong(s, undefined, mix); };
 
   return (
-    <section className="mb-2">
-      <div
-        className="rounded-3xl overflow-hidden"
-        style={{
-          background: 'linear-gradient(180deg, rgba(255,45,85,0.12) 0%, rgba(255,255,255,0.02) 60%)',
-          border: '0.5px solid rgba(255,45,85,0.18)',
-          backdropFilter: 'blur(30px)',
-          WebkitBackdropFilter: 'blur(30px)',
-        }}
+    <section className="mb-2 pt-6">
+      {/* Editorial label */}
+      <div className="flex items-baseline justify-between border-t border-white/15 pt-3 mb-4 px-1">
+        <span className="text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
+          The Feature · Issue 01
+        </span>
+        <span className="text-[9px] uppercase tracking-[0.25em] text-muted-foreground/50 font-semibold">
+          Custom&nbsp;Mix
+        </span>
+      </div>
+
+      {/* Full-bleed cover with overlay copy */}
+      <motion.button
+        whileTap={{ scale: 0.985 }}
+        onClick={() => play(hero)}
+        className="relative w-full aspect-[4/5] overflow-hidden text-left rounded-sm"
+        style={{ boxShadow: '0 14px 40px rgba(0,0,0,0.55)' }}
       >
-        <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-          <div className="w-9 h-9 rounded-3xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #ff2d55, #ffb199)' }}>
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-[16px] font-bold tracking-tight text-foreground">Made For You</h2>
-            <p className="text-[11px] text-muted-foreground/60 font-medium">Based on what you've been playing</p>
-          </div>
+        {hero.cover_url && (
+          <OptimizedImage
+            src={hero.cover_url}
+            alt={hero.title}
+            className="absolute inset-0 w-full h-full object-cover scale-110"
+          />
+        )}
+        {/* Editorial top→bottom gradient + film grain feel */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.85) 100%)' }} />
+        <div className="absolute inset-0 ring-1 ring-inset ring-white/10" />
+
+        {/* Issue badge */}
+        <div className="absolute top-4 left-4">
+          <span className="bg-foreground text-background px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em]">
+            For&nbsp;You
+          </span>
         </div>
 
-        <div className="px-3 pb-2">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => play(hero)}
-            className="relative w-full h-44 rounded-3xl overflow-hidden text-left"
-            style={{ boxShadow: '0 10px 32px rgba(0,0,0,0.45)' }}
+        {/* Title block */}
+        <div className="absolute bottom-0 left-0 right-0 p-5">
+          <h3
+            className="text-[40px] leading-[0.92] italic text-foreground tracking-tight mb-3"
+            style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, textShadow: '0 2px 12px rgba(0,0,0,0.5)' }}
           >
-            {hero.cover_url && (
-              <OptimizedImage src={hero.cover_url} alt={hero.title} className="absolute inset-0 w-full h-full object-cover scale-110" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-            <div className="absolute top-3 left-3 px-2 py-1 rounded-full bg-white/15 backdrop-blur-md">
-              <span className="text-[10px] font-bold tracking-widest text-white uppercase">For You</span>
+            {hero.title}
+          </h3>
+          <div className="flex items-center justify-between border-t border-white/25 pt-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-white/80 font-bold truncate pr-3">
+              {hero.artist}
+            </p>
+            <div className="w-9 h-9 rounded-full bg-foreground flex items-center justify-center flex-shrink-0">
+              <Play className="w-4 h-4 text-background ml-0.5" fill="currentColor" />
             </div>
-            <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-[18px] font-black text-white truncate leading-tight" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
-                  {hero.title}
-                </p>
-                <p className="text-[13px] text-white/75 truncate mt-0.5">{hero.artist}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                <Play className="w-5 h-5 text-black ml-0.5" fill="currentColor" />
-              </div>
-            </div>
-          </motion.button>
+          </div>
         </div>
+      </motion.button>
 
-        <div className="px-2 pb-2">
-          {rest.map((song) => {
-            const isPlaying = currentSong?.id === song.id;
-            return (
-              <motion.button
-                key={song.id}
-                onClick={() => play(song)}
-                whileTap={{ scale: 0.98 }}
-                className="w-full flex items-center gap-3 px-2 py-2 rounded-3xl text-left active:bg-white/5"
-              >
-                <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-white/5">
-                  {song.cover_url && <OptimizedImage src={song.cover_url} alt={song.title} className="w-full h-full object-cover" />}
+      {/* Track listing under the cover, divided like a contents page */}
+      <div className="mt-4 px-1">
+        {rest.map((song, idx) => {
+          const isPlaying = currentSong?.id === song.id;
+          return (
+            <button
+              key={song.id}
+              onClick={() => play(song)}
+              className="w-full flex items-center justify-between gap-3 py-2.5 border-b border-white/[0.06] last:border-0 text-left"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums w-6">
+                  {String(idx + 2).padStart(2, '0')}.
+                </span>
+                <div className="min-w-0">
+                  <p className={`text-[13px] font-semibold truncate leading-tight italic ${isPlaying ? 'text-primary' : 'text-foreground'}`}
+                     style={{ fontFamily: "'Playfair Display', serif" }}>
+                    {song.title}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/60 truncate uppercase tracking-[0.12em] mt-0.5 font-medium">
+                    {song.artist}
+                  </p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[13px] font-semibold truncate leading-tight ${isPlaying ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
-                  <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">{song.artist}</p>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
+              </div>
+              {song.duration ? (
+                <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums">
+                  {Math.floor(song.duration / 60)}:{String(Math.floor(song.duration % 60)).padStart(2, '0')}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
     </section>
   );

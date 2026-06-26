@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Music2, Disc3 } from 'lucide-react';
+import { Music2 } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -101,6 +101,10 @@ const fetchFollowedArtistSongs = async (userId: string, seedSongs: Song[] = []) 
   return dedupeSongs([...seedMatches, ...catalogMatches, ...fallbackSongs]).slice(0, 24);
 };
 
+/**
+ * "The Dispatch" — editorial gallery of songs from followed artists.
+ * Magazine roster aesthetic with monochrome→color hover.
+ */
 const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ songs }: Props) {
   const { user } = useAuth();
   const userId = user?.id;
@@ -136,16 +140,23 @@ const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ so
   if (!user || followedSongs.length === 0) return null;
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <Disc3 className="w-4 h-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">From Your Artists</h2>
-        </div>
+    <section className="mb-2 pt-6">
+      {/* Editorial label */}
+      <div className="flex items-baseline justify-between border-t border-white/15 pt-3 mb-5 px-1">
+        <h2
+          className="text-[28px] leading-none italic text-foreground tracking-tight"
+          style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900 }}
+        >
+          The Dispatch
+        </h2>
+        <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground/60 font-semibold">
+          Following
+        </span>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
-        {followedSongs.map((song) => {
+      {/* Roster gallery */}
+      <div className="flex gap-5 overflow-x-auto hide-scrollbar pb-2 px-1">
+        {followedSongs.map((song, idx) => {
           const active = currentSong?.id === song.id;
           return (
             <button
@@ -156,24 +167,38 @@ const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ so
                 if (active) togglePlay();
                 else playSong(song, getDownloadedUrl(song.id), followedSongs);
               }}
-              className="w-36 flex-shrink-0 text-left active:scale-[0.96] transition-transform"
+              className="w-32 flex-shrink-0 text-left active:scale-[0.97] transition-transform"
             >
-              <div className={`relative mb-2 aspect-square overflow-hidden rounded-3xl bg-muted/50 ${active ? 'ring-2 ring-primary' : ''}`}>
+              <div className="mb-3 aspect-square overflow-hidden bg-muted/40 ring-1 ring-white/10 relative rounded-sm">
                 {song.cover_url ? (
-                  <img src={song.cover_url} alt={`${song.title} cover art`} className="h-full w-full object-cover" loading="lazy" />
+                  <img
+                    src={song.cover_url}
+                    alt={`${song.title} cover art`}
+                    className={`h-full w-full object-cover transition-all duration-500 ${active ? '' : 'grayscale group-hover:grayscale-0'}`}
+                    loading="lazy"
+                  />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
                     <Music2 className="w-7 h-7 text-muted-foreground" />
                   </div>
                 )}
+                {idx === 0 && (
+                  <div className="absolute -top-px -left-px bg-foreground text-background px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.15em]">
+                    New
+                  </div>
+                )}
                 {active && (
-                  <div className="absolute bottom-2 right-2 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-bold text-primary">
-                    {isPlaying ? '▶' : 'Ⅱ'}
+                  <div className="absolute bottom-1.5 right-1.5 bg-primary text-primary-foreground px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                    {isPlaying ? '▶ Live' : 'Ⅱ'}
                   </div>
                 )}
               </div>
-              <p className={`truncate text-[13px] font-semibold ${active ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{song.artist}</p>
+              <p className={`text-[11px] font-black uppercase tracking-[0.08em] leading-tight truncate ${active ? 'text-primary' : 'text-foreground'}`}>
+                {song.title}
+              </p>
+              <p className="mt-1 truncate text-[10px] text-muted-foreground/70 uppercase tracking-[0.18em] font-semibold">
+                {song.artist}
+              </p>
             </button>
           );
         })}
