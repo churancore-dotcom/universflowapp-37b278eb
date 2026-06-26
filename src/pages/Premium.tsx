@@ -50,18 +50,37 @@ const PLAN_LABEL: Record<PlanId, string> = {
   quarterly: '3 Months',
 };
 
-const FEATURES: Array<{ icon: typeof Zap; title: string; desc: string; isNew?: boolean }> = [
-  { icon: InfinityIcon, title: 'Smart Crossfade + Gapless Pro', desc: 'DJ-grade equal-power curves and zero-gap track swaps.', isNew: true },
-  { icon: Headphones,   title: 'Headphone 3D Surround',   desc: 'Binaural crossfeed lifts sound out of your head.', isNew: true },
-  { icon: Building2,    title: 'Studio Spaces',           desc: 'Vinyl Booth, Cathedral, Stadium — pick your room.', isNew: true },
-  { icon: Moon,         title: 'Late Night Mode',         desc: 'Whispered details lifted, loud peaks tamed.', isNew: true },
-  { icon: Zap,          title: 'Zero Ads',                desc: 'No pre-rolls, no banners. Music, uninterrupted.' },
-  { icon: Orbit,        title: 'Spatial 3D Audio',        desc: 'Cinema-grade surround that orbits around your head.' },
-  { icon: Sliders,      title: '8-Band Studio EQ',        desc: 'Studio-grade tuning with crafted presets.' },
-  { icon: Download,     title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
-  { icon: Music2,       title: 'Mood Playlists',          desc: 'Mood-matched playlists, made instantly.' },
-  { icon: Disc3,        title: 'Premium-Only Tracks',     desc: 'Early drops and exclusive releases.' },
-  { icon: ShieldCheck,  title: 'Priority Support',        desc: 'Skip the line — we answer first.' },
+interface Feature {
+  icon: typeof Zap;
+  title: string;
+  desc: string;
+  long: string;
+  isNew?: boolean;
+}
+
+const FEATURES: Feature[] = [
+  { icon: InfinityIcon, title: 'Smart Crossfade + Gapless Pro', desc: 'DJ-grade equal-power curves and zero-gap track swaps.', isNew: true,
+    long: 'Choose between linear, equal-power, smooth, and exponential crossfade curves — the same math used in DJ software. Gapless Pro overlaps two decoded tracks so albums and live mixes play with literally zero silence between songs.' },
+  { icon: Headphones, title: 'Headphone 3D Surround', desc: 'Binaural crossfeed lifts sound out of your head.', isNew: true,
+    long: 'Lightweight binaural crossfeed reduces the harsh hard-panned-to-one-ear effect that flat stereo creates on headphones, placing instruments in a wider, more natural space — exactly like good studio monitors.' },
+  { icon: Building2, title: 'Studio Spaces', desc: 'Vinyl Booth, Cathedral, Stadium — pick your room.', isNew: true,
+    long: 'Six convolution-modelled rooms — Vinyl Booth, Jazz Club, Concert Hall, Cathedral, Stadium, and Off. Each adds the natural reflections and decay of a real space without smearing detail.' },
+  { icon: Moon, title: 'Late Night Mode', desc: 'Whispered details lifted, loud peaks tamed.', isNew: true,
+    long: 'A gentle dynamic range compressor pulls quiet vocals and details up while pushing loud peaks down, so you can listen at low volume without missing anything — perfect at 1 AM with someone asleep next to you.' },
+  { icon: Zap, title: 'Zero Ads', desc: 'No pre-rolls, no banners. Music, uninterrupted.',
+    long: 'Every ad surface is removed — no pre-roll audio ads, no banner ads, no interstitials, no skip-counter limits. The app is just music, from open to close.' },
+  { icon: Orbit, title: 'Spatial 3D Audio', desc: 'Cinema-grade surround that orbits around your head.',
+    long: 'A psycho-acoustic panner moves instruments around a virtual sphere around your head. Works on any pair of headphones and feels closest to a real cinema mix on tracks with rich stereo separation.' },
+  { icon: Sliders, title: '8-Band Studio EQ', desc: 'Studio-grade tuning with crafted presets.',
+    long: 'Eight-band parametric EQ with hand-tuned presets for bass, vocal, hip-hop, classical, podcast, and more. Build and save your own profile that follows you across devices.' },
+  { icon: Download, title: 'Unlimited Downloads', desc: 'Save anything. Listen offline. Anywhere.',
+    long: 'Download any track, album, or playlist to your phone for offline listening — no caps, no expiry while your subscription is active. Files stay in app-private storage so they\u2019re safe from other apps.' },
+  { icon: Music2, title: 'Mood Playlists', desc: 'Mood-matched playlists, made instantly.',
+    long: 'Auto-built playlists tuned to your mood and recent listening — focus, late drive, sunrise, sad-girl-hours and more. Refresh anytime; each generation is unique to your taste.' },
+  { icon: Disc3, title: 'Premium-Only Tracks', desc: 'Early drops and exclusive releases.',
+    long: 'A growing shelf of early releases and exclusives from independent artists on Universflow — heard here days or weeks before they go wide.' },
+  { icon: ShieldCheck, title: 'Priority Support', desc: 'Skip the line — we answer first.',
+    long: 'Your support tickets, bug reports and refund requests jump to the top of our queue. We aim to reply within a few hours, not days.' },
 ];
 
 interface PendingPayment {
@@ -81,6 +100,7 @@ const PremiumPage = memo(function PremiumPage() {
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('bimonthly');
   const [settings, setSettings] = useState<UpiSettings | null>(null);
   const [pending, setPending] = useState<PendingPayment | null>(null);
+  const [openFeature, setOpenFeature] = useState<Feature | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -93,13 +113,12 @@ const PremiumPage = memo(function PremiumPage() {
         try { map[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value; }
         catch { map[r.key] = r.value; }
       });
-      // Hardcoded fallback — real UPI VPA. Never show a placeholder VPA to users.
       const FALLBACK_UPI = 'shashankyadav12367@okhdfcbank';
       const rawUpi = String(map.upi_id ?? '').trim();
       setSettings({
-        monthlyPrice: Number(map.premium_price_monthly_inr ?? 59),
-        bimonthlyPrice: Number(map.premium_price_bimonthly_inr ?? 100),
-        quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 149),
+        monthlyPrice: Number(map.premium_price_monthly_inr ?? 99),
+        bimonthlyPrice: Number(map.premium_price_bimonthly_inr ?? 199),
+        quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 280),
         upiId: rawUpi && !/yourupi|example|@okaxis$/i.test(rawUpi) ? rawUpi : FALLBACK_UPI,
         payeeName: String(map.upi_payee_name ?? 'Universflow') || 'Universflow',
       });
@@ -123,7 +142,7 @@ const PremiumPage = memo(function PremiumPage() {
     fetchPending();
 
     const prChannel = supabase
-      .channel(`user-pr-${user.id}`)
+      .channel(`user-pr-${user.id}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'payment_requests',
         filter: `user_id=eq.${user.id}`,
@@ -131,7 +150,7 @@ const PremiumPage = memo(function PremiumPage() {
       .subscribe();
 
     const subChannel = supabase
-      .channel(`user-sub-${user.id}`)
+      .channel(`user-sub-${user.id}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'user_subscriptions',
         filter: `user_id=eq.${user.id}`,
@@ -145,9 +164,9 @@ const PremiumPage = memo(function PremiumPage() {
     };
   }, [user, isPremium, refetchPremium]);
 
-  const monthly = settings?.monthlyPrice ?? 59;
-  const bimonthly = settings?.bimonthlyPrice ?? 100;
-  const quarterly = settings?.quarterlyPrice ?? 149;
+  const monthly = settings?.monthlyPrice ?? 99;
+  const bimonthly = settings?.bimonthlyPrice ?? 199;
+  const quarterly = settings?.quarterlyPrice ?? 280;
   const bimonthlyPerMo = (bimonthly / 2).toFixed(0);
   const quarterlyPerMo = (quarterly / 3).toFixed(0);
   const bimonthlySave = Math.max(0, Math.round((1 - (bimonthly / 2) / monthly) * 100));
@@ -181,7 +200,7 @@ const PremiumPage = memo(function PremiumPage() {
             offers: {
               '@type': 'Offer',
               priceCurrency: 'INR',
-              price: '99',
+              price: '199',
               url: 'https://universflow.in/premium',
               availability: 'https://schema.org/InStock',
             },
@@ -242,38 +261,17 @@ const PremiumPage = memo(function PremiumPage() {
         </motion.header>
 
         <main className="relative px-5">
-          {/* ─── HERO — equalizer signature ─── */}
-          <section className="pt-8 pb-8 text-center">
-            {/* Animated EQ bars — the music-app signature */}
-            <div className="flex items-end justify-center gap-1.5 h-16 mb-6">
-              {[0.45, 0.85, 0.6, 1, 0.5, 0.9, 0.7, 0.4, 0.95, 0.55, 0.8, 0.65].map((h, i) => (
-                <motion.span
-                  key={i}
-                  className="w-[5px] rounded-full"
-                  style={{
-                    background: 'linear-gradient(to top, hsl(var(--primary)), hsl(var(--primary) / 0.4))',
-                    height: `${h * 100}%`,
-                    boxShadow: '0 0 12px hsl(var(--primary) / 0.4)',
-                  }}
-                  animate={{ scaleY: [1, 0.35 + Math.random() * 0.65, 1] }}
-                  transition={{
-                    duration: 1.4 + (i % 4) * 0.2,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: i * 0.08,
-                  }}
-                />
-              ))}
-            </div>
-
-            <p className="text-[11px] font-bold tracking-[0.28em] uppercase text-primary mb-3">
+          {/* ─── HERO — editorial, calm ─── */}
+          <section className="pt-10 pb-8">
+            <div className="mb-5"><LogoBadge size={64} /></div>
+            <p className="text-[10.5px] font-bold tracking-[0.32em] uppercase text-primary mb-3">
               Universflow Premium
             </p>
-            <h1 className="text-[40px] leading-[1.05] font-bold tracking-tight mb-3 px-2">
-              Univers Flow Premium —<br />
-              <span className="text-primary">Ad-Free Music &amp; Spatial Audio</span>
+            <h1 className="text-[36px] leading-[1.04] font-bold tracking-tight mb-3">
+              Music, the way<br />
+              <span className="text-primary">it's meant to sound.</span>
             </h1>
-            <p className="text-[15px] leading-snug text-muted-foreground max-w-[320px] mx-auto">
+            <p className="text-[15px] leading-snug text-muted-foreground max-w-[340px]">
               Spatial audio, studio EQ, zero ads. Built for people who actually listen.
             </p>
           </section>
@@ -365,20 +363,15 @@ const PremiumPage = memo(function PremiumPage() {
               {FEATURES.map((f, i) => {
                 const Icon = f.icon;
                 return (
-                  <motion.div
+                  <button
                     key={f.title}
-                    initial={{ opacity: 0, x: -8 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, margin: '-20px' }}
-                    transition={{ delay: i * 0.025, duration: 0.3 }}
-                    className="flex items-start gap-3.5 px-4 py-4"
+                    onClick={() => { haptics.light(); setOpenFeature(f); }}
+                    className="w-full text-left flex items-start gap-3.5 px-4 py-4 active:bg-primary/5 transition-colors"
                     style={i > 0 ? { borderTop: '0.5px solid hsl(var(--border) / 0.4)' } : undefined}
                   >
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{
-                        background: 'hsl(var(--primary) / 0.12)',
-                      }}
+                      style={{ background: 'hsl(var(--primary) / 0.12)' }}
                     >
                       <Icon className="w-5 h-5 text-primary" strokeWidth={2} />
                     </div>
@@ -396,7 +389,8 @@ const PremiumPage = memo(function PremiumPage() {
                       </div>
                       <p className="text-[12.5px] text-muted-foreground leading-snug">{f.desc}</p>
                     </div>
-                  </motion.div>
+                    <ChevronLeft className="w-4 h-4 text-muted-foreground/60 shrink-0 rotate-180 mt-3" />
+                  </button>
                 );
               })}
             </div>
@@ -407,8 +401,6 @@ const PremiumPage = memo(function PremiumPage() {
             <span className="inline-flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-primary" /> UPI Secure</span>
             <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
             <span>Activates in minutes</span>
-            <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-            <span>Cancel anytime</span>
           </div>
 
         </main>
@@ -459,6 +451,12 @@ const PremiumPage = memo(function PremiumPage() {
               settings={settings}
               plan={selectedPlan}
               onClose={() => setShowCheckout(false)}
+            />
+          )}
+          {openFeature && (
+            <FeatureDetailSheet
+              feature={openFeature}
+              onClose={() => setOpenFeature(null)}
             />
           )}
         </AnimatePresence>
@@ -551,19 +549,15 @@ interface CheckoutProps {
   onClose: () => void;
 }
 
-type Step = 'pay' | 'confirm' | 'verifying';
+type Step = 'pay' | 'confirm';
 
 const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose }: CheckoutProps) {
   const haptics = useHaptics();
   const { user } = useAuth();
   const { requireVerified } = useEmailVerified();
-  const { refetch: refetchPremium } = usePremium();
   const [step, setStep] = useState<Step>('pay');
   const [utr, setUtr] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [paymentRequestId, setPaymentRequestId] = useState<string | null>(null);
-  const [verifyStage, setVerifyStage] = useState<0 | 1 | 2 | 3 | 4>(0);
-  const [activated, setActivated] = useState(false);
 
   const basePrice = plan === 'quarterly' ? settings.quarterlyPrice : plan === 'bimonthly' ? settings.bimonthlyPrice : settings.monthlyPrice;
   const planLabel = PLAN_LABEL[plan];
@@ -584,10 +578,24 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
   const submitUtr = async () => {
     if (!user) { toast({ title: 'Please sign in first', variant: 'destructive' }); return; }
     if (!requireVerified('submit a payment')) return;
-    const cleanUtr = utr.trim();
-    if (cleanUtr.length < 6) { toast({ title: 'Enter a valid UTR / transaction ID', variant: 'destructive' }); return; }
+    const cleanUtr = utr.replace(/\D/g, '');
+    if (cleanUtr.length !== 12) { toast({ title: 'UTR must be exactly 12 digits', variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
+      // Block re-submitting if a pending request already exists for this user
+      const { data: existing } = await supabase
+        .from('payment_requests')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        toast({ title: 'A payment is already being verified', description: 'Please wait for it to complete.', variant: 'destructive' });
+        setSubmitting(false);
+        onClose();
+        return;
+      }
       const { data, error } = await supabase.from('payment_requests').insert({
         user_id: user.id,
         amount_paise: amountPaise,
@@ -596,14 +604,13 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
         plan,
       }).select('id').single();
       if (error) {
-        if (error.code === '23505') toast({ title: 'This transaction ID is already submitted', variant: 'destructive' });
+        if (error.code === '23505') toast({ title: 'This UTR was already submitted', variant: 'destructive' });
         else toast({ title: 'Submission failed', description: error.message, variant: 'destructive' });
         setSubmitting(false); return;
       }
       haptics.success();
-      setPaymentRequestId(data?.id ?? null);
-      setStep('verifying');
-      setVerifyStage(1);
+      // Close the sheet immediately — the page-level live progress banner takes over.
+      onClose();
       // Fire-and-forget Telegram notification
       supabase.functions.invoke('telegram-notify', {
         body: {
@@ -620,81 +627,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
     } finally { setSubmitting(false); }
   };
 
-  // ── Live verification: progress through stages + listen for activation ──
-  useEffect(() => {
-    if (step !== 'verifying' || !user) return;
 
-    // Animated stage advancement (visual progress while verifying)
-    const stageTimers: number[] = [];
-    stageTimers.push(window.setTimeout(() => setVerifyStage(s => (s < 2 ? 2 : s)), 1500));
-    stageTimers.push(window.setTimeout(() => setVerifyStage(s => (s < 3 ? 3 : s)), 3500));
-
-    // Realtime: payment_requests row changes (admin approving)
-    const prChannel = paymentRequestId
-      ? supabase
-          .channel(`pr-${paymentRequestId}`)
-          .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'payment_requests',
-            filter: `id=eq.${paymentRequestId}`,
-          }, (payload) => {
-            const status = (payload.new as { status?: string } | null)?.status;
-            if (status === 'approved' || status === 'auto_approved') {
-              setVerifyStage(4);
-            } else if (status === 'rejected') {
-              toast({ title: 'Payment could not be verified', description: 'Please contact support with your UTR.', variant: 'destructive' });
-            }
-          })
-          .subscribe()
-      : null;
-
-    // Realtime: subscription becomes active premium
-    const subChannel = supabase
-      .channel(`sub-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_subscriptions',
-        filter: `user_id=eq.${user.id}`,
-      }, (payload) => {
-        const row = payload.new as { status?: string; subscription_type?: string } | null;
-        const isPrem = row?.status === 'active'
-          && (row?.subscription_type === 'premium_monthly' || row?.subscription_type === 'premium_yearly');
-        if (isPrem) {
-          setVerifyStage(4);
-          setActivated(true);
-          haptics.success();
-          refetchPremium();
-        }
-      })
-      .subscribe();
-
-    // Polling fallback (in case realtime is filtered)
-    const poll = window.setInterval(async () => {
-      const { data } = await supabase
-        .from('user_subscriptions')
-        .select('status, subscription_type, expires_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const isPrem = data?.status === 'active'
-        && (data?.subscription_type === 'premium_monthly' || data?.subscription_type === 'premium_yearly')
-        && (!data?.expires_at || new Date(data.expires_at) > new Date());
-      if (isPrem) {
-        setVerifyStage(4);
-        setActivated(true);
-        haptics.success();
-        refetchPremium();
-      }
-    }, 5000);
-
-    return () => {
-      stageTimers.forEach(t => clearTimeout(t));
-      if (prChannel) supabase.removeChannel(prChannel);
-      supabase.removeChannel(subChannel);
-      clearInterval(poll);
-    };
-  }, [step, user, paymentRequestId, haptics, refetchPremium]);
 
 
   return (
@@ -788,18 +721,23 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
 
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={utr}
-              onChange={e => setUtr(e.target.value)}
-              placeholder="e.g. 412345678901"
+              onChange={e => setUtr(e.target.value.replace(/\D/g, '').slice(0, 12))}
+              placeholder="123456789012"
               autoComplete="off"
-              maxLength={30}
-              className="w-full px-4 py-4 rounded-3xl text-[16px] font-mono tracking-wider mb-3 bg-transparent outline-none"
+              maxLength={12}
+              className="w-full px-4 py-4 rounded-3xl text-[18px] font-mono tracking-[0.2em] mb-2 bg-transparent outline-none text-center"
               style={{
                 background: 'hsl(var(--muted) / 0.4)',
                 border: '1px solid hsl(var(--border))',
                 color: 'hsl(var(--foreground))',
               }}
             />
+            <p className="text-[11px] text-muted-foreground text-center mb-4">
+              {utr.length}/12 digits
+            </p>
 
             <div
               className="rounded-3xl p-3 mb-4 text-[12px] leading-relaxed"
@@ -813,7 +751,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
 
             <button
               onClick={submitUtr}
-              disabled={submitting || utr.trim().length < 6}
+              disabled={submitting || utr.length !== 12}
               className="w-full py-4 rounded-3xl font-bold text-[16px] flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
                 background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
@@ -824,96 +762,75 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
             </button>
           </>
         )}
-
-        {step === 'verifying' && (
-          <SubmittedConfirmation
-            activated={activated}
-            amount={amountFinal}
-            utr={utr}
-            onClose={onClose}
-          />
-        )}
       </motion.div>
     </motion.div>
   );
 });
 
-// ─────────── Live verification UI ───────────
+// ─────────── Feature detail drawer ───────────
 
-interface SubmittedConfirmationProps {
-  activated: boolean;
-  amount: string;
-  utr: string;
+interface FeatureDetailSheetProps {
+  feature: Feature;
   onClose: () => void;
 }
 
-/**
- * Sheet confirmation shown right after the user submits a UTR.
- * Closes the sheet and lets the page-level PendingProgressBanner take over.
- */
-const SubmittedConfirmation = memo(function SubmittedConfirmation({
-  activated, amount, utr, onClose,
-}: SubmittedConfirmationProps) {
-  if (activated) {
-    return (
-      <div className="text-center py-4">
-        <motion.div
-          initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={iosBounce}
-          className="mx-auto mb-5"
-        >
-          <LogoBadge size={96} />
-        </motion.div>
-        <h3 className="text-[26px] font-bold mb-2">You're Premium 🎉</h3>
-        <p className="text-[14px] text-muted-foreground mb-6 px-4">
-          Premium is now live on your account. Enjoy the upgrade.
+const FeatureDetailSheet = memo(function FeatureDetailSheet({ feature, onClose }: FeatureDetailSheetProps) {
+  const Icon = feature.icon;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={iosSpring}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-md rounded-t-3xl p-6 pb-10"
+        style={{
+          background: 'linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)))',
+          border: '0.5px solid hsl(var(--border))',
+        }}
+      >
+        <div className="w-12 h-1 rounded-full bg-muted mx-auto mb-6" />
+        <div className="flex items-start gap-4 mb-4">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+            style={{ background: 'hsl(var(--primary) / 0.14)' }}
+          >
+            <Icon className="w-7 h-7 text-primary" strokeWidth={2} />
+          </div>
+          <div className="flex-1 min-w-0 pt-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className="text-[20px] font-bold leading-tight">{feature.title}</h3>
+              {feature.isNew && (
+                <span
+                  className="text-[9px] font-bold tracking-[0.12em] uppercase px-1.5 py-0.5 rounded"
+                  style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
+                >
+                  New
+                </span>
+              )}
+            </div>
+            <p className="text-[13px] text-muted-foreground">{feature.desc}</p>
+          </div>
+        </div>
+        <p className="text-[14.5px] leading-relaxed text-foreground/85 mb-6">
+          {feature.long}
         </p>
         <button
           onClick={onClose}
-          className="w-full py-4 rounded-3xl font-bold text-[16px]"
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-            color: 'hsl(var(--primary-foreground))',
-          }}
+          className="w-full py-3.5 rounded-3xl font-semibold text-[15px] bg-muted/50"
+          style={{ border: '0.5px solid hsl(var(--border) / 0.5)' }}
         >
-          Start listening
+          Close
         </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-center py-4">
-      <motion.div
-        initial={{ scale: 0 }} animate={{ scale: 1 }} transition={iosBounce}
-        className="w-20 h-20 mx-auto mb-5 rounded-full flex items-center justify-center"
-        style={{
-          background: 'linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--accent) / 0.18))',
-          border: '1px solid hsl(var(--primary) / 0.4)',
-        }}
-      >
-        <Check className="w-10 h-10 text-primary" strokeWidth={3} />
       </motion.div>
-      <h3 className="text-[22px] font-bold mb-2">Got it — payment received</h3>
-      <p className="text-[13.5px] text-muted-foreground mb-1 px-2 leading-relaxed">
-        We've recorded your UTR <strong className="text-foreground">{utr.slice(0, 6)}…</strong> for ₹{amount}.
-      </p>
-      <p className="text-[13px] text-muted-foreground mb-6 px-4 leading-relaxed">
-        Verification is now running in the background. You can watch live progress on the Premium page —
-        and we'll send a push the moment Premium activates.
-      </p>
-      <button
-        onClick={onClose}
-        className="w-full py-4 rounded-3xl font-bold text-[16px]"
-        style={{
-          background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-          color: 'hsl(var(--primary-foreground))',
-        }}
-      >
-        See live progress
-      </button>
-    </div>
+    </motion.div>
   );
 });
+
+
 
 // ─────────── Pending progress banner (shown on /premium when a UTR is awaiting verification) ───────────
 
@@ -931,8 +848,8 @@ const PendingProgressBanner = memo(function PendingProgressBanner({ pending }: P
     const tick = () => {
       const seconds = Math.floor((Date.now() - start) / 1000);
       setElapsed(seconds);
-      if (seconds < 20) setStage(1);
-      else if (seconds < 60) setStage(2);
+      if (seconds < 3) setStage(1);
+      else if (seconds < 10) setStage(2);
       else setStage(3);
     };
     tick();
@@ -946,9 +863,9 @@ const PendingProgressBanner = memo(function PendingProgressBanner({ pending }: P
   const secs = elapsed % 60;
 
   const steps = [
-    { label: 'Payment received', detail: `UTR ${pending.utr_number.slice(0, 6)}…` },
-    { label: 'Verifying with bank', detail: `Matching ₹${amountInr}` },
-    { label: 'Activating your Premium', detail: 'Almost there — stay close' },
+    { label: 'UTR submitted', detail: `UTR ${pending.utr_number.slice(0, 6)}…${pending.utr_number.slice(-2)}` },
+    { label: 'Checking UTR with bank', detail: `Matching exact amount ₹${amountInr}` },
+    { label: 'Activating your Premium', detail: 'Almost there — hold on' },
   ];
 
   return (
