@@ -247,54 +247,55 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    const { data: isAdmin } = await adminClient.rpc('has_role', {
-      _user_id: claimsData.user.id, _role: 'admin',
-    });
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ success: false, error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    // Per-user rate limit — every authenticated user can call this, not just admins.
     const { data: allowed } = await adminClient.rpc('check_and_increment_rate_limit', {
-      _user_id: claimsData.user.id, _endpoint: 'extract-audio', _max_per_minute: 10,
+      _user_id: claimsData.user.id, _endpoint: 'extract-audio', _max_per_minute: 30,
     });
     if (allowed === false) {
       return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { url } = await req.json();
-    if (!url) {
-      return new Response(JSON.stringify({ success: false, error: 'URL is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const body = await req.json().catch(() => ({}));
+    const rawUrl: string | undefined = body?.url;
+    const directVideoId: string | undefined = body?.videoId;
+    const forceRefresh: boolean = body?.forceRefresh === true;
+
+    let videoId: string | null = null;
+    if (directVideoId && /^[a-zA-Z0-9_-]{11}$/.test(String(directVideoId))) {
+      videoId = String(directVideoId);
+    } else if (rawUrl) {
+      // Direct audio URL passthrough
+      if (rawUrl.match(/\.(mp3|wav|flac|aac|ogg|m4a|opus|webm)(\?.*)?$/i)) {
+        return new Response(JSON.stringify({
+          success: true, audioUrl: rawUrl, platform: 'Direct Link',
+          title: rawUrl.split('/').pop()?.split('?')[0] || 'audio',
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (isPlaylistUrl(rawUrl)) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Playlist URLs are not supported. Please copy a specific video link.',
+        }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const isYouTube = rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be') || rawUrl.includes('music.youtube.com');
+      if (!isYouTube) {
+        return new Response(JSON.stringify({
+          success: false, error: 'Currently only YouTube URLs are supported.',
+        }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      videoId = extractVideoId(rawUrl);
     }
 
-    // Direct audio URL
-    if (url.match(/\.(mp3|wav|flac|aac|ogg|m4a|opus|webm)(\?.*)?$/i)) {
-      return new Response(JSON.stringify({
-        success: true, audioUrl: url, platform: 'Direct Link',
-        title: url.split('/').pop()?.split('?')[0] || 'audio',
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    if (isPlaylistUrl(url)) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Playlist URLs are not supported. Please copy a specific video link.',
-      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    const isYouTube = url.includes('youtube.com') || url.includes('youtu.be') || url.includes('music.youtube.com');
-    if (!isYouTube) {
-      return new Response(JSON.stringify({
-        success: false, error: 'Currently only YouTube URLs are supported.',
-      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    const videoId = extractVideoId(url);
     if (!videoId) {
       return new Response(JSON.stringify({
-        success: false, error: 'Could not extract video ID from URL.',
+        success: false, error: 'A YouTube videoId or url is required.',
       }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Allow client to force a fresh extraction if its cached URL just failed.
+    if (forceRefresh) {
+      try { await adminClient.from('stream_url_cache').delete().eq('video_id', videoId); } catch { /* ignore */ }
     }
 
     // ---------- DB stream cache check ----------
