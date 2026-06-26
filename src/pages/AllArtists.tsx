@@ -378,7 +378,7 @@ const AllArtists = () => {
     }
   }, [playSong, artistSongs]);
 
-  const categoriesWithAll = useMemo(() => ['All', 'Universflow', ...ARTIST_CATEGORIES] as const, []);
+  const categoriesWithAll = useMemo(() => ['Following', 'All', 'Universflow', ...ARTIST_CATEGORIES] as const, []);
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
