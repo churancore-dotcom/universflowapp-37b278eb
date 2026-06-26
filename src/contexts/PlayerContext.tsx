@@ -747,7 +747,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // tainted for WebAudio and EQ stays dead until we re-fetch.
       const wasPlaying = !a.paused;
       const at = a.currentTime;
-      const original = currentSong?.audio_url;
+      const currentSrc = a.currentSrc || a.src;
+      const songSource = currentSong?.audio_url;
+      const original = songSource && songSource.startsWith('http') && !isYouTubeFallbackUrl(songSource) ? songSource : currentSrc;
       if (!original) return;
       try {
         configureAudioElementSource(a, buildStreamProxyUrl(original));
