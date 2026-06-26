@@ -549,19 +549,15 @@ interface CheckoutProps {
   onClose: () => void;
 }
 
-type Step = 'pay' | 'confirm' | 'verifying';
+type Step = 'pay' | 'confirm';
 
 const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose }: CheckoutProps) {
   const haptics = useHaptics();
   const { user } = useAuth();
   const { requireVerified } = useEmailVerified();
-  const { refetch: refetchPremium } = usePremium();
   const [step, setStep] = useState<Step>('pay');
   const [utr, setUtr] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [paymentRequestId, setPaymentRequestId] = useState<string | null>(null);
-  const [verifyStage, setVerifyStage] = useState<0 | 1 | 2 | 3 | 4>(0);
-  const [activated, setActivated] = useState(false);
 
   const basePrice = plan === 'quarterly' ? settings.quarterlyPrice : plan === 'bimonthly' ? settings.bimonthlyPrice : settings.monthlyPrice;
   const planLabel = PLAN_LABEL[plan];
