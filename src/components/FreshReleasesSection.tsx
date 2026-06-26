@@ -9,12 +9,12 @@ import { rerank } from '@/lib/feedPersonalizer';
 import { isSpamSong } from '@/pages/Search';
 import { useYtmRail } from '@/lib/ytmRails';
 
-interface Props { songs?: Song[] }
+interface Props { songs?: Song[]; enabled?: boolean }
 
-const FreshReleasesSection = memo((_props: Props) => {
+const FreshReleasesSection = memo(({ enabled = true }: Props) => {
   const { playSong } = usePlayer();
   const taste = useTasteProfile();
-  const { data: pool = [] } = useYtmRail('fresh-v2', 'latest hindi punjabi songs official music', 24);
+  const { data: pool = [] } = useYtmRail('fresh-v2', 'latest hindi punjabi songs official music', 24, enabled);
 
   const fresh = useMemo(() => {
     const clean = pool.filter((s) => !isSpamSong(s));
