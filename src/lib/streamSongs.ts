@@ -135,21 +135,7 @@ export const loadLibrarySongs = async (userId: string) => {
   );
 
   return rows
-    .map((row) => {
-      const hit = catalogMap.get(row.song_id) || streamMap.get(row.song_id);
-      if (hit) return hit;
-      // Fallback placeholder so liked rows without resolved metadata still appear
-      // in Library (instead of being silently dropped). audio_url='resolving'
-      // triggers the on-demand stream resolver when the user taps play.
-      const placeholder: Song = {
-        id: row.song_id,
-        title: 'Tap to resolve',
-        artist: 'Unknown artist',
-        audio_url: 'resolving',
-        source: row.track_source === 'library' ? 'library' : 'indexed',
-      };
-      return placeholder;
-    })
+    .map((row) => catalogMap.get(row.song_id) || streamMap.get(row.song_id))
     .filter(Boolean) as Song[];
 };
 
