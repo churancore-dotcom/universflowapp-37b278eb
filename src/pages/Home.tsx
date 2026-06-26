@@ -60,8 +60,6 @@ const EmptyState = memo(() => (
 
 EmptyState.displayName = 'EmptyState';
 
-const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v2-fast-ytm'] as const;
-
 // Tag flags used by the existing rails (Trending/Fresh) to filter the shared pool.
 type FlaggedSong = Song & { show_in_trending?: boolean; show_in_new_releases?: boolean };
 
@@ -71,11 +69,10 @@ const upgradeThumb = (url?: string) => {
   return url.replace(/\/default\.jpg/i, '/hqdefault.jpg').replace(/\/mqdefault\.jpg/i, '/hqdefault.jpg');
 };
 
-// Pull one fast real YouTube Music pool for the hero/bento only.
-// Each track is shaped exactly like the player's Song type with audio_url set to
-// `yt-video:<id>` so PlayerContext routes the tap through extract-audio.
-const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
-  const trending = await searchYouTubeMusicTracks('india top songs this week official music', 24);
+// Pull one fast real YouTube Music pool for the hero/bento. Query is
+// country-aware so a US user never sees a Bollywood hero on first launch.
+const fetchHomeSongs = async (heroQuery: string): Promise<FlaggedSong[]> => {
+  const trending = await searchYouTubeMusicTracks(heroQuery, 24);
 
   const byId = new Map<string, FlaggedSong>();
   const ingest = (list: typeof trending, flags: Partial<FlaggedSong>) => {
@@ -112,6 +109,8 @@ const Home = () => {
   const { downloads } = useDownloads();
   const { isPremium } = usePremium();
   const queryClient = useQueryClient();
+  const country = useUserCountry();
+  const countryQueries = useMemo(() => getCountryQueries(country), [country]);
 
   // Artist users land on their Studio dashboard, not the listener home.
   // We only auto-route once per session so they can browse later if they wish.
@@ -134,13 +133,14 @@ const Home = () => {
   const [showEqualizer, setShowEqualizer] = useState(false);
 
   const { data: onlineSongs = (cachedSongs || []), isLoading } = useQuery({
-    queryKey: HOME_SONGS_QUERY_KEY,
-    queryFn: fetchHomeSongs,
+    queryKey: ['home', 'ytm-feed', 'v3-country', country],
+    queryFn: () => fetchHomeSongs(countryQueries.hero),
     initialData: cachedSongs && cachedSongs.length > 0 ? cachedSongs : undefined,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
-    enabled: !isOffline,
+    enabled: !isOffline && !!country,
   });
+
 
   // When offline → ONLY show downloaded songs. When online → full catalog.
   const songs: Song[] = useMemo(() => {
