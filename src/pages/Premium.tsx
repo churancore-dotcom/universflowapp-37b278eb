@@ -453,6 +453,12 @@ const PremiumPage = memo(function PremiumPage() {
               onClose={() => setShowCheckout(false)}
             />
           )}
+          {openFeature && (
+            <FeatureDetailSheet
+              feature={openFeature}
+              onClose={() => setOpenFeature(null)}
+            />
+          )}
         </AnimatePresence>
       </motion.div>
     </PageTransition>
