@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Send, Users, Clock, Target, BarChart3, Plus, Trash2, RefreshCw, Smartphone, Link as LinkIcon, Search, X, UserCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -80,7 +80,7 @@ const PushNotifications = () => {
     message: '',
     target_audience: 'all' as Audience,
     type: 'info' as NotifType,
-    channel: 'both' as Channel,
+    channel: 'push' as Channel,
     deep_link: '/home',
   });
 
@@ -159,7 +159,10 @@ const PushNotifications = () => {
     return () => { supabase.removeChannel(ch); };
   }, [fetchAll, fetchKPIs]);
 
+  const sendInFlight = useRef(false);
+
   const send = async () => {
+    if (sendInFlight.current) return;
     if (!draft.title.trim() || !draft.message.trim()) {
       toast.error('Title and message are required');
       return;
@@ -173,81 +176,87 @@ const PushNotifications = () => {
       draft.target_audience === 'specific' ? 'push' : draft.channel;
 
     setSaving(true);
+    sendInFlight.current = true;
 
     let inAppOk = true;
     let pushOk = true;
 
-    // 1) In-app banner
-    if (effectiveChannel === 'in_app' || effectiveChannel === 'both') {
-      const { error } = await supabase.from('announcements').insert({
-        title: draft.title.trim(),
-        message: draft.message.trim(),
-        type: draft.type,
-        target_audience: draft.target_audience,
-        is_active: true,
-      });
-      if (error) {
-        inAppOk = false;
-        toast.error(`In-app: ${error.message}`);
-      }
-    }
-
-    // 2) Real push via FCM
-    if (effectiveChannel === 'push' || effectiveChannel === 'both') {
-      const { data, error } = await supabase.functions.invoke('send-push', {
-        body: {
+    try {
+      // 1) In-app banner
+      if (effectiveChannel === 'in_app' || effectiveChannel === 'both') {
+        const { error } = await supabase.from('announcements').insert({
           title: draft.title.trim(),
-          body: draft.message.trim(),
-          deep_link: draft.deep_link.trim() || '/home',
+          message: draft.message.trim(),
+          type: draft.type,
           target_audience: draft.target_audience,
-          target_user_ids:
-            draft.target_audience === 'specific' && selectedUser
-              ? [selectedUser.user_id]
-              : undefined,
-        },
-      });
-      if (error) {
-        pushOk = false;
-        toast.error(`Push: ${await getFunctionErrorMessage(error)}`);
-      } else if (data?.success) {
-        const who =
-          draft.target_audience === 'specific' && selectedUser
-            ? ` to ${selectedUser.username || selectedUser.email || 'user'}`
-            : '';
-        if (data.sent === 0) {
-          pushOk = false;
-          toast.error(
-            'Push not delivered: 0 devices registered for this audience',
-            { description: 'Users must open the Android app at least once before they can receive push notifications.' },
-          );
-        } else if ((data.failure_count ?? 0) > 0 && (data.success_count ?? 0) === 0) {
-          pushOk = false;
-          const diagnostic = Array.isArray(data.diagnostics) && data.diagnostics[0]?.body
-            ? String(data.diagnostics[0].body)
-            : 'FCM rejected the registered device token.';
-          toast.error('Push failed at Firebase delivery', { description: diagnostic.slice(0, 160) });
-        } else {
-          toast.success(
-            `Push delivered${who} → ${data.success_count}/${data.sent} devices` +
-              (data.invalid_removed ? ` · cleaned ${data.invalid_removed} stale` : ''),
-          );
+          is_active: true,
+          deep_link: draft.deep_link.trim() || '/home',
+        });
+        if (error) {
+          inAppOk = false;
+          toast.error(`In-app: ${error.message}`);
         }
       }
-    }
 
-    setSaving(false);
-    if (inAppOk && pushOk) {
-      if (effectiveChannel === 'in_app' && draft.target_audience !== 'specific') {
-        toast.success(`Banner sent to ${reach[draft.target_audience]?.toLocaleString?.() ?? '?'} users`);
+      // 2) Real push via FCM
+      if (effectiveChannel === 'push' || effectiveChannel === 'both') {
+        const { data, error } = await supabase.functions.invoke('send-push', {
+          body: {
+            title: draft.title.trim(),
+            body: draft.message.trim(),
+            deep_link: draft.deep_link.trim() || '/home',
+            target_audience: draft.target_audience,
+            target_user_ids:
+              draft.target_audience === 'specific' && selectedUser
+                ? [selectedUser.user_id]
+                : undefined,
+          },
+        });
+        if (error) {
+          pushOk = false;
+          toast.error(`Push: ${await getFunctionErrorMessage(error)}`);
+        } else if (data?.success) {
+          const who =
+            draft.target_audience === 'specific' && selectedUser
+              ? ` to ${selectedUser.username || selectedUser.email || 'user'}`
+              : '';
+          if (data.sent === 0) {
+            pushOk = false;
+            toast.error(
+              'Push not delivered: 0 devices registered for this audience',
+              { description: 'Users must open the Android app at least once before they can receive push notifications.' },
+            );
+          } else if ((data.failure_count ?? 0) > 0 && (data.success_count ?? 0) === 0) {
+            pushOk = false;
+            const diagnostic = Array.isArray(data.diagnostics) && data.diagnostics[0]?.body
+              ? String(data.diagnostics[0].body)
+              : 'FCM rejected the registered device token.';
+            toast.error('Push failed at Firebase delivery', { description: diagnostic.slice(0, 160) });
+          } else {
+            toast.success(
+              `Push delivered${who} → ${data.success_count}/${data.sent} devices` +
+                (data.invalid_removed ? ` · cleaned ${data.invalid_removed} stale` : ''),
+            );
+          }
+        }
       }
-      setDraft({
-        title: '', message: '', target_audience: 'all', type: 'info',
-        channel: 'both', deep_link: '/home',
-      });
-      setSelectedUser(null);
-      setUserQuery('');
-      setUserHits([]);
-      setShowCompose(false);
+
+      if (inAppOk && pushOk) {
+        if (effectiveChannel === 'in_app' && draft.target_audience !== 'specific') {
+          toast.success(`Banner sent to ${reach[draft.target_audience]?.toLocaleString?.() ?? '?'} users`);
+        }
+        setDraft({
+          title: '', message: '', target_audience: 'all', type: 'info',
+          channel: 'push', deep_link: '/home',
+        });
+        setSelectedUser(null);
+        setUserQuery('');
+        setUserHits([]);
+        setShowCompose(false);
+      }
+    } finally {
+      sendInFlight.current = false;
+      setSaving(false);
     }
   };
 
@@ -296,7 +305,7 @@ const PushNotifications = () => {
               Notifications
             </h1>
             <p className="text-muted-foreground mt-1">
-              Send in-app banners, real Android push, or both — with deep links.
+              Send one clean Android push by default. Use in-app banners only when you intentionally want an on-screen app banner.
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -362,7 +371,7 @@ const PushNotifications = () => {
                   {([
                     { key: 'in_app' as Channel, label: 'In-App Banner' },
                     { key: 'push' as Channel, label: 'Push Notification' },
-                    { key: 'both' as Channel, label: 'Both' },
+                    { key: 'both' as Channel, label: 'Both (push + banner)' },
                   ]).map(c => (
                     <button key={c.key} onClick={() => setDraft(p => ({ ...p, channel: c.key }))}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${

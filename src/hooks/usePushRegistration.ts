@@ -84,31 +84,18 @@ async function setupPushListeners(
   });
 
   await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
-    // Android does not show remote notifications while the APK is foregrounded.
-    // Mirror the real FCM payload into a native local notification so premium
-    // expiry and admin pushes are visible even while the app is open.
+    // Do NOT mirror remote FCM into LocalNotifications. Several Android builds
+    // already surface foreground FCM, and mirroring it creates the ugly "two
+    // notifications for one send" bug. While the app is open we show exactly
+    // one lightweight in-app toast; background delivery is handled by Android.
     try {
       const title = notification.title ?? 'Universflow';
       const body = notification.body ?? '';
       if (!body) return;
-      const { LocalNotifications } = await import('@capacitor/local-notifications');
-      const perm = await LocalNotifications.checkPermissions();
-      if (perm.display !== 'granted') {
-        const requested = await LocalNotifications.requestPermissions();
-        if (requested.display !== 'granted') return;
-      }
-      await LocalNotifications.schedule({
-        notifications: [{
-          id: Math.floor(Date.now() % 2147483647),
-          title,
-          body,
-          schedule: { at: new Date(Date.now() + 250), allowWhileIdle: true },
-          smallIcon: 'ic_stat_notify',
-          extra: notification.data ?? {},
-        }],
-      });
+      const { toast } = await import('@/hooks/use-toast');
+      toast({ title, description: body });
     } catch (err) {
-      console.warn('[Push] foreground notification mirror failed', err);
+      console.warn('[Push] foreground notification toast failed', err);
     }
   });
 

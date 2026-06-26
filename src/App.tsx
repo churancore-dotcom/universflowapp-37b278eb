@@ -16,6 +16,7 @@ import RateUsPopup from "./components/RateUsPopup";
 import ReviewModal from "./components/ReviewModal";
 import { NavDirectionProvider } from "./components/PageTransition";
 import GlobalPlayerLayer from "./components/GlobalPlayerLayer";
+import AnnouncementBanner from "./components/AnnouncementBanner";
 
 import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
@@ -485,6 +486,11 @@ const AppContent = () => {
         )}
       </AnimatePresence>
 
+      <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-[60] pointer-events-none">
+        <div className="mx-auto max-w-md pointer-events-auto">
+          <AnnouncementBanner />
+        </div>
+      </div>
       <PrerollAdWrapper />
       <GlobalPlayerLayer />
       
