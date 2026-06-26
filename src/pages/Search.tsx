@@ -28,7 +28,7 @@ import {
   type SongHistoryEntry,
 } from '@/lib/songHistory';
 
-type SearchSource = 'all' | 'indexer';
+type SearchSource = 'songs' | 'artists';
 
 const normalizeText = (value = '') => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|lyrics?|video|audio|hd|4k|topic|vevo|records|music)\b/g, '').replace(/\s+/g, ' ').trim();
@@ -351,7 +351,7 @@ const Search = () => {
   const [artistResults, setArtistResults] = useState<IndexedArtistInfo[]>([]);
   const [searching, setSearching] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [source, setSource] = useState<SearchSource>('all');
+  const [source, setSource] = useState<SearchSource>('songs');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<SongHistoryEntry[]>(() => getSongHistory());
   const [hiddenResults, setHiddenResults] = useState<HiddenSearchEntry[]>(() => loadHiddenResults());
@@ -454,11 +454,13 @@ const Search = () => {
           if (!a.image_url) return false;
           const nameNorm = normalizeText(a.name || '');
           if (!nameNorm) return false;
+          // Hard-block spam artist patterns (remix kings, status channels, AI covers, etc.)
+          if (SPAM_ARTIST_PATTERNS.some((p) => p.test(a.name || ''))) return false;
           const nameMatches = nameNorm === qNorm || nameNorm.includes(qNorm) || qNorm.includes(nameNorm);
           const hasListeners = typeof a.listeners === 'number' && a.listeners >= MIN_ARTIST_LISTENERS;
           return nameMatches && hasListeners;
         });
-        setArtistResults(verifiedArtists.slice(0, 6));
+        setArtistResults(verifiedArtists.slice(0, 24));
         setIndexedResults(merged);
         setSearchHistory(getSongHistory());
       } catch {
@@ -499,7 +501,7 @@ const Search = () => {
   const matchedArtists = hasQuery ? artistResults.filter((a) => isStrongArtistMatch(a.name)) : [];
   const featuredArtist = matchedArtists[0];
   const artistNameSearch = matchedArtists.length > 0;
-  const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
+  const visibleIndexedResults = source === 'songs' ? indexedResults : [];
   // Universflow-uploaded tracks already merge to the TOP via mergeUploadedArtistSongs.
   // We do NOT hard-filter to verified artists only — that produced an empty
   // "All Songs" tab for every famous song (e.g. Kesariya, Perfect) because the
@@ -607,8 +609,8 @@ const Search = () => {
           {hasQuery && (
             <div className="flex gap-2 mt-2.5 overflow-x-auto hide-scrollbar">
               {([
-                { key: 'all' as SearchSource, label: 'All Songs', icon: Globe },
-                { key: 'indexer' as SearchSource, label: 'Worldwide', icon: Radio },
+                { key: 'songs' as SearchSource, label: 'Songs', icon: Music, count: indexedResults.length },
+                { key: 'artists' as SearchSource, label: 'Artists', icon: Radio, count: artistResults.length },
               ]).map(tab => (
                 <motion.button key={tab.key} onClick={() => setSource(tab.key)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0"
@@ -619,8 +621,8 @@ const Search = () => {
                   }} whileTap={{ scale: 0.95 }}>
                   <tab.icon className="w-3 h-3" />
                   {tab.label}
-                  {tab.key === 'indexer' && indexedResults.length > 0 && (
-                    <span className="ml-0.5 text-[10px] opacity-60">{indexedResults.length}</span>
+                  {tab.count > 0 && (
+                    <span className="ml-0.5 text-[10px] opacity-60">{tab.count}</span>
                   )}
                 </motion.button>
               ))}
@@ -734,7 +736,7 @@ const Search = () => {
           {searching ? <SearchSkeleton /> : (
             <>
               {/* Indexed stream results */}
-              {featuredArtist && (
+              {source === 'songs' && featuredArtist && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
                   <h2 className="text-sm font-bold mb-3">Artist</h2>
                   <button
@@ -784,11 +786,11 @@ const Search = () => {
                 </motion.div>
               )}
 
-              {displayedIndexedResults.length > 0 && (
+              {source === 'songs' && displayedIndexedResults.length > 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={libraryResults.length > 0 ? 'mt-6' : ''}>
                   <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-                    <Radio className="w-4 h-4 text-primary" />
-                    Worldwide Songs · {displayedIndexedResults.length} results
+                    <Music className="w-4 h-4 text-primary" />
+                    Songs · {displayedIndexedResults.length} results
                   </h2>
                   <div className="space-y-1">
                     {displayedIndexedResults.map((track, i) => {
@@ -851,6 +853,53 @@ const Search = () => {
                   </div>
                 </motion.div>
               )}
+
+              {/* Artists tab — grid of real artist profiles */}
+              {source === 'artists' && artistResults.length > 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+                    <Radio className="w-4 h-4 text-primary" />
+                    Artists · {artistResults.length}
+                  </h2>
+                  <div className="grid grid-cols-2 gap-3">
+                    {artistResults.map((a, i) => (
+                      <motion.button
+                        key={`${a.name}-${i}`}
+                        type="button"
+                        onClick={() => navigate(`/artists?focus=${encodeURIComponent(a.name)}`)}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03, duration: 0.25 }}
+                        className="relative aspect-square overflow-hidden rounded-2xl text-left active:scale-[0.97] transition-transform bg-card border border-white/10"
+                      >
+                        <img
+                          src={a.image_url}
+                          alt={`${a.name} artist photo`}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          style={{ objectPosition: '50% 22%' }}
+                          loading="lazy"
+                          decoding="async"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                        <div className="absolute left-3 right-3 bottom-3">
+                          <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-white/70">Artist</p>
+                          <p className="text-sm font-display tracking-wide text-white truncate mt-0.5">{a.name}</p>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {source === 'artists' && !searching && query.length > 1 && artistResults.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground text-sm">No matching artists</p>
+                  <p className="text-muted-foreground/60 text-xs mt-1">Try searching the artist's exact name</p>
+                </div>
+              )}
+
+
 
               {/* No results */}
               {query.length > 1 && !searching && libraryResults.length === 0 && displayedIndexedResults.length === 0 && artistResults.length === 0 && (
