@@ -100,6 +100,7 @@ const PremiumPage = memo(function PremiumPage() {
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('bimonthly');
   const [settings, setSettings] = useState<UpiSettings | null>(null);
   const [pending, setPending] = useState<PendingPayment | null>(null);
+  const [openFeature, setOpenFeature] = useState<Feature | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -112,13 +113,12 @@ const PremiumPage = memo(function PremiumPage() {
         try { map[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value; }
         catch { map[r.key] = r.value; }
       });
-      // Hardcoded fallback — real UPI VPA. Never show a placeholder VPA to users.
       const FALLBACK_UPI = 'shashankyadav12367@okhdfcbank';
       const rawUpi = String(map.upi_id ?? '').trim();
       setSettings({
-        monthlyPrice: Number(map.premium_price_monthly_inr ?? 59),
-        bimonthlyPrice: Number(map.premium_price_bimonthly_inr ?? 100),
-        quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 149),
+        monthlyPrice: Number(map.premium_price_monthly_inr ?? 99),
+        bimonthlyPrice: Number(map.premium_price_bimonthly_inr ?? 199),
+        quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 280),
         upiId: rawUpi && !/yourupi|example|@okaxis$/i.test(rawUpi) ? rawUpi : FALLBACK_UPI,
         payeeName: String(map.upi_payee_name ?? 'Universflow') || 'Universflow',
       });
@@ -142,7 +142,7 @@ const PremiumPage = memo(function PremiumPage() {
     fetchPending();
 
     const prChannel = supabase
-      .channel(`user-pr-${user.id}`)
+      .channel(`user-pr-${user.id}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'payment_requests',
         filter: `user_id=eq.${user.id}`,
@@ -150,7 +150,7 @@ const PremiumPage = memo(function PremiumPage() {
       .subscribe();
 
     const subChannel = supabase
-      .channel(`user-sub-${user.id}`)
+      .channel(`user-sub-${user.id}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'user_subscriptions',
         filter: `user_id=eq.${user.id}`,
@@ -164,9 +164,9 @@ const PremiumPage = memo(function PremiumPage() {
     };
   }, [user, isPremium, refetchPremium]);
 
-  const monthly = settings?.monthlyPrice ?? 59;
-  const bimonthly = settings?.bimonthlyPrice ?? 100;
-  const quarterly = settings?.quarterlyPrice ?? 149;
+  const monthly = settings?.monthlyPrice ?? 99;
+  const bimonthly = settings?.bimonthlyPrice ?? 199;
+  const quarterly = settings?.quarterlyPrice ?? 280;
   const bimonthlyPerMo = (bimonthly / 2).toFixed(0);
   const quarterlyPerMo = (quarterly / 3).toFixed(0);
   const bimonthlySave = Math.max(0, Math.round((1 - (bimonthly / 2) / monthly) * 100));
