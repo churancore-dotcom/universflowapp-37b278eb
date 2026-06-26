@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { usePlayerProgress } from '@/lib/playerProgressStore';
 import { getUserArtistPrefs } from '@/lib/userArtistPrefs';
-import { getFeaturedIndexedArtists } from '@/lib/indexedArtists';
 import { readLocalRecent } from '@/lib/localRecentlyPlayed';
 
 interface Props {
@@ -103,37 +102,6 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Stream fallback
-  const { data: streamSongs = [] } = useQuery({
-    queryKey: ['home-bento', 'stream-fallback'],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async (): Promise<Song[]> => {
-      const { data, error } = await supabase
-        .from('stream_songs')
-        .select('track_id,title,artist,cover_url,audio_url,duration,genre,mood,album,last_seen_at,artist_image_url')
-        .not('cover_url', 'is', null)
-        .not('audio_url', 'is', null)
-        .order('last_seen_at', { ascending: false })
-        .limit(16);
-      if (error) throw error;
-      return (data || []).map(songFromRow);
-    },
-  });
-
-  // Realtime invalidation (NOTE: recently_played intentionally removed —
-  // Jump Back In is per-device now and lives in localStorage.)
-  useEffect(() => {
-    const channel = supabase.channel('home-bento-live-data');
-    ['stream_songs', 'user_library', 'songs'].forEach((table) => {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        queryClient.invalidateQueries({ queryKey: ['home-bento'] });
-        queryClient.invalidateQueries({ queryKey: ['home', 'songs'] });
-      });
-    });
-    channel.subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [queryClient]);
-
   // Local recently-played changes (this device only)
   useEffect(() => {
     const handler = () => {
@@ -168,57 +136,28 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
     },
   });
 
-  // Artist of the Week — real artist from the user's followed list, else top artist from live stream catalog
+  // Artist Spotlight — prefer user's followed artist. No DB/catalog fallback here:
+  // the Home hero stays fast and avoids fake/old artist images from cached rows.
   const { data: artistOfWeek } = useQuery({
     queryKey: ['home-bento', 'artist-of-week', user?.id ?? 'anon'],
     staleTime: 10 * 60 * 1000,
+    enabled: !!user,
     queryFn: async (): Promise<ArtistOfWeek | null> => {
-      if (user) {
-        const prefs = await getUserArtistPrefs(user.id);
-        if (prefs.length > 0) {
-          const p = prefs[0];
-          return { id: p.id, name: p.artist_name, image: p.artist_image };
-        }
-      }
-      // Real artist with a real photo from catalog
-      const { data: catalog } = await supabase
-        .from('artists')
-        .select('id,name,photo_url')
-        .not('photo_url', 'is', null)
-        .order('updated_at', { ascending: false })
-        .limit(1);
-      if (catalog && catalog.length > 0) {
-        return { id: catalog[0].id, name: catalog[0].name, image: catalog[0].photo_url };
-      }
-      // Fallback: top artist by activity in the live stream catalog, using their newest cover as the image
-      const { data: rows } = await supabase
-        .from('stream_songs')
-        .select('artist,cover_url,artist_image_url,last_seen_at')
-        .not('cover_url', 'is', null)
-        .not('audio_url', 'is', null)
-        .order('last_seen_at', { ascending: false })
-        .limit(60);
-      if (rows && rows.length > 0) {
-        const counts = new Map<string, { name: string; count: number; image: string | null }>();
-        for (const r of rows as Array<{ artist: string | null; cover_url: string | null; artist_image_url: string | null; last_seen_at: string }>) {
-          if (!r.artist) continue;
-          const key = r.artist.toLowerCase().trim();
-          const existing = counts.get(key);
-          if (existing) {
-            existing.count += 1;
-            if (!existing.image) existing.image = r.artist_image_url || r.cover_url || null;
-          } else {
-            counts.set(key, { name: r.artist, count: 1, image: r.artist_image_url || r.cover_url || null });
-          }
-        }
-        const top = [...counts.values()].sort((a, b) => b.count - a.count)[0];
-        if (top) return { id: top.name, name: top.name, image: top.image, trackCount: top.count };
+      const prefs = await getUserArtistPrefs(user!.id);
+      if (prefs.length > 0) {
+        const p = prefs[0];
+        return { id: p.id, name: p.artist_name, image: p.artist_image };
       }
       return null;
     },
   });
 
-  const pool = useMemo(() => dedupeSongs([...songs, ...streamSongs]), [songs, streamSongs]);
+  const pool = useMemo(() => dedupeSongs(songs), [songs]);
+  const spotlight = useMemo<ArtistOfWeek | null>(() => {
+    if (artistOfWeek) return artistOfWeek;
+    const first = pool.find((s) => s.artist && s.cover_url);
+    return first ? { id: first.artist, name: first.artist, image: first.cover_url || null } : null;
+  }, [artistOfWeek, pool]);
   const jumpBack = useMemo(
     () => dedupeSongs([...recentSongs, ...queue, ...pool]).filter((s) => s.cover_url).slice(0, 3),
     [recentSongs, queue, pool],
@@ -332,16 +271,16 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         <motion.button
           {...fadeUp(1)}
           onClick={() => {
-            if (!artistOfWeek) return;
+            if (!spotlight) return;
             triggerHaptic('selection');
-            navigate(`/artists?focus=${encodeURIComponent(artistOfWeek.name)}`);
+            navigate(`/search?q=${encodeURIComponent(spotlight.name)}`);
           }}
           className="relative rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform h-[210px] border border-white/[0.06] bg-card"
         >
-          {artistOfWeek?.image ? (
+          {spotlight?.image ? (
             <img
-              src={artistOfWeek.image}
-              alt={artistOfWeek.name}
+              src={spotlight.image}
+              alt={spotlight.name}
               className="absolute inset-0 w-full h-full object-cover"
               loading="eager"
               width={230}
@@ -356,12 +295,12 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
           <div className="absolute top-3 left-3 right-3 z-10">
             <span className="text-primary text-[10px] font-extrabold uppercase tracking-[0.18em] drop-shadow">
-              Artist of the Week
+               Artist Spotlight
             </span>
           </div>
           <div className="absolute left-3 right-3 bottom-3 z-10">
             <p className="text-white text-[16px] font-extrabold tracking-tight leading-tight line-clamp-2 drop-shadow">
-              {artistOfWeek?.name || 'Discover artists'}
+              {spotlight?.name || 'Discover artists'}
             </p>
             <p className="text-white/65 text-[10px] mt-0.5 font-medium">
               Tap to explore
