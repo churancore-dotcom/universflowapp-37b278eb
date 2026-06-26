@@ -1,4 +1,4 @@
-// Lyrics edge function: LRCLIB (primary, synced) + Genius (fallback metadata link)
+// Lyrics edge function: artist uploads + parallel public providers + Genius metadata link
 // Public endpoint — no JWT required, safe to call from client.
 
 const corsHeaders = {
@@ -7,14 +7,63 @@ const corsHeaders = {
 };
 
 const GENIUS_TOKEN = Deno.env.get('GENIUS_ACCESS_TOKEN') || '';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 interface LyricsResponse {
   success: boolean;
   synced?: string | null;
   plain?: string | null;
-  source?: 'lrclib' | 'kugou' | 'genius' | null;
+  source?: 'artist' | 'lrclib' | 'kugou' | 'netease' | 'genius' | null;
   geniusUrl?: string | null;
   error?: string;
+}
+
+type ProviderLyrics = { source: NonNullable<LyricsResponse['source']>; synced?: string; plain?: string };
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then((value) => resolve(value)).catch(() => resolve(null)).finally(() => clearTimeout(timer));
+  });
+}
+
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function stripArtistSongId(songId?: string): string | null {
+  const raw = String(songId || '').trim().replace(/^as_/, '');
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw) ? raw : null;
+}
+
+async function fetchArtistUploadLyrics(songId?: string): Promise<ProviderLyrics | null> {
+  const id = stripArtistSongId(songId);
+  if (!id || !SUPABASE_URL || !SERVICE_ROLE) return null;
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/artist_songs?id=eq.${encodeURIComponent(id)}&status=eq.live&select=lyrics_plain,lyrics_synced,lyrics_source&limit=1`;
+    const response = await fetch(url, {
+      headers: {
+        apikey: SERVICE_ROLE,
+        Authorization: `Bearer ${SERVICE_ROLE}`,
+        Accept: 'application/json',
+      },
+    });
+    if (!response.ok) return null;
+    const rows = await response.json();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    const synced = typeof row?.lyrics_synced === 'string' ? row.lyrics_synced.trim() : '';
+    const plain = typeof row?.lyrics_plain === 'string' ? row.lyrics_plain.trim() : '';
+    if (!synced && !plain) return null;
+    return { source: 'artist', synced: synced || undefined, plain: plain || undefined };
+  } catch {
+    return null;
+  }
 }
 
 // ───────── KuGou lyrics (fallback for non-Western/CJK and rare tracks) ─────────
@@ -51,6 +100,38 @@ async function fetchKugou(artist: string, title: string, durationSec?: number): 
     const dj = await dr.json();
     if (!dj?.content) return null;
     const lrc = atob(String(dj.content));
+    if (!lrc || lrc.length < 10) return null;
+    const plain = lrc.replace(/\[[^\]]+\]/g, '').replace(/\n{2,}/g, '\n').trim() || undefined;
+    return { synced: lrc, plain };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchNetease(artist: string, title: string): Promise<{ synced?: string; plain?: string } | null> {
+  try {
+    const q = `${clean(title)} ${clean(artist)}`;
+    const search = await fetch(`https://music.163.com/api/search/get/web?type=1&limit=5&s=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://music.163.com/' },
+    });
+    if (!search.ok) return null;
+    const sj = await search.json();
+    const songs = sj?.result?.songs;
+    if (!Array.isArray(songs) || songs.length === 0) return null;
+    const titleNorm = clean(title).toLowerCase();
+    const artistNorm = clean(artist).toLowerCase();
+    const pick = songs.find((song: any) => {
+      const sTitle = String(song?.name || '').toLowerCase();
+      const sArtists = Array.isArray(song?.artists) ? song.artists.map((a: any) => String(a?.name || '').toLowerCase()).join(' ') : '';
+      return sTitle.includes(titleNorm.slice(0, 18)) || (titleNorm.includes(sTitle) && sArtists.includes(artistNorm.slice(0, 12)));
+    }) || songs[0];
+    if (!pick?.id) return null;
+    const lr = await fetch(`https://music.163.com/api/song/lyric?id=${encodeURIComponent(String(pick.id))}&lv=1&kv=1&tv=-1`, {
+      headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://music.163.com/' },
+    });
+    if (!lr.ok) return null;
+    const lj = await lr.json();
+    const lrc = decodeHtml(String(lj?.lrc?.lyric || '')).trim();
     if (!lrc || lrc.length < 10) return null;
     const plain = lrc.replace(/\[[^\]]+\]/g, '').replace(/\n{2,}/g, '\n').trim() || undefined;
     return { synced: lrc, plain };
@@ -159,6 +240,27 @@ async function fetchGeniusUrl(artist: string, title: string): Promise<string | n
   }
 }
 
+async function fetchParallelProviders(artist: string, title: string, duration?: number): Promise<ProviderLyrics | null> {
+  const started = Date.now();
+  let bestPlain: ProviderLyrics | null = null;
+  const providers: Array<Promise<ProviderLyrics | null>> = [
+    withTimeout(fetchLrclib(artist, title, duration), 2300).then((result) => result ? ({ ...result, source: 'lrclib' as const }) : null),
+    withTimeout(fetchKugou(artist, title, duration), 2600).then((result) => result ? ({ ...result, source: 'kugou' as const }) : null),
+    withTimeout(fetchNetease(artist, title), 2600).then((result) => result ? ({ ...result, source: 'netease' as const }) : null),
+  ];
+
+  const pending = providers.map((promise, index) => promise.then((result) => ({ result, index })));
+  while (pending.length) {
+    const { result, index } = await Promise.race(pending);
+    pending.splice(pending.findIndex((promise) => promise === pending[index]), 1);
+
+    if (result?.synced) return result;
+    if (result?.plain && !bestPlain) bestPlain = result;
+    if (bestPlain && Date.now() - started > 1400) return bestPlain;
+  }
+  return bestPlain;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -175,6 +277,7 @@ Deno.serve(async (req) => {
     const artist = String(body?.artist || '').trim();
     const title = String(body?.title || '').trim();
     const duration = Number(body?.duration) || undefined;
+    const songId = String(body?.songId || '').trim() || undefined;
 
     if (!artist || !title) {
       return new Response(JSON.stringify({ success: false, error: 'artist and title required' } satisfies LyricsResponse), {
@@ -182,7 +285,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cacheKey = `${clean(artist).toLowerCase()}|${clean(title).toLowerCase()}|${duration || 0}`;
+    const cacheKey = `${stripArtistSongId(songId) || 'catalog'}|${clean(artist).toLowerCase()}|${clean(title).toLowerCase()}|${duration || 0}`;
     const cached = cacheGet(cacheKey);
     if (cached) {
       return new Response(JSON.stringify(cached), {
@@ -190,20 +293,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Chain: LRCLIB → KuGou → Genius (metadata link only).
-    const lrc = await fetchLrclib(artist, title, duration);
-    let synced = lrc?.synced || null;
-    let plain = lrc?.plain || null;
-    let source: LyricsResponse['source'] = (synced || plain) ? 'lrclib' : null;
-
-    if (!synced && !plain) {
-      const kg = await fetchKugou(artist, title, duration);
-      if (kg?.synced || kg?.plain) {
-        synced = kg.synced || null;
-        plain = kg.plain || null;
-        source = 'kugou';
-      }
-    }
+    // Artist-provided lyrics win. Public providers run in parallel to avoid slow chained fallbacks.
+    const artistLyrics = await fetchArtistUploadLyrics(songId);
+    const provider = artistLyrics || await fetchParallelProviders(artist, title, duration);
+    const synced = provider?.synced || null;
+    const plain = provider?.plain || null;
+    let source: LyricsResponse['source'] = provider?.source || null;
 
     const haveLyrics = !!(synced || plain);
     const geniusUrl = haveLyrics ? null : await fetchGeniusUrl(artist, title);

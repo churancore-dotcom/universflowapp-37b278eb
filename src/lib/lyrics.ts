@@ -8,7 +8,7 @@ export interface LyricLine {
 export interface LyricsResult {
   synced: LyricLine[];      // empty if unsynced
   plain: string | null;     // raw text if no sync
-  source: 'lrclib' | 'genius' | null;
+  source: 'artist' | 'lrclib' | 'kugou' | 'netease' | 'genius' | null;
   geniusUrl: string | null;
   hasLyrics: boolean;
   isSynced: boolean;
@@ -39,9 +39,10 @@ function writeCache(c: CacheShape) {
   } catch { /* quota — ignore */ }
 }
 
-function makeKey(artist: string, title: string, duration?: number) {
+function makeKey(artist: string, title: string, duration?: number, songId?: string) {
+  const idKey = songId?.trim() || 'no-id';
   const durationKey = duration && Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 'unknown';
-  return `${artist.toLowerCase().trim()}::${title.toLowerCase().trim()}::${durationKey}`;
+  return `${idKey}::${artist.toLowerCase().trim()}::${title.toLowerCase().trim()}::${durationKey}`;
 }
 
 /** Parse LRC text into time-ordered lines. Handles [mm:ss.xx] and [mm:ss]. */
@@ -99,9 +100,9 @@ function buildTimedPlainLyrics(plain: string | null, duration?: number): LyricLi
 
 const inFlight = new Map<string, Promise<LyricsResult>>();
 
-export async function fetchLyrics(artist: string, title: string, duration?: number): Promise<LyricsResult> {
+export async function fetchLyrics(artist: string, title: string, duration?: number, songId?: string): Promise<LyricsResult> {
   if (!artist || !title) return EMPTY;
-  const key = makeKey(artist, title, duration);
+  const key = makeKey(artist, title, duration, songId);
   const cache = readCache();
   const hit = cache[key];
   if (hit && hit.expiresAt > Date.now()) return hit.data;
@@ -112,7 +113,7 @@ export async function fetchLyrics(artist: string, title: string, duration?: numb
   const p = (async () => {
     try {
       const { data, error } = await supabase.functions.invoke('lyrics', {
-        body: { artist, title, duration },
+        body: { artist, title, duration, songId },
       });
       if (error || !data?.success) return EMPTY;
       const synced = data.synced ? parseLrc(data.synced) : [];
