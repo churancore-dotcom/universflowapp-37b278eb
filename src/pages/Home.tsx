@@ -336,6 +336,7 @@ const Home = () => {
 
               {!isOffline && <FreshReleasesSection songs={allSongs} />}
               {!isOffline && <TrendingNowSection songs={allSongs} />}
+              {!isOffline && <MadeForYouSection />}
               {/* Followed artists rail — sits below Trending Now */}
               {!isOffline && <FollowedArtistSongsSection songs={allSongs} />}
 
