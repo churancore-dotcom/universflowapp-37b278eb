@@ -16,6 +16,7 @@ import EqualizerModal from './EqualizerModal';
 import QueueDrawer from './QueueDrawer';
 import FollowArtistButton from './FollowArtistButton';
 import type { Song } from '@/contexts/PlayerContext';
+import { fetchLyrics } from '@/lib/lyrics';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { canDownloadSong, canLikeSong, isIndexedSong } from '@/lib/songSupport';
 import { usePremium } from '@/hooks/usePremium';
@@ -135,6 +136,14 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
     }
   }, [currentSong?.id]);
 
+  useEffect(() => {
+    if (!currentSong) return;
+    fetchLyrics(currentSong.artist, currentSong.title, currentSong.duration, currentSong.id);
+    const currentIndex = queue.findIndex((song) => song.id === currentSong.id);
+    const upcoming = currentIndex >= 0 ? queue.slice(currentIndex + 1, currentIndex + 3) : queue.slice(0, 2);
+    upcoming.forEach((song) => fetchLyrics(song.artist, song.title, song.duration, song.id));
+  }, [currentSong, queue]);
+
   const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.y > 100) {
       setExpanded(false);
@@ -244,6 +253,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               {showLyrics ? (
                 <div className="w-full h-full max-w-[420px]">
                   <SyncedLyricsView
+                    songId={currentSong.id}
                     artist={currentSong.artist}
                     title={currentSong.title}
                     duration={currentSong.duration}
@@ -254,8 +264,8 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
               <div
                 className="relative"
                 style={{
-                  width: 'min(78vw, 100%, calc(100vh - 360px), 360px)',
-                  height: 'min(78vw, 100%, calc(100vh - 360px), 360px)',
+                  width: 'min(84vw, 100%, calc(100dvh - 370px), 380px)',
+                  height: 'min(84vw, 100%, calc(100dvh - 370px), 380px)',
                   aspectRatio: '1 / 1',
                 }}
               >
