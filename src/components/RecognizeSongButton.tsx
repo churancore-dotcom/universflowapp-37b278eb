@@ -155,7 +155,7 @@ const RecognizeSongButton = () => {
             <motion.div
               initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}
               transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-              className="w-full max-w-md mx-3 mb-3 rounded-3xl p-6 safe-area-pb"
+              className="w-full max-w-md mx-3 mb-[calc(env(safe-area-inset-bottom)+96px)] rounded-3xl p-6"
               style={{
                 background: 'hsl(var(--card))',
                 border: '1px solid rgba(255,255,255,0.08)',
