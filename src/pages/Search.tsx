@@ -394,6 +394,8 @@ const Search = () => {
     setSearching(true);
     setIndexedResults([]);
     setVisibleCount(40);
+    expandedQueriesRef.current.delete(trimmedQuery);
+
 
 
     let cancelled = false;
