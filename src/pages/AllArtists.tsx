@@ -278,25 +278,23 @@ const AllArtists = () => {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = allArtists.filter(a => {
-      if (activeCategory === 'Universflow' && a.source !== 'platform') return false;
-      if (activeCategory === 'Trending' && a.category !== 'Trending') return false;
-      if (
-        activeCategory !== 'All' &&
-        activeCategory !== 'Trending' &&
-        activeCategory !== 'Universflow' &&
-        a.category !== activeCategory
-      ) return false;
-      if (q && !a.name.toLowerCase().includes(q)) return false;
+      const key = a.name.toLowerCase();
+      if (activeCategory === 'Following') {
+        if (!followed.has(key)) return false;
+      } else if (activeCategory === 'Universflow') {
+        if (a.source !== 'platform') return false;
+      } else if (activeCategory === 'Trending') {
+        if (a.category !== 'Trending') return false;
+      } else if (activeCategory !== 'All') {
+        if (a.category !== activeCategory) return false;
+      }
+      if (q && !key.includes(q)) return false;
       return true;
     });
-    // Always pin Universflow's own artists to the top
-    return list.sort((a, b) => {
-      const ap = a.source === 'platform' ? 0 : 1;
-      const bp = b.source === 'platform' ? 0 : 1;
-      if (ap !== bp) return ap - bp;
-      return (b.listeners || 0) - (a.listeners || 0);
-    });
-  }, [allArtists, activeCategory, query]);
+    // Sort: followed first (in Following view it's everything), then by listeners.
+    // No more force-pinning of Universflow artists — they rank by real popularity.
+    return list.sort((a, b) => (b.listeners || 0) - (a.listeners || 0));
+  }, [allArtists, activeCategory, query, followed]);
 
 
   const handleFollow = useCallback(async (artist: ArtistEntry) => {
