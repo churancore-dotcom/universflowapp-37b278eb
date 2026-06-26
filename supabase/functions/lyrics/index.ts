@@ -37,6 +37,43 @@ function decodeHtml(value: string): string {
     .replace(/&gt;/g, '>');
 }
 
+function decodeBase64Utf8(value: string): string {
+  const binary = atob(value);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+}
+
+function stripLrcTags(line: string): string {
+  return line.replace(/\[[^\]]+\]/g, '').trim();
+}
+
+function isCreditLine(text: string, artist: string, title: string): boolean {
+  const cleanText = text.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!cleanText) return false;
+  if (/^(lyrics?|lyricist|written|writer|composed|composer|作词|作曲|编曲|制作|出品)\s*(by|[:：])/.test(cleanText)) return true;
+  const songLabel = `${clean(title)} - ${clean(artist)}`.toLowerCase();
+  return cleanText === songLabel || cleanText === clean(title).toLowerCase();
+}
+
+function sanitizeLrc(raw: string, artist: string, title: string): string {
+  return raw
+    .split(/\r?\n/)
+    .filter((line) => !isCreditLine(stripLrcTags(line), artist, title))
+    .join('\n')
+    .trim();
+}
+
+function plainFromLrc(raw: string, artist: string, title: string): string | undefined {
+  const plain = raw
+    .split(/\r?\n/)
+    .map(stripLrcTags)
+    .filter((line) => line && !isCreditLine(line, artist, title))
+    .join('\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+  return plain || undefined;
+}
+
 function stripArtistSongId(songId?: string): string | null {
   const raw = String(songId || '').trim().replace(/^as_/, '');
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw) ? raw : null;
@@ -99,9 +136,9 @@ async function fetchKugou(artist: string, title: string, durationSec?: number): 
     if (!dr.ok) return null;
     const dj = await dr.json();
     if (!dj?.content) return null;
-    const lrc = atob(String(dj.content));
+    const lrc = sanitizeLrc(decodeBase64Utf8(String(dj.content)), artist, title);
     if (!lrc || lrc.length < 10) return null;
-    const plain = lrc.replace(/\[[^\]]+\]/g, '').replace(/\n{2,}/g, '\n').trim() || undefined;
+    const plain = plainFromLrc(lrc, artist, title);
     return { synced: lrc, plain };
   } catch {
     return null;
@@ -131,9 +168,9 @@ async function fetchNetease(artist: string, title: string): Promise<{ synced?: s
     });
     if (!lr.ok) return null;
     const lj = await lr.json();
-    const lrc = decodeHtml(String(lj?.lrc?.lyric || '')).trim();
+    const lrc = sanitizeLrc(decodeHtml(String(lj?.lrc?.lyric || '')).trim(), artist, title);
     if (!lrc || lrc.length < 10) return null;
-    const plain = lrc.replace(/\[[^\]]+\]/g, '').replace(/\n{2,}/g, '\n').trim() || undefined;
+    const plain = plainFromLrc(lrc, artist, title);
     return { synced: lrc, plain };
   } catch {
     return null;
