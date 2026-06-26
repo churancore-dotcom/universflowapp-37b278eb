@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { connectAudioElement, getState, setBands, setReverb, setSpatial, setLateNight, setHeadphoneSurround, setStudioSpace as engineSetStudioSpace, resume, subscribe } from '@/lib/audioEngine';
-import { getEQSettings, hasWebAudioEffects } from '@/lib/eqSettings';
+import { getEQSettings } from '@/lib/eqSettings';
 import { getRuntimePremium } from '@/lib/premiumState';
 
 /**
