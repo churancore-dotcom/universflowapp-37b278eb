@@ -190,9 +190,42 @@ const RecognizeSongButton = () => {
               )}
 
               {phase === 'processing' && (
-                <div className="flex flex-col items-center py-10">
-                  <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'hsl(var(--primary))' }} />
-                  <p className="mt-4 text-sm text-muted-foreground">Matching the fingerprint…</p>
+                <div className="flex flex-col items-center py-6">
+                  <div className="relative w-28 h-28 flex items-center justify-center">
+                    <motion.div
+                      className="absolute inset-0 rounded-full"
+                      style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(18 100% 82%))', opacity: 0.22 }}
+                      animate={{ scale: [1, 1.35, 1], opacity: [0.22, 0.12, 0.22] }}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <motion.div
+                      className="absolute inset-3 rounded-full"
+                      style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(18 100% 82%))', opacity: 0.35 }}
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.35, 0.2, 0.35] }}
+                      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+                    />
+                    <div
+                      className="relative w-16 h-16 rounded-full flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(18 100% 82%))' }}
+                    >
+                      <Loader2 className="w-7 h-7 animate-spin" style={{ color: 'hsl(var(--background))' }} />
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex items-end gap-1 h-10">
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-1.5 rounded-full"
+                        style={{ background: 'linear-gradient(180deg, hsl(var(--primary)), hsl(18 100% 82%))' }}
+                        animate={{ height: [8, 28 + (i % 3) * 10, 12, 32 - (i % 4) * 6, 8] }}
+                        transition={{ duration: 1.1 + (i % 3) * 0.15, repeat: Infinity, ease: 'easeInOut', delay: i * 0.05 }}
+                      />
+                    ))}
+                  </div>
+
+                  <p className="mt-5 text-sm font-medium text-muted-foreground">Matching the fingerprint…</p>
+                  <p className="mt-1 text-xs text-muted-foreground opacity-60">This may take a few seconds</p>
                 </div>
               )}
 
