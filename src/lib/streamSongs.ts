@@ -78,8 +78,18 @@ export const getTrackSource = (song: Pick<Song, 'id' | 'source'>) => {
   return isCatalogSongId(song.id) ? 'library' : 'indexed';
 };
 
+const _persistedRecently = new Map<string, number>();
 export const persistStreamSong = async (song: Song) => {
   if (!song?.id || isCatalogSongId(song.id)) return;
+  const now = Date.now();
+  const last = _persistedRecently.get(song.id) ?? 0;
+  if (now - last < 5 * 60 * 1000) return; // skip duplicate upsert within 5 min
+  _persistedRecently.set(song.id, now);
+  if (_persistedRecently.size > 500) {
+    // simple LRU-ish trim
+    const cutoff = now - 10 * 60 * 1000;
+    for (const [k, t] of _persistedRecently) if (t < cutoff) _persistedRecently.delete(k);
+  }
 
   await supabase.from('stream_songs').upsert({
     track_id: song.id,
@@ -95,6 +105,7 @@ export const persistStreamSong = async (song: Song) => {
     last_seen_at: new Date().toISOString(),
   });
 };
+
 
 export const loadLibrarySongs = async (userId: string) => {
   const { data: rows, error } = await supabase

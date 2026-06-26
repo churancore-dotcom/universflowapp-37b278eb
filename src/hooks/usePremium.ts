@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useContext, useRef } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { setRuntimePremium } from '@/lib/premiumState';
@@ -45,7 +45,6 @@ const readCache = (userId: string | undefined): Subscription | null | undefined 
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as CachedPremium;
     if (parsed.userId !== userId) return undefined;
-    // Treat cache as valid for 24h — the realtime fetch will overwrite it
     if (Date.now() - parsed.cachedAt > 24 * 60 * 60 * 1000) return undefined;
     return parsed.subscription;
   } catch {
@@ -62,67 +61,76 @@ const writeCache = (userId: string, subscription: Subscription | null) => {
   } catch { /* ignore */ }
 };
 
-export const usePremium = (): UsePremiumReturn => {
-  const authContext = useContext(AuthContext);
-  const user = authContext?.user ?? null;
+// ---- Singleton store: ONE fetch + ONE realtime channel for the whole app ----
+interface PremiumState {
+  isPremium: boolean;
+  subscription: Subscription | null;
+  subscriptionRow: SubscriptionRow;
+  lastRealtimeUpdate: string | null;
+  lastCheckedAt: string | null;
+  isLoading: boolean;
+  error: Error | null;
+}
 
-  // Hydrate subscription details from cache for display only. The actual
-  // premium unlock flag below is NEVER taken from localStorage; it is verified
-  // through the server RPC on every app start/refetch.
-  const cached = readCache(user?.id);
-  const [subscription, setSubscription] = useState<Subscription | null>(cached ?? null);
-  const [subscriptionRow, setSubscriptionRow] = useState<SubscriptionRow>(null);
-  const [verifiedPremium, setVerifiedPremium] = useState(false);
-  const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<string | null>(null);
-  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+const initialState: PremiumState = {
+  isPremium: false,
+  subscription: null,
+  subscriptionRow: null,
+  lastRealtimeUpdate: null,
+  lastCheckedAt: null,
+  isLoading: true,
+  error: null,
+};
 
-  const fetchSubscription = useCallback(async () => {
-    if (!user) {
-      setSubscription(null);
-      setSubscriptionRow(null);
-      setVerifiedPremium(false);
-      setLastRealtimeUpdate(null);
-      setLastCheckedAt(null);
-      setIsLoading(false);
-      try { localStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
-      return;
-    }
+let store: PremiumState = { ...initialState };
+const subscribers = new Set<(s: PremiumState) => void>();
+let currentUserId: string | null = null;
+let currentChannel: ReturnType<typeof supabase.channel> | null = null;
+let inflight: Promise<void> | null = null;
+let lastFetchAt = 0;
 
+const emit = () => {
+  subscribers.forEach((cb) => { try { cb(store); } catch { /* noop */ } });
+};
+
+const setStore = (patch: Partial<PremiumState>) => {
+  store = { ...store, ...patch };
+  emit();
+};
+
+const fetchOnce = async (userId: string | null): Promise<void> => {
+  if (!userId) {
+    setStore({ ...initialState, isLoading: false });
+    setRuntimePremium(false);
+    try { localStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
+    return;
+  }
+  if (inflight) return inflight;
+  inflight = (async () => {
     try {
-      setError(null);
-
       const [premiumResult, subscriptionResult] = await Promise.all([
-        supabase.rpc('has_premium_subscription', { _user_id: user.id }),
-        supabase
-          .from('user_subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle(),
+        supabase.rpc('has_premium_subscription', { _user_id: userId }),
+        supabase.from('user_subscriptions').select('*').eq('user_id', userId).maybeSingle(),
       ]);
-
       if (premiumResult.error) throw premiumResult.error;
-      setVerifiedPremium(premiumResult.data === true);
-
       if (subscriptionResult.error) throw subscriptionResult.error;
-      setSubscriptionRow((subscriptionResult.data ?? null) as SubscriptionRow);
 
+      const verified = premiumResult.data === true;
       let next: Subscription | null = null;
-      if (subscriptionResult.data) {
-        const isExpired = subscriptionResult.data.expires_at && new Date(subscriptionResult.data.expires_at) < new Date();
+      const row = subscriptionResult.data ?? null;
+      if (row) {
+        const isExpired = row.expires_at && new Date(row.expires_at) < new Date();
         next = {
-          id: subscriptionResult.data.id,
-          subscription_type: subscriptionResult.data.subscription_type as SubscriptionType,
-          status: isExpired ? 'expired' : (subscriptionResult.data.status as SubscriptionStatus),
-          expires_at: subscriptionResult.data.expires_at,
-          platform: subscriptionResult.data.platform,
+          id: row.id,
+          subscription_type: row.subscription_type as SubscriptionType,
+          status: isExpired ? 'expired' : (row.status as SubscriptionStatus),
+          expires_at: row.expires_at,
+          platform: row.platform,
         };
       }
-      setSubscription(next);
-      writeCache(user.id, next);
+      writeCache(userId, next);
       if (next?.status === 'expired' && next.expires_at) {
-        const alertKey = `${user.id}:${next.id}:${next.expires_at}`;
+        const alertKey = `${userId}:${next.id}:${next.expires_at}`;
         if (localStorage.getItem(EXPIRY_ALERT_KEY) !== alertKey) {
           toast.warning('Your Premium has ended', {
             description: 'Renew anytime to restore ad-free listening, downloads and premium audio.',
@@ -130,76 +138,99 @@ export const usePremium = (): UsePremiumReturn => {
           localStorage.setItem(EXPIRY_ALERT_KEY, alertKey);
         }
       }
-      setLastCheckedAt(new Date().toISOString());
+      setStore({
+        isPremium: verified,
+        subscription: next,
+        subscriptionRow: row as SubscriptionRow,
+        lastCheckedAt: new Date().toISOString(),
+        isLoading: false,
+        error: null,
+      });
+      setRuntimePremium(verified);
+      lastFetchAt = Date.now();
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch subscription'));
-      // Fail closed for unlocks. Cached subscription text may remain visible,
-      // but paid capabilities are not enabled unless the server verified them.
-      setVerifiedPremium(false);
+      setStore({
+        isPremium: false,
+        error: err instanceof Error ? err : new Error('Failed to fetch subscription'),
+        isLoading: false,
+      });
+      setRuntimePremium(false);
     } finally {
-      setIsLoading(false);
+      inflight = null;
     }
-  }, [user]);
+  })();
+  return inflight;
+};
+
+const bindUser = (userId: string | null) => {
+  if (currentUserId === userId) return;
+  currentUserId = userId;
+  if (currentChannel) {
+    try { supabase.removeChannel(currentChannel); } catch { /* noop */ }
+    currentChannel = null;
+  }
+  if (!userId) {
+    setStore({ ...initialState, isLoading: false });
+    setRuntimePremium(false);
+    return;
+  }
+  // Seed from cache instantly
+  const cached = readCache(userId);
+  if (cached !== undefined) {
+    setStore({ subscription: cached ?? null, isLoading: store.isLoading });
+  }
+  void fetchOnce(userId);
+  currentChannel = supabase
+    .channel(`premium-status-${userId}`)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'user_subscriptions',
+      filter: `user_id=eq.${userId}`,
+    }, () => {
+      setStore({ lastRealtimeUpdate: new Date().toISOString() });
+      void fetchOnce(userId);
+    })
+    .subscribe();
+};
+
+// Soft refetch when the user returns to the tab if data is stale.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentUserId && Date.now() - lastFetchAt > 5 * 60 * 1000) {
+      void fetchOnce(currentUserId);
+    }
+  });
+}
+
+export const usePremium = (): UsePremiumReturn => {
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user ?? null;
+  const [snapshot, setSnapshot] = useState<PremiumState>(store);
 
   useEffect(() => {
-    fetchSubscription();
-  }, [fetchSubscription]);
-
-  const fetchSubscriptionRef = useRef(fetchSubscription);
-  useEffect(() => { fetchSubscriptionRef.current = fetchSubscription; }, [fetchSubscription]);
+    bindUser(user?.id ?? null);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user) return;
+    const cb = (s: PremiumState) => setSnapshot(s);
+    subscribers.add(cb);
+    setSnapshot(store);
+    return () => { subscribers.delete(cb); };
+  }, []);
 
-    // Unique channel name per mount avoids Supabase reusing an already-subscribed
-    // channel (which would throw "cannot add postgres_changes after subscribe()").
-    const channel = supabase
-      .channel(`premium-status-${user.id}-${Math.random().toString(36).slice(2, 10)}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_subscriptions',
-        filter: `user_id=eq.${user.id}`,
-      }, () => {
-        setLastRealtimeUpdate(new Date().toISOString());
-        fetchSubscriptionRef.current();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    // Realtime channel handles live updates; polling is a long-interval safety net.
-    const poll = window.setInterval(() => {
-      fetchSubscription();
-    }, verifiedPremium ? 60000 : 60000);
-
-    return () => window.clearInterval(poll);
-  }, [user, verifiedPremium, fetchSubscription]);
-
-  const isPremium = verifiedPremium;
-
-  // Mirror the server-verified value into a runtime flag that other modules
-  // (PlayerContext, useGlobalAudioEngine) read instead of localStorage —
-  // localStorage can be edited from DevTools, this in-memory flag cannot
-  // be flipped without also patching the JS bundle.
-  useEffect(() => {
-    setRuntimePremium(!!isPremium);
-  }, [isPremium]);
+  const refetch = useCallback(async () => {
+    await fetchOnce(currentUserId);
+  }, []);
 
   return {
-    isPremium,
-    subscription,
-    verifiedStatus: verifiedPremium,
-    subscriptionRow,
-    lastRealtimeUpdate,
-    lastCheckedAt,
-    isLoading,
-    error,
-    refetch: fetchSubscription,
+    isPremium: snapshot.isPremium,
+    subscription: snapshot.subscription,
+    verifiedStatus: snapshot.isPremium,
+    subscriptionRow: snapshot.subscriptionRow,
+    lastRealtimeUpdate: snapshot.lastRealtimeUpdate,
+    lastCheckedAt: snapshot.lastCheckedAt,
+    isLoading: snapshot.isLoading,
+    error: snapshot.error,
+    refetch,
   };
 };
 
