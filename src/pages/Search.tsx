@@ -385,6 +385,7 @@ const Search = () => {
       setIndexedResults([]);
       setArtistResults([]);
       setSearching(false);
+      setVisibleCount(40);
       return;
     }
 
@@ -392,6 +393,8 @@ const Search = () => {
     // the user types, so they always see the loading state — never stale hits.
     setSearching(true);
     setIndexedResults([]);
+    setVisibleCount(40);
+
 
     let cancelled = false;
     const timer = setTimeout(async () => {
