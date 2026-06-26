@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { findSongStreamUrl } from '@/lib/jiosaavn';
+import { getCachedStream as getYtmCached, setCachedStream as setYtmCached, invalidateStream as invalidateYtmCached } from '@/lib/ytmStreamCache';
 
 export interface IndexedTrack {
   id: string;
@@ -366,15 +367,64 @@ export async function resolveIndexedTrack(
   return pending;
 }
 
-export async function resolveYouTubeVideoStream(videoId: string): Promise<ResolveTrackResponse> {
+export async function resolveYouTubeVideoStream(
+  videoId: string,
+  opts: { forceRefresh?: boolean } = {},
+): Promise<ResolveTrackResponse> {
   const id = videoId.trim();
   if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
     return { success: false, error: 'Invalid video id' };
   }
-  return requestIndexer<ResolveTrackResponse>({
-    action: 'resolve-video',
-    videoId: id,
-  });
+
+  // 1) 6h client cache
+  if (!opts.forceRefresh) {
+    const cached = getYtmCached(id);
+    if (cached?.url) {
+      return {
+        success: true,
+        streamUrl: cached.url,
+        videoId: id,
+        title: cached.meta?.title,
+        artist: cached.meta?.artist,
+        cover_url: cached.meta?.cover_url,
+        duration: cached.meta?.duration,
+      };
+    }
+  } else {
+    invalidateYtmCached(id);
+  }
+
+  // 2) extract-audio edge function (Piped/Invidious race, 5h server cache)
+  try {
+    const { data, error } = await supabase.functions.invoke('extract-audio', {
+      body: { videoId: id, forceRefresh: opts.forceRefresh === true },
+    });
+    if (error) throw error;
+    if (data?.success && data?.audioUrl) {
+      setYtmCached(id, data.audioUrl, {
+        title: data.title,
+        artist: data.artist,
+        cover_url: data.thumbnail,
+        duration: data.duration,
+      });
+      return {
+        success: true,
+        streamUrl: data.audioUrl,
+        videoId: id,
+        title: data.title,
+        artist: data.artist,
+        cover_url: data.thumbnail,
+        duration: data.duration,
+      };
+    }
+    return { success: false, error: data?.error || 'No audio stream available' };
+  } catch (e) {
+    return { success: false, error: (e as Error).message || 'Stream extraction failed' };
+  }
+}
+
+export function invalidateYouTubeStream(videoId: string) {
+  invalidateYtmCached(videoId);
 }
 
 async function resolveViaEdgeFunction(artist: string, title: string, cacheKey: string, forceRefresh = false): Promise<ResolveTrackResponse> {

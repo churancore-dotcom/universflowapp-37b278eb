@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { useGlobalAudioEngine } from '@/hooks/useGlobalAudioEngine';
 import { supabase } from '@/integrations/supabase/client';
-import { resolveIndexedTrack, resolveYouTubeVideoStream, prefetchIndexedTrack } from '@/lib/musicIndexer';
+import { resolveIndexedTrack, resolveYouTubeVideoStream, prefetchIndexedTrack, invalidateYouTubeStream } from '@/lib/musicIndexer';
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { recordPerfEvent } from '@/lib/perfMonitor';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
@@ -978,7 +978,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const videoId = getYouTubeFallbackVideoId(ytFallback);
         if (videoId) {
           try {
-            const resolved = await resolveYouTubeVideoStream(videoId);
+            if (opts.forceRefresh) invalidateYouTubeStream(videoId);
+            const resolved = await resolveYouTubeVideoStream(videoId, { forceRefresh: opts.forceRefresh });
             if (resolved?.streamUrl) return resolved.streamUrl;
           } catch { /* keep iframe fallback */ }
         }
