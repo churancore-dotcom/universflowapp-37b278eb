@@ -444,18 +444,19 @@ const Search = () => {
           .slice(0, 300);
 
         setCached(SEARCH_CACHE_NAMESPACE, trimmedQuery, merged);
-        // Surface artists more liberally — Last.fm doesn't track every regional /
-        // indie artist, so requiring 100k listeners was dropping legitimate hits.
-        // Rule: keep any artist that has a real photo AND either (a) a matching
-        // listener signal, or (b) a name that visibly matches the user's query.
+        // Artist cards: require BOTH a real listener signal AND a name overlap.
+        // Name-only matches were surfacing obscure record-label entries (e.g.
+        // searching "kesariya" the song would render a random "Kesariya" indie
+        // cover labeled as a "REAL ARTIST PROFILE").
         const qNorm = normalizeText(trimmedQuery);
-        const MIN_ARTIST_LISTENERS = 25_000;
+        const MIN_ARTIST_LISTENERS = 50_000;
         const verifiedArtists = artists.filter((a) => {
           if (!a.image_url) return false;
           const nameNorm = normalizeText(a.name || '');
+          if (!nameNorm) return false;
           const nameMatches = nameNorm === qNorm || nameNorm.includes(qNorm) || qNorm.includes(nameNorm);
           const hasListeners = typeof a.listeners === 'number' && a.listeners >= MIN_ARTIST_LISTENERS;
-          return nameMatches || hasListeners;
+          return nameMatches && hasListeners;
         });
         setArtistResults(verifiedArtists.slice(0, 6));
         setIndexedResults(merged);
@@ -499,28 +500,19 @@ const Search = () => {
   const featuredArtist = matchedArtists[0];
   const artistNameSearch = matchedArtists.length > 0;
   const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
-  // Restrict song results to verified Universflow artists only.
-  // Uploaded artist tracks always pass (their owner is verified by definition).
-  const universflowFilteredResults = visibleIndexedResults.filter((track) => {
-    if (isUploadedArtistTrack(track)) return true;
-    if (verifiedArtistNames.size === 0) return false;
-    const artistNorm = normalizeText(track.artist || '');
-    if (!artistNorm) return false;
-    if (verifiedArtistNames.has(artistNorm)) return true;
-    // Allow multi-artist credits like "A & B" or "A, B" if any token matches a verified name.
-    for (const name of verifiedArtistNames) {
-      if (artistNorm.includes(name) || name.includes(artistNorm)) return true;
-    }
-    return false;
-  });
+  // Universflow-uploaded tracks already merge to the TOP via mergeUploadedArtistSongs.
+  // We do NOT hard-filter to verified artists only — that produced an empty
+  // "All Songs" tab for every famous song (e.g. Kesariya, Perfect) because the
+  // platform only has a handful of verified artists. Show real songs; let the
+  // Universflow uploads surface naturally on top.
   const displayedIndexedResults = artistNameSearch
-    ? universflowFilteredResults.filter((track) => {
+    ? visibleIndexedResults.filter((track) => {
         if (isUploadedArtistTrack(track)) return true;
         const artist = normalizeText(track.artist);
         const q = normalizeText(query);
         return artist.includes(q) || matchedArtists.some((result) => artist.includes(normalizeText(result.name)) || normalizeText(result.name).includes(artist));
       })
-    : universflowFilteredResults;
+    : visibleIndexedResults;
 
   const handleHideIndexed = useCallback((track: IndexedTrack) => {
     hideSearchTrack(track);
