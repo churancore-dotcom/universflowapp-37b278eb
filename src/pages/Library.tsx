@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import SEOHead from '@/components/SEOHead';
 import RoseHero from '@/components/RoseHero';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LibrarySkeleton, LibraryArtistsSkeleton } from '@/components/PageSkeletons';
+import VirtualList from '@/components/VirtualList';
 import PlaylistCover from '@/components/PlaylistCover';
 import { hydratePlaylistCoverUrls, loadLibrarySongs } from '@/lib/streamSongs';
 import { getUserArtistPrefs, unfollowArtist } from '@/lib/userArtistPrefs';
@@ -91,8 +92,9 @@ const Library = () => {
   const requestedTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(isOffline ? 'downloads' : (requestedTab || 'liked'));
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
-  
+  const scrollRef = useRef<HTMLDivElement>(null);
 
+  
   const libraryQueryKey = ['library', user?.id] as const;
   const initialCached = user ? readLibraryCache(user.id) : undefined;
   const { data, isLoading } = useQuery({
@@ -298,7 +300,7 @@ const Library = () => {
             </TabsList>
 
             {/* Content — scrollable */}
-            <div className="flex-1 overflow-y-auto pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={scrollRef} className="flex-1 overflow-y-auto pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
               {!isOffline && likedSongs.length > 0 && activeTab === 'liked' && (
                 <div className="mb-4">
                   <FollowedArtistSongsSection songs={likedSongs} />
@@ -311,9 +313,14 @@ const Library = () => {
                 ) : likedSongs.length === 0 ? (
                   <EmptyState icon={Heart} text="No liked songs yet" />
                 ) : (
-                  <div className="space-y-0.5">
-                    {likedSongs.map((song, i) => <SongRow key={`${song.id}-${i}`} song={song} index={i} />)}
-                  </div>
+                  <VirtualList<Song>
+                    items={likedSongs}
+                    estimateSize={64}
+                    gap={2}
+                    scrollParentRef={scrollRef}
+                    getKey={(song, i) => `${song.id}-${i}`}
+                    renderItem={(song, i) => <SongRow song={song} index={i} />}
+                  />
                 )}
               </TabsContent>
 

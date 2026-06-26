@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, Music, X, Radio, Loader2, Clock, Trash2 } from 'lucide-react';
@@ -14,6 +14,7 @@ import RoseHero from '@/components/RoseHero';
 import RecognizeSongButton from '@/components/RecognizeSongButton';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
+import VirtualList from '@/components/VirtualList';
 import { supabase } from '@/integrations/supabase/client';
 import { prefetchIndexedTrack, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
 // FollowedArtistsRail removed from Search per product decision
@@ -361,6 +362,7 @@ const Search = () => {
   const { getDownloadedUrl } = useDownloads();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const scrollRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const urlQuery = params.get('q')?.trim() || '';
@@ -582,7 +584,7 @@ const Search = () => {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto px-4 pt-4 pb-32 relative z-10" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-4 pb-32 relative z-10" style={{ WebkitOverflowScrolling: 'touch' }}>
           <AnimatePresence mode="wait">
             {!query && (
               <motion.div key="browse" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -687,16 +689,20 @@ const Search = () => {
                     <Music className="w-4 h-4 text-primary" />
                     Songs · {displayedIndexedResults.length} results
                   </h2>
-                  <div className="space-y-1">
-                    {displayedIndexedResults.map((track, i) => {
+                  <VirtualList<IndexedTrack>
+                    items={displayedIndexedResults}
+                    estimateSize={68}
+                    gap={4}
+                    scrollParentRef={scrollRef}
+                    getKey={(track) => track.id}
+                    renderItem={(track) => {
                       const isActive = currentSong?.id === track.id;
                       const isResolving = resolvingId === track.id;
                       return (
-                        <motion.div key={track.id}
+                        <div
                           className={`flex items-center gap-3 px-3 py-2.5 rounded-3xl cursor-pointer active:scale-[0.98] transition-all ${isActive ? 'bg-primary/10' : 'bg-card/40 active:bg-white/5'} ${isResolving ? 'opacity-60' : ''}`}
-                          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.025, duration: 0.25 }}
-                          onClick={() => !isResolving && handlePlayIndexed(track)}>
+                          onClick={() => !isResolving && handlePlayIndexed(track)}
+                        >
                           <div className={`relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ${isActive ? 'shadow-lg shadow-primary/20' : 'shadow-md'}`}>
                             {track.cover_url ? (
                               <img src={track.cover_url} alt={`${track.title} cover art`} className="w-full h-full object-cover" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
@@ -715,7 +721,6 @@ const Search = () => {
                             </p>
                             <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">{track.artist}</p>
                           </div>
-
                           <div className="flex items-center gap-1 flex-shrink-0">
                             {isActive && isPlaying ? (
                               <div className="flex items-end gap-[2px] h-4 mr-1">
@@ -726,15 +731,13 @@ const Search = () => {
                             ) : isResolving ? (
                               <Loader2 className="w-4 h-4 animate-spin text-primary" />
                             ) : (
-                              <>
-                                <LikeButton songId={track.id} song={{ id: track.id, title: track.title, artist: track.artist, cover_url: track.cover_url, audio_url: 'resolving', duration: track.duration, source: (track as { source?: string }).source === 'audius' ? 'audius' : 'indexed' } as Song} size="sm" className="w-8 h-8" />
-                              </>
+                              <LikeButton songId={track.id} song={{ id: track.id, title: track.title, artist: track.artist, cover_url: track.cover_url, audio_url: 'resolving', duration: track.duration, source: (track as { source?: string }).source === 'audius' ? 'audius' : 'indexed' } as Song} size="sm" className="w-8 h-8" />
                             )}
                           </div>
-                        </motion.div>
+                        </div>
                       );
-                    })}
-                  </div>
+                    }}
+                  />
                 </motion.div>
               )}
 
