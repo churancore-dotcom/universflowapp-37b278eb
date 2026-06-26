@@ -848,8 +848,8 @@ const PendingProgressBanner = memo(function PendingProgressBanner({ pending }: P
     const tick = () => {
       const seconds = Math.floor((Date.now() - start) / 1000);
       setElapsed(seconds);
-      if (seconds < 20) setStage(1);
-      else if (seconds < 60) setStage(2);
+      if (seconds < 3) setStage(1);
+      else if (seconds < 10) setStage(2);
       else setStage(3);
     };
     tick();
