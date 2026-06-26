@@ -404,14 +404,29 @@ serve(async (req) => {
       });
     }
 
-    const { query, limit: requestedLimit } = await req.json();
+    const { query, limit: requestedLimit, mode, country } = await req.json();
+    const limit = Math.max(1, Math.min(200, typeof requestedLimit === 'number' ? requestedLimit : 50));
+
+    if (mode === 'new-releases') {
+      const gl = typeof country === 'string' && /^[A-Z]{2}$/i.test(country) ? country.toUpperCase() : 'US';
+      const results = await getLocalizedNewReleases(gl, limit);
+      if (results.length === 0) {
+        return new Response(JSON.stringify({ success: false, error: 'No new releases' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      await persistSearchResults(adminClient, results);
+      return new Response(JSON.stringify({ success: true, results, source: 'youtube-music-new-releases' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return new Response(JSON.stringify({ success: false, error: 'A search query is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     const cleanQuery = query.trim().replace(/^new:\s*/i, '');
-    const limit = Math.max(1, Math.min(200, typeof requestedLimit === 'number' ? requestedLimit : 50));
 
     // PRIMARY: YouTube Music Innertube (songs + videos), no key, no quota.
     const [songs, videos] = await Promise.all([
