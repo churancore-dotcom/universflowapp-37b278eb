@@ -6,6 +6,8 @@ import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { useSongCache } from '@/hooks/useSongCache';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDownloads } from '@/contexts/DownloadContext';
+import { searchYouTubeMusicTracks } from '@/lib/musicIndexer';
+import MadeForYouSection from '@/components/MadeForYouSection';
 
 import AllSongsSection from '@/components/AllSongsSection';
 import HomeBento from '@/components/HomeBento';
