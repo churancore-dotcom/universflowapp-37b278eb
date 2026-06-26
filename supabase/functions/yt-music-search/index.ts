@@ -299,19 +299,24 @@ function extractFromItem(item: any): { videoId?: string; title: string; artist: 
   return { videoId, title: decodeEntities(title), artist: decodeEntities(artist), duration: parseDuration(durationText), cover };
 }
 
-async function ytMusicSearch(query: string, params: string): Promise<SearchResult[]> {
-  const resp = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
-    method: 'POST',
-    headers: YTM_HEADERS,
-    body: JSON.stringify({ context: YTM_CONTEXT, query, params }),
-  });
-  if (!resp.ok) {
-    console.warn('YT Music search failed', resp.status);
-    return [];
+function findContinuationToken(json: any): string | null {
+  const stack: any[] = [json];
+  while (stack.length) {
+    const n = stack.pop();
+    if (!n || typeof n !== 'object') continue;
+    const tok =
+      n?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token ||
+      n?.nextContinuationData?.continuation;
+    if (tok && typeof tok === 'string') return tok;
+    for (const k of Object.keys(n)) {
+      const v = (n as any)[k];
+      if (v && typeof v === 'object') stack.push(v);
+    }
   }
-  const json = await resp.json();
-  const out: SearchResult[] = [];
-  const seen = new Set<string>();
+  return null;
+}
+
+function parseSearchPage(json: any, query: string, out: SearchResult[], seen: Set<string>) {
   for (const item of walkItems(json)) {
     const parsed = extractFromItem(item);
     if (!parsed?.videoId || seen.has(parsed.videoId)) continue;
@@ -327,6 +332,47 @@ async function ytMusicSearch(query: string, params: string): Promise<SearchResul
       cover_url: parsed.cover,
       duration: parsed.duration || undefined,
     });
+  }
+}
+
+async function ytMusicSearch(query: string, params: string, targetCount = 80): Promise<SearchResult[]> {
+  const resp = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
+    method: 'POST',
+    headers: YTM_HEADERS,
+    body: JSON.stringify({ context: YTM_CONTEXT, query, params }),
+  });
+  if (!resp.ok) {
+    console.warn('YT Music search failed', resp.status);
+    return [];
+  }
+  const json = await resp.json();
+  const out: SearchResult[] = [];
+  const seen = new Set<string>();
+  parseSearchPage(json, query, out, seen);
+
+  // Follow continuation tokens for deeper results (Innertube paginates ~20/page).
+  let continuation = findContinuationToken(json);
+  let pages = 0;
+  while (continuation && out.length < targetCount && pages < 5) {
+    pages += 1;
+    try {
+      const cResp = await fetch(
+        `https://music.youtube.com/youtubei/v1/search?prettyPrint=false&ctoken=${encodeURIComponent(continuation)}&continuation=${encodeURIComponent(continuation)}&type=next`,
+        {
+          method: 'POST',
+          headers: YTM_HEADERS,
+          body: JSON.stringify({ context: YTM_CONTEXT }),
+        },
+      );
+      if (!cResp.ok) break;
+      const cJson = await cResp.json();
+      const before = out.length;
+      parseSearchPage(cJson, query, out, seen);
+      if (out.length === before) break;
+      continuation = findContinuationToken(cJson);
+    } catch {
+      break;
+    }
   }
   return out;
 }
