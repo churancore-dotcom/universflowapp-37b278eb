@@ -2070,12 +2070,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const setCrossfadeDurationFn = useCallback((seconds: number) => {
+    if (!getRuntimePremium()) {
+      toast.error('Crossfade is a Premium feature');
+      return;
+    }
     const clamped = Math.max(1, Math.min(12, seconds));
     setCrossfadeDurationState(clamped);
     try { localStorage.setItem('uf_crossfade_duration', String(clamped)); } catch { /* noop */ }
   }, []);
 
   const setCrossfadeCurveFn = useCallback((curve: 'linear' | 'equal-power' | 'smooth' | 'exponential') => {
+    if (!getRuntimePremium()) {
+      toast.error('Crossfade Curve is a Premium feature');
+      return;
+    }
     setCrossfadeCurveState(curve);
     try { localStorage.setItem('uf_crossfade_curve', curve); } catch { /* noop */ }
   }, []);
