@@ -362,6 +362,7 @@ const Search = () => {
   const { getDownloadedUrl } = useDownloads();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const scrollRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const urlQuery = params.get('q')?.trim() || '';
@@ -583,7 +584,7 @@ const Search = () => {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto px-4 pt-4 pb-32 relative z-10" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-4 pb-32 relative z-10" style={{ WebkitOverflowScrolling: 'touch' }}>
           <AnimatePresence mode="wait">
             {!query && (
               <motion.div key="browse" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
