@@ -29,14 +29,9 @@ const PinToViralButton = memo(({ song, size = 'sm', className = '', variant = 'o
   useEffect(() => {
     if (!isAdmin || !song.track_id) return;
     let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('viral_picks')
-        .select('id, is_active')
-        .eq('track_id', song.track_id)
-        .maybeSingle();
-      if (!cancelled) setPinned(!!data?.is_active);
-    })();
+    pinnedTrackIds().then((set) => {
+      if (!cancelled) setPinned(set.has(song.track_id));
+    });
     return () => { cancelled = true; };
   }, [isAdmin, song.track_id]);
 
