@@ -466,6 +466,9 @@ export type Database = {
           duration: number | null
           id: string
           like_count: number
+          lyrics_plain: string | null
+          lyrics_source: string | null
+          lyrics_synced: string | null
           play_count: number
           status: Database["public"]["Enums"]["artist_song_status"]
           stream_url: string
@@ -482,6 +485,9 @@ export type Database = {
           duration?: number | null
           id?: string
           like_count?: number
+          lyrics_plain?: string | null
+          lyrics_source?: string | null
+          lyrics_synced?: string | null
           play_count?: number
           status?: Database["public"]["Enums"]["artist_song_status"]
           stream_url: string
@@ -498,6 +504,9 @@ export type Database = {
           duration?: number | null
           id?: string
           like_count?: number
+          lyrics_plain?: string | null
+          lyrics_source?: string | null
+          lyrics_synced?: string | null
           play_count?: number
           status?: Database["public"]["Enums"]["artist_song_status"]
           stream_url?: string

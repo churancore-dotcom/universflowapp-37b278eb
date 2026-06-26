@@ -5,6 +5,7 @@ import { fetchLyrics, findActiveLine, type LyricsResult } from '@/lib/lyrics';
 import { usePlayerProgress } from '@/lib/playerProgressStore';
 
 interface Props {
+  songId?: string;
   artist: string;
   title: string;
   duration?: number;
@@ -16,7 +17,7 @@ const EMPTY: LyricsResult = {
   synced: [], plain: null, source: null, geniusUrl: null, hasLyrics: false, isSynced: false,
 };
 
-const SyncedLyricsView = ({ artist, title, duration, bare = true }: Props) => {
+const SyncedLyricsView = ({ songId, artist, title, duration, bare = true }: Props) => {
   const [lyrics, setLyrics] = useState<LyricsResult>(EMPTY);
   const [loading, setLoading] = useState(true);
   const { progress } = usePlayerProgress();
@@ -27,11 +28,11 @@ const SyncedLyricsView = ({ artist, title, duration, bare = true }: Props) => {
     let cancelled = false;
     setLoading(true);
     setLyrics(EMPTY);
-    fetchLyrics(artist, title, duration).then((r) => {
+    fetchLyrics(artist, title, duration, songId).then((r) => {
       if (!cancelled) { setLyrics(r); setLoading(false); }
     });
     return () => { cancelled = true; };
-  }, [artist, title, duration]);
+  }, [songId, artist, title, duration]);
 
   const activeIdx = useMemo(
     () => (lyrics.isSynced ? findActiveLine(lyrics.synced, progress) : -1),
