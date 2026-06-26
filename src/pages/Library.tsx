@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import SEOHead from '@/components/SEOHead';
 import RoseHero from '@/components/RoseHero';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LibrarySkeleton, LibraryArtistsSkeleton } from '@/components/PageSkeletons';
+import VirtualList from '@/components/VirtualList';
 import PlaylistCover from '@/components/PlaylistCover';
 import { hydratePlaylistCoverUrls, loadLibrarySongs } from '@/lib/streamSongs';
 import { getUserArtistPrefs, unfollowArtist } from '@/lib/userArtistPrefs';
