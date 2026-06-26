@@ -38,6 +38,9 @@ import { HomeSkeleton } from '@/components/PageSkeletons';
 import SEOHead from '@/components/SEOHead';
 import PullToRefreshIndicator from '@/components/PullToRefresh';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useUserCountry } from '@/hooks/useUserCountry';
+import { getCountryQueries } from '@/lib/countryQueries';
+
 
 
 // Simple empty state
@@ -182,8 +185,9 @@ const Home = () => {
   const pullToRefresh = usePullToRefresh({
     onRefresh: async () => {
       triggerHaptic('impactMedium');
-      await queryClient.invalidateQueries({ queryKey: HOME_SONGS_QUERY_KEY });
-      await queryClient.refetchQueries({ queryKey: HOME_SONGS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ['home', 'ytm-feed', 'v3-country', country] });
+      await queryClient.refetchQueries({ queryKey: ['home', 'ytm-feed', 'v3-country', country] });
+
     },
   });
 
