@@ -1,4 +1,3 @@
-import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
@@ -6,11 +5,9 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
 // Universflow toast styling — dark glass, rose accents, mobile-safe positioning.
 // Matches the rest of the app (Apple-Music bento + #FF2D55 rose system).
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "dark" } = useTheme();
-
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme="dark"
       className="toaster group"
       position="top-center"
       offset={16}
