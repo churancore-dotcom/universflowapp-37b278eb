@@ -86,7 +86,7 @@ const AllArtists = () => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const [allArtists, setAllArtists] = useState<ArtistEntry[]>([]);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
-  const [activeCategory, setActiveCategory] = useState<'All' | 'Universflow' | ArtistCategory>('All');
+  const [activeCategory, setActiveCategory] = useState<'All' | 'Following' | 'Universflow' | ArtistCategory>('All');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(true);
