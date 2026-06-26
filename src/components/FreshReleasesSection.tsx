@@ -7,27 +7,23 @@ import { triggerHaptic } from '@/hooks/useHaptics';
 import { useTasteProfile } from '@/hooks/useTasteProfile';
 import { rerank } from '@/lib/feedPersonalizer';
 import { isSpamSong } from '@/pages/Search';
+import { useYtmRail } from '@/lib/ytmRails';
 
-interface Props { songs: Song[] }
+interface Props { songs?: Song[] }
 
 /**
  * Apple Music "Just Dropped" style — one giant hero card + 4 compact rows.
- * Distinct from horizontal scroll; immediately draws the eye to the newest drop.
+ * Powered by real YouTube Music new-releases search.
  */
-const FreshReleasesSection = memo(({ songs }: Props) => {
+const FreshReleasesSection = memo((_props: Props) => {
   const { playSong } = usePlayer();
   const taste = useTasteProfile();
+  const { data: pool = [] } = useYtmRail('fresh', 'new releases 2026', 20);
 
   const fresh = useMemo(() => {
-    const clean = songs.filter((s) => !isSpamSong(s));
-    const flagged = clean.filter((s) => (s as Song & { show_in_new_releases?: boolean }).show_in_new_releases);
-    const pool = flagged.length > 0
-      ? flagged
-      : [...clean].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-    // Widen window, silently re-rank to the user's taste, then trim to the hero set.
-    const window = pool.slice(0, 20);
-    return rerank(window, taste).slice(0, 5);
-  }, [songs, taste]);
+    const clean = pool.filter((s) => !isSpamSong(s));
+    return rerank(clean, taste).slice(0, 5);
+  }, [pool, taste]);
 
   if (fresh.length === 0) return null;
   const hero = fresh[0];
