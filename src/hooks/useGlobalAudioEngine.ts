@@ -81,10 +81,8 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     const onMediaReady = () => reapply();
 
     const onPlay = () => {
-      // Only resume the WebAudio context if we've ever attached. Calling
-      // resume() on a non-existent context is a no-op but cleaner this way.
       if (isAttached) resume();
-      if (getRuntimePremium() && hasWebAudioEffects(getEQSettings())) reapply();
+      if (getRuntimePremium()) reapply(0);
     };
     const onPointer = () => { if (isAttached) resume(); };
 
@@ -92,8 +90,9 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       if (document.visibilityState !== 'hidden' && isAttached) resume();
     };
 
-    // User toggled EQ in modal — apply right now.
-    const onEqChanged = () => reapply(180);
+    // User toggled EQ in modal — apply IMMEDIATELY (no 180ms wait). The graph
+    // is already attached, so this is just BiquadFilter.gain updates.
+    const onEqChanged = () => reapply(0);
 
     doReapply();
     audioElement.addEventListener('loadstart', onMediaReady);
