@@ -96,6 +96,16 @@ const YTM_CONTEXT = {
     gl: 'US',
   },
 };
+function ytmContext(gl = 'US') {
+  return {
+    client: {
+      clientName: 'WEB_REMIX',
+      clientVersion: '1.20241218.01.00',
+      hl: 'en',
+      gl: /^[A-Z]{2}$/.test(gl) ? gl : 'US',
+    },
+  };
+}
 const YTM_HEADERS = {
   'Content-Type': 'application/json',
   'Origin': 'https://music.youtube.com',
@@ -116,6 +126,16 @@ function pickThumb(thumbs: any[]): string | undefined {
   if (!raw) return undefined;
   if (raw.includes('googleusercontent.com')) return raw.replace(/=w\d+-h\d+[^&]*/i, '=w544-h544-l90-rj');
   return raw.replace(/\/default\.jpg/i, '/hqdefault.jpg');
+}
+
+async function ytMusicBrowse(browseId: string, gl = 'US'): Promise<any | null> {
+  const resp = await fetch('https://music.youtube.com/youtubei/v1/browse?prettyPrint=false', {
+    method: 'POST',
+    headers: YTM_HEADERS,
+    body: JSON.stringify({ context: ytmContext(gl), browseId }),
+  });
+  if (!resp.ok) return null;
+  return await resp.json();
 }
 
 function runsText(runs: any): string {
@@ -143,6 +163,109 @@ function* walkItems(node: any): Generator<any> {
     const v = (node as any)[k];
     if (v && typeof v === 'object') yield* walkItems(v);
   }
+}
+
+function* walkTwoRowItems(node: any): Generator<any> {
+  if (!node || typeof node !== 'object') return;
+  if (node.musicTwoRowItemRenderer) yield node.musicTwoRowItemRenderer;
+  for (const k of Object.keys(node)) {
+    const v = (node as any)[k];
+    if (v && typeof v === 'object') yield* walkTwoRowItems(v);
+  }
+}
+
+function parseReleaseArtist(subtitle = ''): string {
+  return decodeEntities(subtitle)
+    .replace(/^(single|album|ep)\s*•\s*/i, '')
+    .replace(/\s*•\s*YouTube Music$/i, '')
+    .trim();
+}
+
+function extractReleaseCard(item: any): { browseId: string; title: string; artist: string; cover?: string; type: 'single' | 'album' | 'ep' } | null {
+  const title = decodeEntities(runsText(item?.title)).trim();
+  const subtitle = decodeEntities(runsText(item?.subtitle)).trim();
+  const browseId = item?.navigationEndpoint?.browseEndpoint?.browseId || '';
+  const type = /^single\b/i.test(subtitle) ? 'single' : /^ep\b/i.test(subtitle) ? 'ep' : /^album\b/i.test(subtitle) ? 'album' : null;
+  if (!title || !browseId.startsWith('MPRE') || !type) return null;
+  const artist = parseReleaseArtist(subtitle);
+  if (!artist || /YouTube Music/i.test(artist)) return null;
+  const cover = pickThumb(item?.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails || item?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails);
+  return { browseId, title, artist, cover, type };
+}
+
+function extractNewReleaseVideoCard(item: any): SearchResult | null {
+  const title = decodeEntities(runsText(item?.title)).trim();
+  const subtitle = decodeEntities(runsText(item?.subtitle)).trim();
+  const videoId = item?.navigationEndpoint?.watchEndpoint?.videoId || item?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+  if (!videoId || !title) return null;
+  const artist = subtitle.split('•')[0]?.trim() || 'Unknown Artist';
+  if (!artist || looksHardSpam(title, artist, title)) return null;
+  const cover = pickThumb(item?.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails || item?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails);
+  return { id: `ytm-${videoId}`, videoId, title, artist, audio_url: `yt-video:${videoId}`, cover_url: cover };
+}
+
+function extractReleaseTrack(item: any, fallbackArtist: string, fallbackCover?: string): SearchResult | null {
+  const parsed = extractFromItem(item);
+  if (!parsed?.videoId || !parsed.title) return null;
+  const artist = parsed.artist && parsed.artist !== 'Unknown Artist' ? parsed.artist : fallbackArtist;
+  if (looksHardSpam(parsed.title, artist, parsed.title)) return null;
+  return {
+    id: `ytm-${parsed.videoId}`,
+    videoId: parsed.videoId,
+    title: parsed.title,
+    artist,
+    audio_url: `yt-video:${parsed.videoId}`,
+    cover_url: parsed.cover || fallbackCover,
+    duration: parsed.duration || undefined,
+  };
+}
+
+async function fetchTracksFromRelease(release: { browseId: string; artist: string; cover?: string; type: 'single' | 'album' | 'ep' }, gl: string): Promise<SearchResult[]> {
+  const json = await ytMusicBrowse(release.browseId, gl);
+  if (!json) return [];
+  const out: SearchResult[] = [];
+  for (const item of walkItems(json)) {
+    const track = extractReleaseTrack(item, release.artist, release.cover);
+    if (!track) continue;
+    out.push(track);
+    if (release.type === 'single' || out.length >= 2) break;
+  }
+  return out;
+}
+
+async function getLocalizedNewReleases(gl: string, limit: number): Promise<SearchResult[]> {
+  const [releasesJson, videosJson] = await Promise.all([
+    ytMusicBrowse('FEmusic_new_releases', gl),
+    ytMusicBrowse('FEmusic_new_releases_videos', gl),
+  ]);
+
+  const releaseCards: ReturnType<typeof extractReleaseCard>[] = [];
+  for (const item of walkTwoRowItems(releasesJson)) {
+    const card = extractReleaseCard(item);
+    if (card) releaseCards.push(card);
+  }
+
+  const orderedCards = releaseCards
+    .filter((card): card is NonNullable<typeof card> => !!card)
+    .sort((a, b) => (a.type === 'single' ? 0 : 1) - (b.type === 'single' ? 0 : 1))
+    .slice(0, Math.min(18, Math.max(8, limit)));
+
+  const releaseTracks = (await Promise.all(orderedCards.map((card) => fetchTracksFromRelease(card, gl)))).flat();
+  const videoTracks: SearchResult[] = [];
+  for (const item of walkTwoRowItems(videosJson)) {
+    const track = extractNewReleaseVideoCard(item);
+    if (track) videoTracks.push(track);
+  }
+
+  const seen = new Set<string>();
+  const out: SearchResult[] = [];
+  for (const track of [...releaseTracks, ...videoTracks]) {
+    if (!track.videoId || seen.has(track.videoId)) continue;
+    seen.add(track.videoId);
+    out.push(track);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 function extractFromItem(item: any): { videoId?: string; title: string; artist: string; duration: number; cover?: string } | null {
@@ -281,14 +404,29 @@ serve(async (req) => {
       });
     }
 
-    const { query, limit: requestedLimit } = await req.json();
+    const { query, limit: requestedLimit, mode, country } = await req.json();
+    const limit = Math.max(1, Math.min(200, typeof requestedLimit === 'number' ? requestedLimit : 50));
+
+    if (mode === 'new-releases') {
+      const gl = typeof country === 'string' && /^[A-Z]{2}$/i.test(country) ? country.toUpperCase() : 'US';
+      const results = await getLocalizedNewReleases(gl, limit);
+      if (results.length === 0) {
+        return new Response(JSON.stringify({ success: false, error: 'No new releases' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      await persistSearchResults(adminClient, results);
+      return new Response(JSON.stringify({ success: true, results, source: 'youtube-music-new-releases' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return new Response(JSON.stringify({ success: false, error: 'A search query is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     const cleanQuery = query.trim().replace(/^new:\s*/i, '');
-    const limit = Math.max(1, Math.min(200, typeof requestedLimit === 'number' ? requestedLimit : 50));
 
     // PRIMARY: YouTube Music Innertube (songs + videos), no key, no quota.
     const [songs, videos] = await Promise.all([

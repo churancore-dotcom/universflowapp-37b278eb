@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { searchYouTubeMusicTracks } from '@/lib/musicIndexer';
+import { getYouTubeMusicNewReleases, searchYouTubeMusicTracks } from '@/lib/musicIndexer';
 import type { Song } from '@/contexts/PlayerContext';
 
 /** Convert a YTM IndexedTrack to the app's Song shape. */
@@ -24,6 +24,27 @@ export function useYtmRail(key: string, query: string, limit = 20, enabled = tru
     gcTime: 6 * 60 * 60 * 1000,
     queryFn: async (): Promise<Song[]> => {
       const tracks = await searchYouTubeMusicTracks(query, limit);
+      const seen = new Set<string>();
+      const out: Song[] = [];
+      for (const t of tracks) {
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        const s = toSong(t);
+        if (s) out.push(s);
+      }
+      return out;
+    },
+  });
+}
+
+export function useYtmNewReleases(country: string, limit = 24, enabled = true) {
+  return useQuery({
+    queryKey: ['ytm-new-releases', country, limit],
+    enabled,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 6 * 60 * 60 * 1000,
+    queryFn: async (): Promise<Song[]> => {
+      const tracks = await getYouTubeMusicNewReleases(country, limit);
       const seen = new Set<string>();
       const out: Song[] = [];
       for (const t of tracks) {
