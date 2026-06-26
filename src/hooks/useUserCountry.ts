@@ -1,6 +1,6 @@
-// Silent country resolution for feed personalization.
-// Priority: profile.country_code → silent edge IP geo → browser locale → 'US'.
-// Cached per session so home rails don't flicker between countries.
+// Silent country resolution for feed personalization (Spotify-style).
+// Priority: profile.country_code → silent edge IP geo → browser region tag.
+// No hard-coded country fallback — empty string means "Global feed".
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,17 +37,21 @@ export function useUserCountry(): string {
 
       if (!cc) {
         try {
-          cc = await detectCountrySilently();
-        } catch {}
+          cc = (await detectCountrySilently()) || null;
+        } catch { /* noop */ }
       }
 
-      if (!cc) cc = 'US';
+      // No hard-coded country fallback: empty string means
+      // "Global feed" downstream, never silently forces US/IN.
       if (cancelled) return;
-      try { sessionStorage.setItem(SESSION_KEY, cc); } catch {}
-      setCountry(cc);
+      const final = cc || '';
+      if (final) {
+        try { sessionStorage.setItem(SESSION_KEY, final); } catch { /* noop */ }
+      }
+      setCountry(final);
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  return country || 'US';
+  return country;
 }
