@@ -331,6 +331,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [showPrerollAd, setShowPrerollAd] = useState(false);
   const [adType, setAdType] = useState<'start' | 'end'>('start');
   const [pendingSong, setPendingSong] = useState<{ song: Song; offlineUrl?: string | null; songsQueue?: Song[] } | null>(null);
+  const [playbackSettingsVersion, setPlaybackSettingsVersion] = useState(0);
 
   useEffect(() => {
     playerProgressStore.setPlaying(isPlaying);
@@ -666,6 +667,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [volume]);
 
   const preloadedNextIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const onPlaybackSettingsChanged = () => setPlaybackSettingsVersion((value) => value + 1);
+    window.addEventListener('uf-playback-settings-changed', onPlaybackSettingsChanged);
+    return () => window.removeEventListener('uf-playback-settings-changed', onPlaybackSettingsChanged);
+  }, []);
+
+  useEffect(() => {
+    const syncPremiumAudioTransitions = (premium = getRuntimePremium()) => {
+      if (!premium) {
+        setCrossfade(false);
+        setGaplessPro(false);
+        try {
+          localStorage.setItem('uf_crossfade', 'false');
+          localStorage.setItem('uf_gapless_pro', 'false');
+        } catch { /* noop */ }
+        return;
+      }
+      try {
+        setCrossfade(localStorage.getItem('uf_crossfade') === 'true');
+        setGaplessPro(localStorage.getItem('uf_gapless_pro') === 'true');
+      } catch { /* noop */ }
+    };
+    if (getRuntimePremium()) syncPremiumAudioTransitions(true);
+    const onPremiumChanged = (event: Event) => {
+      syncPremiumAudioTransitions(Boolean((event as CustomEvent<boolean>).detail));
+    };
+    window.addEventListener('uf-premium-changed', onPremiumChanged);
+    return () => window.removeEventListener('uf-premium-changed', onPremiumChanged);
+  }, []);
 
   // Wire the global EQ/audio engine to the live audio element. Persists across modal open/close.
   useGlobalAudioEngine(audioElement);
