@@ -18,7 +18,7 @@ interface Entry<T> {
 }
 
 // Bump when filter logic changes so old polluted entries get evicted automatically.
-const CACHE_VERSION = 'v3-no-song-artist-hijack';
+const CACHE_VERSION = 'v4-ytm-innertube';
 
 const namespaceKey = (namespace: string) => `${CACHE_VERSION}:${namespace}`;
 
