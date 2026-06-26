@@ -363,20 +363,15 @@ const PremiumPage = memo(function PremiumPage() {
               {FEATURES.map((f, i) => {
                 const Icon = f.icon;
                 return (
-                  <motion.div
+                  <button
                     key={f.title}
-                    initial={{ opacity: 0, x: -8 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, margin: '-20px' }}
-                    transition={{ delay: i * 0.025, duration: 0.3 }}
-                    className="flex items-start gap-3.5 px-4 py-4"
+                    onClick={() => { haptics.light(); setOpenFeature(f); }}
+                    className="w-full text-left flex items-start gap-3.5 px-4 py-4 active:bg-primary/5 transition-colors"
                     style={i > 0 ? { borderTop: '0.5px solid hsl(var(--border) / 0.4)' } : undefined}
                   >
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{
-                        background: 'hsl(var(--primary) / 0.12)',
-                      }}
+                      style={{ background: 'hsl(var(--primary) / 0.12)' }}
                     >
                       <Icon className="w-5 h-5 text-primary" strokeWidth={2} />
                     </div>
@@ -394,7 +389,8 @@ const PremiumPage = memo(function PremiumPage() {
                       </div>
                       <p className="text-[12.5px] text-muted-foreground leading-snug">{f.desc}</p>
                     </div>
-                  </motion.div>
+                    <ChevronLeft className="w-4 h-4 text-muted-foreground/60 shrink-0 rotate-180 mt-3" />
+                  </button>
                 );
               })}
             </div>
@@ -405,8 +401,6 @@ const PremiumPage = memo(function PremiumPage() {
             <span className="inline-flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-primary" /> UPI Secure</span>
             <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
             <span>Activates in minutes</span>
-            <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-            <span>Cancel anytime</span>
           </div>
 
         </main>
