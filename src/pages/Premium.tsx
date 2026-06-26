@@ -846,82 +846,70 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
   );
 });
 
-// ─────────── Live verification UI ───────────
+// ─────────── Feature detail drawer ───────────
 
-interface SubmittedConfirmationProps {
-  activated: boolean;
-  amount: string;
-  utr: string;
+interface FeatureDetailSheetProps {
+  feature: Feature;
   onClose: () => void;
 }
 
-/**
- * Sheet confirmation shown right after the user submits a UTR.
- * Closes the sheet and lets the page-level PendingProgressBanner take over.
- */
-const SubmittedConfirmation = memo(function SubmittedConfirmation({
-  activated, amount, utr, onClose,
-}: SubmittedConfirmationProps) {
-  if (activated) {
-    return (
-      <div className="text-center py-4">
-        <motion.div
-          initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={iosBounce}
-          className="mx-auto mb-5"
-        >
-          <LogoBadge size={96} />
-        </motion.div>
-        <h3 className="text-[26px] font-bold mb-2">You're Premium 🎉</h3>
-        <p className="text-[14px] text-muted-foreground mb-6 px-4">
-          Premium is now live on your account. Enjoy the upgrade.
+const FeatureDetailSheet = memo(function FeatureDetailSheet({ feature, onClose }: FeatureDetailSheetProps) {
+  const Icon = feature.icon;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={iosSpring}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-md rounded-t-3xl p-6 pb-10"
+        style={{
+          background: 'linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)))',
+          border: '0.5px solid hsl(var(--border))',
+        }}
+      >
+        <div className="w-12 h-1 rounded-full bg-muted mx-auto mb-6" />
+        <div className="flex items-start gap-4 mb-4">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+            style={{ background: 'hsl(var(--primary) / 0.14)' }}
+          >
+            <Icon className="w-7 h-7 text-primary" strokeWidth={2} />
+          </div>
+          <div className="flex-1 min-w-0 pt-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className="text-[20px] font-bold leading-tight">{feature.title}</h3>
+              {feature.isNew && (
+                <span
+                  className="text-[9px] font-bold tracking-[0.12em] uppercase px-1.5 py-0.5 rounded"
+                  style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
+                >
+                  New
+                </span>
+              )}
+            </div>
+            <p className="text-[13px] text-muted-foreground">{feature.desc}</p>
+          </div>
+        </div>
+        <p className="text-[14.5px] leading-relaxed text-foreground/85 mb-6">
+          {feature.long}
         </p>
         <button
           onClick={onClose}
-          className="w-full py-4 rounded-3xl font-bold text-[16px]"
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-            color: 'hsl(var(--primary-foreground))',
-          }}
+          className="w-full py-3.5 rounded-3xl font-semibold text-[15px] bg-muted/50"
+          style={{ border: '0.5px solid hsl(var(--border) / 0.5)' }}
         >
-          Start listening
+          Close
         </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-center py-4">
-      <motion.div
-        initial={{ scale: 0 }} animate={{ scale: 1 }} transition={iosBounce}
-        className="w-20 h-20 mx-auto mb-5 rounded-full flex items-center justify-center"
-        style={{
-          background: 'linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--accent) / 0.18))',
-          border: '1px solid hsl(var(--primary) / 0.4)',
-        }}
-      >
-        <Check className="w-10 h-10 text-primary" strokeWidth={3} />
       </motion.div>
-      <h3 className="text-[22px] font-bold mb-2">Got it — payment received</h3>
-      <p className="text-[13.5px] text-muted-foreground mb-1 px-2 leading-relaxed">
-        We've recorded your UTR <strong className="text-foreground">{utr.slice(0, 6)}…</strong> for ₹{amount}.
-      </p>
-      <p className="text-[13px] text-muted-foreground mb-6 px-4 leading-relaxed">
-        Verification is now running in the background. You can watch live progress on the Premium page —
-        and we'll send a push the moment Premium activates.
-      </p>
-      <button
-        onClick={onClose}
-        className="w-full py-4 rounded-3xl font-bold text-[16px]"
-        style={{
-          background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-          color: 'hsl(var(--primary-foreground))',
-        }}
-      >
-        See live progress
-      </button>
-    </div>
+    </motion.div>
   );
 });
+
+
 
 // ─────────── Pending progress banner (shown on /premium when a UTR is awaiting verification) ───────────
 
