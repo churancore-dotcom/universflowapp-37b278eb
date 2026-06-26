@@ -33,7 +33,7 @@ type SearchSource = 'songs' | 'artists';
 const normalizeText = (value = '') => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|lyrics?|video|audio|hd|4k|topic|vevo|records|music)\b/g, '').replace(/\s+/g, ' ').trim();
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
-const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new'].includes(token));
+const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new', 'by', 'ft', 'feat', 'featuring', 'from'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
 const SEARCH_CACHE_NAMESPACE = 'stable-search-v9-no-song-artist-hijack';
 const SPAM_RESULT_PATTERNS = [
@@ -318,6 +318,8 @@ function rankAndDedupeResults(query: string, youtube: IndexedTrack[], literal: I
     const titlePhraseHit = qNorm.length > 2 && title.includes(qNorm);
     const titleAllTokens = tokens.length > 0 && tokens.every((t) => title.includes(t));
     const titleTokenHits = tokens.reduce((sum, t) => sum + (title.includes(t) ? 1 : 0), 0);
+    const artistTokenHits = tokens.reduce((sum, t) => sum + (artist.includes(t) ? 1 : 0), 0);
+    const artistIntent = /\b(by|ft|feat|featuring|from)\b/i.test(query) || tokens.length <= 3;
     // Only treat as artist match when the artist name fully matches the query,
     // AND none of the title tokens match — prevents artist hits from outranking real song matches.
     const exactArtist = tokens.length > 0 && tokens.every((t) => artist.includes(t)) && titleTokenHits === 0;
@@ -326,10 +328,12 @@ function rankAndDedupeResults(query: string, youtube: IndexedTrack[], literal: I
       (titlePhraseHit ? 700 : 0) +
       (titleAllTokens ? 500 : 0) +
       titleTokenHits * 120 +
+      artistTokenHits * 140 +
       (phraseHit ? 80 : 0) +
       (allTokens ? 60 : 0) +
       (exactArtist ? 90 : 0); // small bonus, never beats a title match
-    const score = base + relevance + popularity - index * 0.6;
+    const wrongArtistPenalty = artistIntent && tokens.length >= 2 && titleTokenHits > 0 && artistTokenHits === 0 && !phraseHit ? 260 : 0;
+    const score = base + relevance + popularity - wrongArtistPenalty - index * 0.6;
     const existing = rows.get(key);
     if (!existing || score > existing.score || (score === existing.score && sourcePriority > existing.sourcePriority)) {
       rows.set(key, { track, score, firstSeen: existing?.firstSeen ?? firstSeen++, sourcePriority });
