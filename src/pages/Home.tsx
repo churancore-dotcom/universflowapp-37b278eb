@@ -12,12 +12,9 @@ import MadeForYouSection from '@/components/MadeForYouSection';
 import AllSongsSection from '@/components/AllSongsSection';
 import HomeBento from '@/components/HomeBento';
 
-import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
-import PremiumFirstSection from '@/components/PremiumFirstSection';
 import TrendingNowSection from '@/components/TrendingNowSection';
 import FreshReleasesSection from '@/components/FreshReleasesSection';
-import AlbumsShelf from '@/components/AlbumsShelf';
 import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
 
 
@@ -32,7 +29,7 @@ import LockScreenPlayer from '@/components/LockScreenPlayer';
 import EqualizerModal from '@/components/EqualizerModal';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { TabTransition } from '@/components/PageTransition';
-import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
+import { Music, Lock, ListMusic, Sliders } from 'lucide-react';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { usePremium } from '@/hooks/usePremium';
 import appLogo from '@/assets/app-logo.webp';
@@ -63,34 +60,22 @@ const EmptyState = memo(() => (
 
 EmptyState.displayName = 'EmptyState';
 
-// Simple loading
-const LoadingSkeleton = memo(() => (
-  <div className="flex justify-center py-8">
-    <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-  </div>
-));
-
-LoadingSkeleton.displayName = 'LoadingSkeleton';
-
-const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v1'] as const;
+const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v2-fast-ytm'] as const;
 
 // Tag flags used by the existing rails (Trending/Fresh) to filter the shared pool.
 type FlaggedSong = Song & { show_in_trending?: boolean; show_in_new_releases?: boolean };
 
-// Pull three real YouTube Music rails in parallel: trending, fresh, and charts.
+const upgradeThumb = (url?: string) => {
+  if (!url) return undefined;
+  if (url.includes('googleusercontent.com')) return url.replace(/=w\d+-h\d+[^&]*/i, '=w544-h544-l90-rj');
+  return url.replace(/\/default\.jpg/i, '/hqdefault.jpg').replace(/\/mqdefault\.jpg/i, '/hqdefault.jpg');
+};
+
+// Pull one fast real YouTube Music pool for the hero/bento only.
 // Each track is shaped exactly like the player's Song type with audio_url set to
 // `yt-video:<id>` so PlayerContext routes the tap through extract-audio.
 const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
-  const [trendingRes, freshRes, chartsRes] = await Promise.allSettled([
-    searchYouTubeMusicTracks('trending india 2026', 30),
-    searchYouTubeMusicTracks('new releases 2026', 30),
-    searchYouTubeMusicTracks('top charts india', 30),
-  ]);
-  const grab = (r: PromiseSettledResult<Awaited<ReturnType<typeof searchYouTubeMusicTracks>>>) =>
-    r.status === 'fulfilled' ? r.value : [];
-  const trending = grab(trendingRes);
-  const fresh = grab(freshRes);
-  const charts = grab(chartsRes);
+  const trending = await searchYouTubeMusicTracks('india top songs this week official music', 24);
 
   const byId = new Map<string, FlaggedSong>();
   const ingest = (list: typeof trending, flags: Partial<FlaggedSong>) => {
@@ -106,7 +91,7 @@ const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
         title: t.title,
         artist: t.artist,
         album: t.album,
-        cover_url: t.cover_url,
+        cover_url: upgradeThumb(t.cover_url),
         audio_url: t.audio_url || (t.videoId ? `yt-video:${t.videoId}` : 'resolving'),
         duration: t.duration,
         created_at: new Date().toISOString(),
@@ -115,10 +100,7 @@ const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
     }
   };
 
-  // Order matters — fresh entries set created_at last so they win the "newest" sort.
-  ingest(charts, { show_in_trending: true });
-  ingest(trending, { show_in_trending: true });
-  ingest(fresh, { show_in_new_releases: true });
+  ingest(trending, { show_in_trending: true, show_in_new_releases: true });
 
   return [...byId.values()];
 };
@@ -182,6 +164,7 @@ const Home = () => {
   }, [onlineSongs, updateCache, isOffline]);
 
   const loading = isLoading && songs.length === 0 && !isOffline;
+  const homeReady = songs.length > 0 && !isOffline;
 
   const allSongs = useMemo(() => songs, [songs]);
 
@@ -224,14 +207,6 @@ const Home = () => {
         
         {/* Ambient background — cinematic */}
         <div className="absolute inset-0 pointer-events-none">
-          {currentSong?.cover_url && (
-            <img
-              src={currentSong.cover_url}
-              alt=""
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[250%] blur-[120px] opacity-[0.12] saturate-150"
-              style={{ height: '60%' }}
-            />
-          )}
           <div 
             className="absolute inset-0"
             style={{
@@ -266,11 +241,8 @@ const Home = () => {
                 <img src={appLogo} alt="Universflow app logo" width={40} height={40} {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)} decoding="async" className="w-full h-full rounded-full object-cover" />
               </div>
               <div>
-                <p
-                  className="text-[24px] leading-none text-foreground tracking-[0.02em]"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                >
-                  {greeting().toUpperCase()}
+                <p className="text-[19px] leading-none text-foreground font-extrabold tracking-tight">
+                  {greeting()}
                 </p>
                 <p className="text-[10px] text-[#FFB199]/70 font-bold tracking-[0.2em] uppercase mt-1">
                   Universflow
@@ -328,17 +300,15 @@ const Home = () => {
 
 
 
+              {!isOffline && <FreshReleasesSection songs={allSongs} enabled={homeReady} />}
+              {!isOffline && <TrendingNowSection songs={allSongs} enabled={homeReady} />}
               {/* Discovery — Featured Artists */}
               {!isOffline && <FeaturedArtistsSection />}
-
-              {/* Viral Now Rail — live country chart, real data */}
-              {!isOffline && <CountryViralSection />}
-
-              {!isOffline && <FreshReleasesSection songs={allSongs} />}
-              {!isOffline && <TrendingNowSection songs={allSongs} />}
               {!isOffline && <MadeForYouSection />}
               {/* Followed artists rail — sits below Trending Now */}
               {!isOffline && <FollowedArtistSongsSection songs={allSongs} />}
+              {/* Viral Now Rail — live country chart, real data */}
+              {!isOffline && <CountryViralSection />}
 
               {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
               {isOffline && allSongs.length > 0 && (

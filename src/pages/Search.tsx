@@ -15,10 +15,7 @@ import RecognizeSongButton from '@/components/RecognizeSongButton';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { supabase } from '@/integrations/supabase/client';
-import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
-import { searchSongsAsTracks as searchJioSaavnTracks } from '@/lib/jiosaavn';
-import { isCatalogSongId } from '@/lib/songSupport';
-import { detectMoodAndLanguage } from '@/lib/moodKeywords';
+import { prefetchIndexedTrack, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
 import FollowedArtistsRail from '@/components/FollowedArtistsRail';
 import { clearCache, getCached, setCached } from '@/lib/searchCache';
 import {
@@ -35,7 +32,7 @@ const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
 const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new', 'by', 'ft', 'feat', 'featuring', 'from'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
-const SEARCH_CACHE_NAMESPACE = 'stable-search-v10-ytm-innertube';
+const SEARCH_CACHE_NAMESPACE = 'stable-search-v12-ytm-expanded-clean';
 const SPAM_RESULT_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
@@ -52,6 +49,7 @@ const SPAM_RESULT_PATTERNS = [
 const SPAM_ARTIST_PATTERNS = [
   /\b(speed\s*songs?|slowed\s*songs?|reverb\s*nation|nightcore|lofi\s*girl|ai\s*cover|topic\s*music|music\s*lover\s*\d+)\b/i,
   /\b(remix\s*king|remix\s*world|karaoke\s*world|cover\s*world|status\s*king|whatsapp\s*status)\b/i,
+  /\b(7clouds|cloudx|wave\s*music|unique\s*vibes|lyrics?|lyrical|lyric\s*zone|status|ringtone|sped\s*up|slowed)\b/i,
 ];
 
 const ilikeSafeTerm = (value: string) => value.replace(/[%_,()]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -319,7 +317,7 @@ function rankAndDedupeResults(query: string, youtube: IndexedTrack[], literal: I
     const titleAllTokens = tokens.length > 0 && tokens.every((t) => title.includes(t));
     const titleTokenHits = tokens.reduce((sum, t) => sum + (title.includes(t) ? 1 : 0), 0);
     const artistTokenHits = tokens.reduce((sum, t) => sum + (artist.includes(t) ? 1 : 0), 0);
-    const artistIntent = /\b(by|ft|feat|featuring|from)\b/i.test(query) || tokens.length <= 3;
+    const artistIntent = /\b(by|ft|feat|featuring|from)\b/i.test(query);
     // Only treat as artist match when the artist name fully matches the query,
     // AND none of the title tokens match — prevents artist hits from outranking real song matches.
     const exactArtist = tokens.length > 0 && tokens.every((t) => artist.includes(t)) && titleTokenHits === 0;
@@ -359,34 +357,10 @@ const Search = () => {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<SongHistoryEntry[]>(() => getSongHistory());
   const [hiddenResults, setHiddenResults] = useState<HiddenSearchEntry[]>(() => loadHiddenResults());
-  const [verifiedArtistNames, setVerifiedArtistNames] = useState<Set<string>>(() => new Set());
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-
-  // Load all verified Universflow artist stage_names once (cached in-memory).
-  // Used to restrict song search results to platform artists only.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('artist_profiles')
-          .select('stage_name')
-          .eq('is_verified', true)
-          .limit(5000);
-        if (cancelled || !data) return;
-        const set = new Set<string>();
-        for (const row of data) {
-          const n = normalizeText(row.stage_name || '');
-          if (n) set.add(n);
-        }
-        setVerifiedArtistNames(set);
-      } catch {/* ignore */}
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     const urlQuery = params.get('q')?.trim() || '';
@@ -428,22 +402,14 @@ const Search = () => {
           }
           return;
         }
-        const { mood, language, pureBrowse } = detectMoodAndLanguage(trimmedQuery);
-        const smartQuery = pureBrowse ? [language, mood, 'song'].filter(Boolean).join(' ') : trimmedQuery;
-        const tagJobs: Promise<IndexedTrack[]>[] = [];
-        if (language) tagJobs.push(getTagTopTracks(language, 150));
-        if (mood) tagJobs.push(getTagTopTracks(mood, 150));
-        const literalJob = searchIndexedTracks(trimmedQuery, 200);
-        const youtubeJob = searchYouTubeMusicTracks(smartQuery, 120);
-        const saavnJob = searchJioSaavnTracks(trimmedQuery, 60).catch(() => [] as IndexedTrack[]);
+        const youtubeJob = searchYouTubeMusicTracks(trimmedQuery, 200);
         const uploadedJob = searchUploadedArtistSongs(trimmedQuery);
 
         const artistJob = searchArtistDirectory(trimmedQuery, 30);
-        const [youtube, literal, saavn, uploaded, artists, ...tagSets] = await Promise.all([youtubeJob, literalJob, saavnJob, uploadedJob, artistJob, ...tagJobs]);
+        const [youtube, uploaded, artists] = await Promise.all([youtubeJob, uploadedJob, artistJob]);
         if (cancelled) return;
 
-        const literalMerged = [...saavn, ...literal];
-        const merged = mergeUploadedArtistSongs(uploaded, rankAndDedupeResults(trimmedQuery, youtube, literalMerged, tagSets, pureBrowse))
+        const merged = mergeUploadedArtistSongs(uploaded, rankAndDedupeResults(trimmedQuery, youtube, [], [], false))
           .filter((track) => !isHiddenTrack(track, hiddenResults))
           .slice(0, 300);
 
@@ -816,7 +782,7 @@ const Search = () => {
                         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                         <div className="absolute left-3 right-3 bottom-3">
                           <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-white/70">Artist</p>
-                          <p className="text-sm font-display tracking-wide text-white truncate mt-0.5">{a.name}</p>
+                          <p className="text-sm font-bold tracking-tight text-white truncate mt-0.5">{a.name}</p>
                         </div>
                       </motion.button>
                     ))}

@@ -16,9 +16,10 @@ function toSong(t: { id: string; title?: string; artist?: string; album?: string
   } as Song;
 }
 
-export function useYtmRail(key: string, query: string, limit = 20) {
+export function useYtmRail(key: string, query: string, limit = 20, enabled = true) {
   return useQuery({
     queryKey: ['ytm-rail', key, query, limit],
+    enabled,
     staleTime: 30 * 60 * 1000,
     gcTime: 6 * 60 * 60 * 1000,
     queryFn: async (): Promise<Song[]> => {

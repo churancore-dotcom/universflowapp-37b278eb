@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User, Disc3, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { getUserArtistPrefs, followArtist, type UserArtistPref } from '@/lib/userArtistPrefs';
-import { getFeaturedIndexedArtists } from '@/lib/indexedArtists';
 
 interface DisplayArtist {
   key: string;
@@ -77,11 +77,18 @@ const FeaturedArtistsSection = () => {
           }));
         }
       }
-      const indexed = await getFeaturedIndexedArtists(12);
-      return indexed.map(a => ({
-        key: a.id,
-        name: a.name,
-        image: a.image_url || null,
+      const { data } = await supabase
+        .from('artist_profiles')
+        .select('user_id, stage_name, avatar_url, total_followers, total_plays')
+        .eq('is_verified', true)
+        .not('avatar_url', 'is', null)
+        .order('total_followers', { ascending: false })
+        .limit(12);
+
+      return (data || []).map(a => ({
+        key: a.user_id,
+        name: a.stage_name,
+        image: a.avatar_url || null,
       }));
     },
   });
