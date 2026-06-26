@@ -736,7 +736,7 @@ const Search = () => {
           {searching ? <SearchSkeleton /> : (
             <>
               {/* Indexed stream results */}
-              {featuredArtist && (
+              {source === 'songs' && featuredArtist && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
                   <h2 className="text-sm font-bold mb-3">Artist</h2>
                   <button
