@@ -224,7 +224,7 @@ if (typeof window !== 'undefined') {
 const buildStreamProxyUrl = (sourceUrl: string) => {
   if (!shouldProxyStreamUrl(sourceUrl)) return sourceUrl;
   if (!isEqProcessingEnabled()) return sourceUrl;
-  return wrapStreamUrl(sourceUrl);
+  return wrapStreamUrl(sourceUrl, { force: true });
 };
 
 const isAudioProxyUrl = (url?: string | null) =>
