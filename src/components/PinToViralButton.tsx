@@ -65,7 +65,7 @@ const PinToViralButton = memo(({ song, size = 'sm', className = '', variant = 'o
           .update({ is_active: false })
           .eq('track_id', song.track_id);
         if (error) throw error;
-        setPinned(false);
+        setPinned(false); invalidatePinned();
         toast.success('Removed from Trending Now');
       } else {
         // Find next position
