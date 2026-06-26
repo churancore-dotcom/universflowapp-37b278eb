@@ -46,6 +46,9 @@ type Song = {
   view_count: number;
   status: 'live' | 'taken_down';
   created_at: string;
+  lyrics_plain: string | null;
+  lyrics_synced: string | null;
+  lyrics_source: string | null;
 };
 
 function fmt(n: number) {
@@ -427,12 +430,14 @@ function ProfileSummary({ profile, onEdit }: { profile: Profile; onEdit: () => v
 function AddSongDialog({ open, onClose, userId }: { open: boolean; onClose: () => void; userId: string }) {
   const [title, setTitle] = useState('');
   const [streamUrl, setStreamUrl] = useState('');
+  const [lyricsPlain, setLyricsPlain] = useState('');
+  const [lyricsSynced, setLyricsSynced] = useState('');
   const [cover, setCover] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) { setTitle(''); setStreamUrl(''); setCover(null); setError(null); }
+    if (!open) { setTitle(''); setStreamUrl(''); setLyricsPlain(''); setLyricsSynced(''); setCover(null); setError(null); }
   }, [open]);
 
   const urlError = streamUrl ? isBlockedStreamHost(streamUrl) : null;
@@ -450,6 +455,9 @@ function AddSongDialog({ open, onClose, userId }: { open: boolean; onClose: () =
         title: title.trim(),
         stream_url: streamUrl.trim(),
         cover_url: coverUrl,
+        lyrics_plain: lyricsPlain.trim() || null,
+        lyrics_synced: lyricsSynced.trim() || null,
+        lyrics_source: lyricsPlain.trim() || lyricsSynced.trim() ? 'artist' : null,
       });
       if (error) throw error;
       toast.success('Song published ✓');
@@ -487,6 +495,14 @@ function AddSongDialog({ open, onClose, userId }: { open: boolean; onClose: () =
           <div>
             <label className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-1.5">Cover art (optional)</label>
             <CoverPicker cover={cover} onPick={setCover} />
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-1.5">Lyrics (optional)</label>
+            <Textarea value={lyricsPlain} onChange={(e) => setLyricsPlain(e.target.value)} placeholder="Paste plain lyrics" maxLength={12000} className="min-h-28 resize-none" />
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-1.5">Synced LRC lyrics (optional)</label>
+            <Textarea value={lyricsSynced} onChange={(e) => setLyricsSynced(e.target.value)} placeholder="[00:12.30] First line" maxLength={20000} className="min-h-24 resize-none font-mono text-[12px]" spellCheck={false} />
           </div>
 
           {error && <p className="text-[12px] text-rose-400">{error}</p>}

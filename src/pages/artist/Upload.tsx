@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { uploadArtistCover } from '@/lib/artist';
 import { useFilePreview } from '@/lib/useFilePreview';
 import { validateUploadLink, type LinkValidation } from '@/lib/artistUploadLinks';
@@ -63,6 +64,8 @@ export default function ArtistUpload() {
   const [streamUrl, setStreamUrl] = useState('');
   const [title, setTitle] = useState('');
   const [genre, setGenre] = useState('');
+  const [lyricsPlain, setLyricsPlain] = useState('');
+  const [lyricsSynced, setLyricsSynced] = useState('');
   const [cover, setCover] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -103,6 +106,9 @@ export default function ArtistUpload() {
           title: title.trim(),
           stream_url: linkState.normalized,
           cover_url: coverUrl,
+          lyrics_plain: lyricsPlain.trim() || null,
+          lyrics_synced: lyricsSynced.trim() || null,
+          lyrics_source: lyricsPlain.trim() || lyricsSynced.trim() ? 'artist' : null,
         })
         .select('id')
         .single();
@@ -168,6 +174,10 @@ export default function ArtistUpload() {
               setTitle={setTitle}
               genre={genre}
               setGenre={setGenre}
+              lyricsPlain={lyricsPlain}
+              setLyricsPlain={setLyricsPlain}
+              lyricsSynced={lyricsSynced}
+              setLyricsSynced={setLyricsSynced}
               cover={cover}
               setCover={setCover}
               coverPreview={coverPreview}
@@ -178,6 +188,7 @@ export default function ArtistUpload() {
             <ReviewStep
               title={title}
               genre={genre}
+              hasLyrics={Boolean(lyricsPlain.trim() || lyricsSynced.trim())}
               coverPreview={coverPreview}
               source={linkState?.ok ? linkState.source : null}
             />
@@ -361,10 +372,12 @@ function SourceStep({
 
 /* ============================== Step 2 — Details ============================== */
 function DetailsStep({
-  title, setTitle, genre, setGenre, cover, setCover, coverPreview, streamUrl,
+  title, setTitle, genre, setGenre, lyricsPlain, setLyricsPlain, lyricsSynced, setLyricsSynced, cover, setCover, coverPreview, streamUrl,
 }: {
   title: string; setTitle: (s: string) => void;
   genre: string; setGenre: (s: string) => void;
+  lyricsPlain: string; setLyricsPlain: (s: string) => void;
+  lyricsSynced: string; setLyricsSynced: (s: string) => void;
   cover: File | null; setCover: (f: File | null) => void;
   coverPreview: string | null;
   streamUrl: string;
@@ -431,6 +444,27 @@ function DetailsStep({
             }}
           />
         </label>
+      </Field>
+
+      <Field label="Lyrics (optional)">
+        <Textarea
+          value={lyricsPlain}
+          onChange={(e) => setLyricsPlain(e.target.value)}
+          placeholder="Paste plain lyrics here"
+          maxLength={12000}
+          className="min-h-32 bg-white/[0.03] border-white/[0.08] resize-none"
+        />
+      </Field>
+
+      <Field label="Synced LRC lyrics (optional)">
+        <Textarea
+          value={lyricsSynced}
+          onChange={(e) => setLyricsSynced(e.target.value)}
+          placeholder="[00:12.30] First line"
+          maxLength={20000}
+          className="min-h-24 bg-white/[0.03] border-white/[0.08] resize-none font-mono text-[12px]"
+          spellCheck={false}
+        />
       </Field>
     </div>
   );
@@ -519,10 +553,11 @@ function WaveformPreview({
 
 /* ============================== Step 3 — Review ============================== */
 function ReviewStep({
-  title, genre, coverPreview, source,
+  title, genre, hasLyrics, coverPreview, source,
 }: {
   title: string;
   genre: string;
+  hasLyrics: boolean;
   coverPreview: string | null;
   source: 'drive' | 'dropbox' | null;
 }) {
@@ -556,6 +591,11 @@ function ReviewStep({
                 >
                   {source === 'drive' ? <HardDrive className="w-2.5 h-2.5" /> : <Cloud className="w-2.5 h-2.5" />}
                   {source === 'drive' ? 'Google Drive' : 'Dropbox'}
+                </span>
+              )}
+              {hasLyrics && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.06] text-foreground/80">
+                  Lyrics ready
                 </span>
               )}
             </div>

@@ -249,10 +249,11 @@ async function fetchParallelProviders(artist: string, title: string, duration?: 
     withTimeout(fetchNetease(artist, title), 2600).then((result) => result ? ({ ...result, source: 'netease' as const }) : null),
   ];
 
-  const pending = providers.map((promise, index) => promise.then((result) => ({ result, index })));
+  const pending = providers.map((promise, index) => ({ index, promise: promise.then((result) => ({ result, index })) }));
   while (pending.length) {
-    const { result, index } = await Promise.race(pending);
-    pending.splice(pending.findIndex((promise) => promise === pending[index]), 1);
+    const { result, index } = await Promise.race(pending.map((entry) => entry.promise));
+    const pos = pending.findIndex((entry) => entry.index === index);
+    if (pos >= 0) pending.splice(pos, 1);
 
     if (result?.synced) return result;
     if (result?.plain && !bestPlain) bestPlain = result;
