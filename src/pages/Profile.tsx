@@ -85,14 +85,14 @@ const Profile = () => {
   const fetchStats = async () => {
     if (!user) { setStatsReady(true); return; }
     try {
-      const [liked, playlists, recentPlays, playEvents] = await Promise.all([
-        supabase.from('user_library').select('id').eq('user_id', user.id),
+      const [likedResolved, playlists, recentPlays, playEvents] = await Promise.all([
+        loadLibrarySongs(user.id),
         supabase.from('playlists').select('id').eq('user_id', user.id),
         supabase.from('recently_played').select('song_id,played_at').eq('user_id', user.id).order('played_at', { ascending: false }).limit(500),
         supabase.from('song_play_events').select('title,artist,created_at,source').eq('user_id', user.id).order('created_at', { ascending: false }).limit(500),
       ]);
       setStats({
-        likedSongs: liked.data?.length || 0,
+        likedSongs: likedResolved.length,
         playlists: playlists.data?.length || 0,
         downloads: downloads.length,
       });
