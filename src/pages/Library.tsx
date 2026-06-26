@@ -313,7 +313,7 @@ const Library = () => {
                 ) : likedSongs.length === 0 ? (
                   <EmptyState icon={Heart} text="No liked songs yet" />
                 ) : (
-                  <VirtualList
+                  <VirtualList<Song>
                     items={likedSongs}
                     estimateSize={64}
                     gap={2}
