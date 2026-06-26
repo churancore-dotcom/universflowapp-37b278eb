@@ -124,7 +124,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const handlePresetSelect = useCallback((preset: Preset) => {
     setEQSettings({
       bands: preset.bands,
-      bassBoost: Math.min(preset.bassBoost, 60),
+      bassBoost: preset.bassBoost,
       reverb: preset.reverb ?? 0,
       spatialAudio: !!preset.spatialAudio,
       studioSpace: preset.studioSpace ?? 'off',
