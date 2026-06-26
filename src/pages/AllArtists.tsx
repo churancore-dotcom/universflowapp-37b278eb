@@ -291,9 +291,17 @@ const AllArtists = () => {
       if (q && !key.includes(q)) return false;
       return true;
     });
-    // Sort: followed first (in Following view it's everything), then by listeners.
-    // No more force-pinning of Universflow artists — they rank by real popularity.
-    return list.sort((a, b) => (b.listeners || 0) - (a.listeners || 0));
+    // Sort strictly by real popularity (Last.fm listeners). Platform artists
+    // are NOT pinned — and when they have no real listener data they sink to
+    // the bottom of the All view so famous artists surface first.
+    return list.sort((a, b) => {
+      if (activeCategory === 'All' || activeCategory === 'Following') {
+        const aPlat = a.source === 'platform' && !a.listeners ? 1 : 0;
+        const bPlat = b.source === 'platform' && !b.listeners ? 1 : 0;
+        if (aPlat !== bPlat) return aPlat - bPlat;
+      }
+      return (b.listeners || 0) - (a.listeners || 0);
+    });
   }, [allArtists, activeCategory, query, followed]);
 
 
