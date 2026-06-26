@@ -7,18 +7,23 @@ import { useTasteProfile } from '@/hooks/useTasteProfile';
 import { rerank } from '@/lib/feedPersonalizer';
 import { isSpamSong } from '@/pages/Search';
 import { useYtmRail } from '@/lib/ytmRails';
+import { useUserCountry } from '@/hooks/useUserCountry';
+import { getCountryQueries } from '@/lib/countryQueries';
 
 interface Props { songs?: Song[]; enabled?: boolean }
 
 const TrendingNowSection = memo(({ enabled = true }: Props) => {
   const { playSong, currentSong } = usePlayer();
   const taste = useTasteProfile();
-  const { data: pool = [] } = useYtmRail('trending-v2', 'india top songs this week official music', 36, enabled);
+  const country = useUserCountry();
+  const q = getCountryQueries(country);
+  const { data: pool = [] } = useYtmRail(`trending-v3-${country}`, q.trending, 36, enabled);
 
   const trending = useMemo(() => {
     const clean = pool.filter((s) => !isSpamSong(s));
     return rerank(clean, taste).slice(0, 10);
   }, [pool, taste]);
+
 
   if (trending.length === 0) return null;
 
