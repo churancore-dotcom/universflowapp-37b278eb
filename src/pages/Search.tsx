@@ -786,11 +786,11 @@ const Search = () => {
                 </motion.div>
               )}
 
-              {displayedIndexedResults.length > 0 && (
+              {source === 'songs' && displayedIndexedResults.length > 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={libraryResults.length > 0 ? 'mt-6' : ''}>
                   <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-                    <Radio className="w-4 h-4 text-primary" />
-                    Worldwide Songs · {displayedIndexedResults.length} results
+                    <Music className="w-4 h-4 text-primary" />
+                    Songs · {displayedIndexedResults.length} results
                   </h2>
                   <div className="space-y-1">
                     {displayedIndexedResults.map((track, i) => {
