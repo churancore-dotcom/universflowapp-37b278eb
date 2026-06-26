@@ -10,6 +10,16 @@ interface OptimizedImageProps {
   onLoad?: () => void;
 }
 
+function upgradeArtworkUrl(url?: string) {
+  if (!url) return url;
+  if (url.includes('googleusercontent.com')) {
+    return url.replace(/=w\d+-h\d+[^&]*/i, '=w544-h544-l90-rj');
+  }
+  return url
+    .replace(/\/default\.jpg/i, '/hqdefault.jpg')
+    .replace(/\/mqdefault\.jpg/i, '/hqdefault.jpg');
+}
+
 const OptimizedImage = memo(({ 
   src, 
   alt, 
@@ -86,7 +96,7 @@ const OptimizedImage = memo(({
       {shouldLoad && !hasError && (
         <img
           ref={imgRef}
-          src={src}
+          src={upgradeArtworkUrl(src)}
           alt={alt}
           className={cn(
             "w-full h-full object-cover transition-opacity duration-300",
@@ -97,6 +107,7 @@ const OptimizedImage = memo(({
           onLoad={handleLoad}
           onError={handleError}
           draggable={false}
+          referrerPolicy="no-referrer"
         />
       )}
 
