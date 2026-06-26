@@ -41,7 +41,6 @@ function decodeEntities(v = '') {
   return v.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
 
-// Light spam filter — kept conservative so we don't drop real tracks.
 const HARD_SPAM = [
   /\b(karaoke|instrumental|backing\s*track)\b/i,
   /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?)\b/i,
@@ -49,10 +48,17 @@ const HARD_SPAM = [
   /\b\d+\s*(hour|hours|hr|hrs)\b/i,
   /\b(whatsapp\s*status|ringtone|caller\s*tune)\b/i,
   /\b(ai\s*cover|ai\s*voice|deepfake)\b/i,
+  /\b(shorts?|reels?|tiktok\s*version|status\s*video)\b/i,
+  /\b(top|best)\s*\d+\b/i,
+  /\b\d+\s*(top|best|hit|hits|songs)\b/i,
+];
+const SPAM_AUTHORS = [
+  /\b(7clouds|cloudx|lyrics?|lyrical|status|ringtone|karaoke|nightcore|cover\s*world|remix\s*(king|world))\b/i,
 ];
 function looksHardSpam(title: string, author: string, q: string) {
   const hay = `${title} ${author}`;
   if (HARD_SPAM.some((p) => p.test(hay))) return true;
+  if (SPAM_AUTHORS.some((p) => p.test(author))) return true;
   if (!/remix/i.test(q) && /\bremix\b/i.test(title)) return true;
   return false;
 }
@@ -83,7 +89,10 @@ const PARAMS_VIDEOS = 'EgWKAQIQAWoKEAkQBRAKEAMQBA';
 
 function pickThumb(thumbs: any[]): string | undefined {
   if (!Array.isArray(thumbs) || !thumbs.length) return undefined;
-  return thumbs[thumbs.length - 1]?.url?.replace(/^http:/, 'https:');
+  const raw = thumbs[thumbs.length - 1]?.url?.replace(/^http:/, 'https:');
+  if (!raw) return undefined;
+  if (raw.includes('googleusercontent.com')) return raw.replace(/=w\d+-h\d+[^&]*/i, '=w544-h544-l90-rj');
+  return raw.replace(/\/default\.jpg/i, '/hqdefault.jpg');
 }
 
 function runsText(runs: any): string {
@@ -100,6 +109,8 @@ function parseDuration(text: string): number {
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   return 0;
 }
+
+const SUBTITLE_BADGES = new Set(['song', 'video', 'single', 'album', 'ep', 'playlist', 'artist']);
 
 // Walk the deeply-nested Innertube response and extract every musicResponsiveListItemRenderer.
 function* walkItems(node: any): Generator<any> {
@@ -120,19 +131,24 @@ function extractFromItem(item: any): { videoId?: string; title: string; artist: 
   const cols = item?.flexColumns || [];
   const title = runsText(cols?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text);
   const subRuns = cols?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
-  // Subtitle format: [TypeBadge] • [Artist] • [Album] • [Duration] (or similar). Artists are the runs with browseEndpoint.
+  // Subtitle format: [TypeBadge] • [Artist] • [Album] • [Duration] (or similar).
   const artistParts: string[] = [];
+  const plainParts: string[] = [];
   let durationText = '';
   for (const r of subRuns) {
     const t = r?.text || '';
     if (t === ' • ') continue;
-    const isArtist = !!r?.navigationEndpoint?.browseEndpoint?.browseId?.startsWith?.('UC');
+    const clean = normalize(t);
+    if (!clean || SUBTITLE_BADGES.has(clean)) continue;
+    if (/^\d+:\d+/.test(t)) { durationText = t; continue; }
+    const browseId = r?.navigationEndpoint?.browseEndpoint?.browseId || '';
+    const isArtist = !!browseId && !browseId.startsWith('MPRE') && !browseId.startsWith('VL');
     if (isArtist) artistParts.push(t);
-    if (/^\d+:\d+/.test(t)) durationText = t;
+    plainParts.push(t);
   }
   const artist = artistParts.length
     ? artistParts.join(', ')
-    : (subRuns.find((r: any) => r?.text && !/^\d+:\d+/.test(r.text) && r.text !== ' • ')?.text || 'Unknown Artist');
+    : (plainParts[0] || 'Unknown Artist');
   const cover = pickThumb(item?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails);
   return { videoId, title: decodeEntities(title), artist: decodeEntities(artist), duration: parseDuration(durationText), cover };
 }
@@ -234,7 +250,7 @@ serve(async (req) => {
     const { data: allowed } = await adminClient.rpc('check_and_increment_rate_limit', {
       _user_id: userData.user.id,
       _endpoint: 'yt-music-search',
-      _max_per_minute: 60,
+      _max_per_minute: 120,
     });
     if (allowed === false) {
       return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }), {
@@ -249,7 +265,7 @@ serve(async (req) => {
       });
     }
     const cleanQuery = query.trim().replace(/^new:\s*/i, '');
-    const limit = Math.max(1, Math.min(100, typeof requestedLimit === 'number' ? requestedLimit : 50));
+    const limit = Math.max(1, Math.min(200, typeof requestedLimit === 'number' ? requestedLimit : 50));
 
     // PRIMARY: YouTube Music Innertube (songs + videos), no key, no quota.
     const [songs, videos] = await Promise.all([

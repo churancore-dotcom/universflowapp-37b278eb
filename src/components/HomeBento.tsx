@@ -114,7 +114,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         .not('cover_url', 'is', null)
         .not('audio_url', 'is', null)
         .order('last_seen_at', { ascending: false })
-        .limit(40);
+        .limit(16);
       if (error) throw error;
       return (data || []).map(songFromRow);
     },
@@ -197,7 +197,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         .not('cover_url', 'is', null)
         .not('audio_url', 'is', null)
         .order('last_seen_at', { ascending: false })
-        .limit(200);
+        .limit(60);
       if (rows && rows.length > 0) {
         const counts = new Map<string, { name: string; count: number; image: string | null }>();
         for (const r of rows as Array<{ artist: string | null; cover_url: string | null; artist_image_url: string | null; last_seen_at: string }>) {
@@ -277,7 +277,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
                 Continue Listening
               </p>
               <h3
-                className="text-white text-[26px] leading-[0.95] uppercase tracking-wide font-display line-clamp-2"
+                className="text-white text-[24px] leading-[1.02] tracking-tight font-extrabold line-clamp-2"
                 style={{ wordBreak: 'break-word' }}
               >
                 {hero.title}
@@ -336,7 +336,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
             triggerHaptic('selection');
             navigate(`/artists?focus=${encodeURIComponent(artistOfWeek.name)}`);
           }}
-          className="relative rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform h-[230px] border border-white/[0.06] bg-[#0e0e10]"
+          className="relative rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform h-[210px] border border-white/[0.06] bg-card"
         >
           {artistOfWeek?.image ? (
             <img
@@ -351,16 +351,16 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
               {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-rose-500/30 to-rose-900/40" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/25 to-accent/20" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
           <div className="absolute top-3 left-3 right-3 z-10">
-            <span className="text-rose-400 text-[10px] font-extrabold uppercase tracking-[0.18em] drop-shadow">
+            <span className="text-primary text-[10px] font-extrabold uppercase tracking-[0.18em] drop-shadow">
               Artist of the Week
             </span>
           </div>
           <div className="absolute left-3 right-3 bottom-3 z-10">
-            <p className="text-white text-[16px] font-extrabold uppercase tracking-wide leading-tight line-clamp-2 drop-shadow">
+            <p className="text-white text-[16px] font-extrabold tracking-tight leading-tight line-clamp-2 drop-shadow">
               {artistOfWeek?.name || 'Discover artists'}
             </p>
             <p className="text-white/65 text-[10px] mt-0.5 font-medium">
@@ -372,9 +372,9 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         {/* Jump Back In */}
         <motion.div
           {...fadeUp(2)}
-          className="rounded-3xl p-4 border border-white/[0.06] bg-[#0e0e10] flex flex-col h-[230px]"
+          className="rounded-3xl p-4 border border-white/[0.06] bg-card flex flex-col h-[210px]"
         >
-          <span className="text-rose-400 text-[10px] font-extrabold uppercase tracking-[0.18em] mb-3">
+          <span className="text-primary text-[10px] font-extrabold uppercase tracking-[0.18em] mb-3">
             Jump back in
           </span>
           <div className="space-y-2.5 flex-1 overflow-hidden">
@@ -417,9 +417,9 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         {/* Moods */}
         <motion.div
           {...fadeUp(3)}
-          className="rounded-3xl p-4 border border-white/[0.06] bg-[#0e0e10] flex flex-col h-[200px]"
+          className="rounded-3xl p-4 border border-white/[0.06] bg-card flex flex-col h-[178px]"
         >
-          <span className="text-rose-400 text-[10px] font-extrabold uppercase tracking-[0.18em] mb-3">
+          <span className="text-primary text-[10px] font-extrabold uppercase tracking-[0.18em] mb-3">
             Moods
           </span>
           <div className="flex flex-wrap gap-2 content-start">
@@ -435,7 +435,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
                   i === 0
                     ? {
                         background: 'rgba(255,45,85,0.18)',
-                        color: '#ff2d55',
+                        color: 'hsl(var(--primary))',
                         border: '1px solid rgba(255,45,85,0.45)',
                       }
                     : {
@@ -456,7 +456,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
           <motion.button
             {...fadeUp(4)}
             onClick={() => playFromTile(newRelease)}
-            className="relative rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform h-[200px] border border-white/[0.06] bg-[#0e0e10]"
+             className="relative rounded-3xl overflow-hidden text-left active:scale-[0.98] transition-transform h-[178px] border border-white/[0.06] bg-card"
           >
             {newRelease.cover_url && (
               <img
@@ -468,7 +468,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
             <div className="absolute top-3 left-3 z-10">
-              <span className="text-rose-400 text-[10px] font-extrabold uppercase tracking-[0.18em] drop-shadow">
+              <span className="text-primary text-[10px] font-extrabold uppercase tracking-[0.18em] drop-shadow">
                 New Release
               </span>
             </div>
@@ -488,7 +488,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
                 </p>
                 <p className="text-white/70 text-[10px] truncate">{newRelease.artist}</p>
               </div>
-              <span className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center shrink-0 shadow-lg">
+              <span className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-lg">
                 <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
               </span>
             </div>
@@ -496,7 +496,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         ) : (
           <motion.div
             {...fadeUp(4)}
-            className="rounded-3xl p-4 border border-white/[0.06] bg-[#0e0e10] h-[200px] flex items-center justify-center"
+            className="rounded-3xl p-4 border border-white/[0.06] bg-card h-[178px] flex items-center justify-center"
           >
             <div className="flex items-center gap-2 text-white/40 text-[11px]">
               <Sparkles className="w-3.5 h-3.5" />

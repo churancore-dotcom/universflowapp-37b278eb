@@ -10,14 +10,10 @@ import { useYtmRail } from '@/lib/ytmRails';
 
 interface Props { songs?: Song[] }
 
-/**
- * "The Index" — editorial trending top-10 list with oversized italic Playfair rank numerals.
- * Magazine-grade aesthetic, real YouTube Music data.
- */
 const TrendingNowSection = memo((_props: Props) => {
   const { playSong, currentSong } = usePlayer();
   const taste = useTasteProfile();
-  const { data: pool = [] } = useYtmRail('trending', 'trending india 2026', 30);
+  const { data: pool = [] } = useYtmRail('trending-v2', 'india top songs this week official music', 36);
 
   const trending = useMemo(() => {
     const clean = pool.filter((s) => !isSpamSong(s));
@@ -27,22 +23,15 @@ const TrendingNowSection = memo((_props: Props) => {
   if (trending.length === 0) return null;
 
   return (
-    <section className="mb-2 pt-2">
-      {/* Editorial section header */}
-      <div className="flex items-baseline justify-between border-b border-white/10 pb-2 mb-5 px-1">
-        <h2
-          className="text-[34px] leading-none text-foreground italic"
-          style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900 }}
-        >
-          The Index
-        </h2>
-        <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground/60 font-semibold">
-          Trending&nbsp;Now
-        </span>
+    <section className="mb-2 pt-4">
+      <div className="flex items-end justify-between mb-3 px-1">
+        <div>
+          <h2 className="text-[20px] leading-tight font-extrabold tracking-tight text-foreground">Trending Now</h2>
+          <p className="text-[11px] text-muted-foreground/55 font-semibold mt-0.5">Most played from YouTube Music</p>
+        </div>
       </div>
 
-      {/* Ranked list */}
-      <div className="space-y-0.5">
+      <div className="rounded-3xl overflow-hidden border border-white/[0.06] bg-card/70">
         {trending.map((song, idx) => {
           const isPlaying = currentSong?.id === song.id;
           const rank = String(idx + 1).padStart(2, '0');
@@ -53,32 +42,27 @@ const TrendingNowSection = memo((_props: Props) => {
               whileTap={{ scale: 0.985 }}
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.025 }}
-              className="w-full grid items-center gap-3 px-1 py-3 text-left border-b border-white/[0.04] last:border-0"
-              style={{ gridTemplateColumns: '44px 44px 1fr auto' }}
+              transition={{ delay: idx * 0.02 }}
+              className="w-full grid items-center gap-3 px-3 py-2.5 text-left border-b border-white/[0.05] last:border-0 active:bg-white/[0.04]"
+              style={{ gridTemplateColumns: '26px 46px 1fr auto' }}
             >
-              <span
-                className={`text-[32px] leading-none italic tabular-nums select-none ${
-                  isPlaying ? 'text-primary' : 'text-white/15'
-                }`}
-                style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900 }}
-              >
+              <span className={`text-[12px] font-black tabular-nums select-none ${isPlaying ? 'text-primary' : 'text-muted-foreground/40'}`}>
                 {rank}
               </span>
-              <div className="w-11 h-11 rounded-sm overflow-hidden flex-shrink-0 bg-white/5 ring-1 ring-white/10">
+              <div className="w-[46px] h-[46px] rounded-xl overflow-hidden flex-shrink-0 bg-muted ring-1 ring-white/10">
                 {song.cover_url ? (
-                  <OptimizedImage src={song.cover_url} alt={song.title} className="w-full h-full object-cover" />
+                  <OptimizedImage src={song.cover_url} alt={song.title} className="w-full h-full object-cover" eager={idx < 3} />
                 ) : null}
               </div>
               <div className="min-w-0">
-                <p className={`text-[13.5px] font-semibold truncate leading-tight tracking-tight ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
+                <p className={`text-[13px] font-bold truncate leading-tight ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
                   {song.title}
                 </p>
-                <p className="text-[10.5px] text-muted-foreground/60 truncate mt-0.5 uppercase tracking-[0.12em] font-medium">
+                <p className="text-[10.5px] text-muted-foreground/65 truncate mt-0.5 font-medium">
                   {song.artist}
                 </p>
               </div>
-              <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/40 font-bold pl-1">
+              <span className="text-[10px] text-muted-foreground/40 font-bold pl-1">
                 Play
               </span>
             </motion.button>

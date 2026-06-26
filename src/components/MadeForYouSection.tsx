@@ -9,11 +9,8 @@ import { triggerHaptic } from '@/hooks/useHaptics';
 import { readLocalRecent } from '@/lib/localRecentlyPlayed';
 import { searchYouTubeMusicTracks } from '@/lib/musicIndexer';
 import { supabase } from '@/integrations/supabase/client';
+import { isSpamSong } from '@/pages/Search';
 
-/**
- * "The Feature" — full-bleed editorial cover spread with a personalized mix.
- * Real YouTube Music data seeded from the user's last ~5 plays.
- */
 const MadeForYouSection = memo(() => {
   const { user } = useAuth();
   const { playSong, currentSong } = usePlayer();
@@ -24,7 +21,7 @@ const MadeForYouSection = memo(() => {
   }, [user?.id]);
 
   const { data: mix = [] } = useQuery({
-    queryKey: ['ytm-made-for-you', user?.id ?? 'anon', recentIds.join(',')],
+    queryKey: ['ytm-made-for-you-v2', user?.id ?? 'anon', recentIds.join(',')],
     enabled: !!user,
     staleTime: 30 * 60 * 1000,
     gcTime: 6 * 60 * 60 * 1000,
@@ -42,23 +39,19 @@ const MadeForYouSection = memo(() => {
           .map((r) => (r.artist || r.title || '').trim())
           .filter(Boolean);
         const uniq = [...new Set(seeds)].slice(0, 3);
-        seedQueries = uniq.map((s) => `${s} mix`);
+        seedQueries = uniq.map((s) => `${s} official music mix`);
       }
-      if (!seedQueries.length) seedQueries = ['trending india 2026'];
+      if (!seedQueries.length) seedQueries = ['india top songs this week official music'];
 
       const perQuery = Math.max(8, Math.ceil(20 / seedQueries.length));
-      const settled = await Promise.allSettled(
-        seedQueries.map((q) => searchYouTubeMusicTracks(q, perQuery)),
-      );
+      const settled = await Promise.allSettled(seedQueries.map((q) => searchYouTubeMusicTracks(q, perQuery)));
       const seen = new Set<string>();
       const out: Song[] = [];
       for (const r of settled) {
         if (r.status !== 'fulfilled') continue;
         for (const t of r.value) {
-          if (!t.id || seen.has(t.id)) continue;
-          if (!t.title || !t.artist) continue;
-          seen.add(t.id);
-          out.push({
+          if (!t.id || seen.has(t.id) || !t.title || !t.artist) continue;
+          const song = {
             id: t.id,
             title: t.title,
             artist: t.artist,
@@ -66,7 +59,10 @@ const MadeForYouSection = memo(() => {
             cover_url: t.cover_url,
             audio_url: t.audio_url || (t.videoId ? `yt-video:${t.videoId}` : 'resolving'),
             duration: t.duration,
-          } as Song);
+          } as Song;
+          if (isSpamSong(song)) continue;
+          seen.add(t.id);
+          out.push(song);
           if (out.length >= 18) break;
         }
         if (out.length >= 18) break;
@@ -81,90 +77,46 @@ const MadeForYouSection = memo(() => {
   const play = (s: Song) => { triggerHaptic('selection'); playSong(s, undefined, mix); };
 
   return (
-    <section className="mb-2 pt-6">
-      {/* Editorial label */}
-      <div className="flex items-baseline justify-between border-t border-white/15 pt-3 mb-4 px-1">
-        <span className="text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
-          The Feature · Issue 01
-        </span>
-        <span className="text-[9px] uppercase tracking-[0.25em] text-muted-foreground/50 font-semibold">
-          Custom&nbsp;Mix
-        </span>
+    <section className="mb-2 pt-4">
+      <div className="flex items-end justify-between mb-3 px-1">
+        <div>
+          <h2 className="text-[20px] leading-tight font-extrabold tracking-tight text-foreground">Made For You</h2>
+          <p className="text-[11px] text-muted-foreground/55 font-semibold mt-0.5">Based on your listening</p>
+        </div>
       </div>
 
-      {/* Full-bleed cover with overlay copy */}
       <motion.button
         whileTap={{ scale: 0.985 }}
         onClick={() => play(hero)}
-        className="relative w-full aspect-[4/5] overflow-hidden text-left rounded-sm"
-        style={{ boxShadow: '0 14px 40px rgba(0,0,0,0.55)' }}
+        className="relative w-full min-h-[150px] overflow-hidden text-left rounded-3xl border border-white/[0.06] bg-card p-4"
       >
         {hero.cover_url && (
-          <OptimizedImage
-            src={hero.cover_url}
-            alt={hero.title}
-            className="absolute inset-0 w-full h-full object-cover scale-110"
-          />
+          <OptimizedImage src={hero.cover_url} alt={hero.title} className="absolute right-0 top-0 h-full w-[46%] object-cover opacity-80" eager />
         )}
-        {/* Editorial top→bottom gradient + film grain feel */}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.85) 100%)' }} />
-        <div className="absolute inset-0 ring-1 ring-inset ring-white/10" />
-
-        {/* Issue badge */}
-        <div className="absolute top-4 left-4">
-          <span className="bg-foreground text-background px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em]">
-            For&nbsp;You
-          </span>
-        </div>
-
-        {/* Title block */}
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          <h3
-            className="text-[40px] leading-[0.92] italic text-foreground tracking-tight mb-3"
-            style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, textShadow: '0 2px 12px rgba(0,0,0,0.5)' }}
-          >
-            {hero.title}
-          </h3>
-          <div className="flex items-center justify-between border-t border-white/25 pt-3">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-white/80 font-bold truncate pr-3">
-              {hero.artist}
-            </p>
-            <div className="w-9 h-9 rounded-full bg-foreground flex items-center justify-center flex-shrink-0">
-              <Play className="w-4 h-4 text-background ml-0.5" fill="currentColor" />
-            </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/95 to-card/35" />
+        <div className="relative z-10 max-w-[62%]">
+          <span className="inline-flex bg-primary text-primary-foreground px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.18em] mb-5">For You</span>
+          <h3 className="text-[25px] leading-[1] text-foreground font-extrabold tracking-tight mb-2 line-clamp-2">{hero.title}</h3>
+          <p className="text-[12px] text-muted-foreground truncate font-semibold mb-4">{hero.artist}</p>
+          <div className="w-9 h-9 rounded-full bg-foreground flex items-center justify-center flex-shrink-0">
+            <Play className="w-4 h-4 text-background ml-0.5" fill="currentColor" />
           </div>
         </div>
       </motion.button>
 
-      {/* Track listing under the cover, divided like a contents page */}
-      <div className="mt-4 px-1">
+      <div className="mt-2 rounded-3xl border border-white/[0.06] bg-card/60 overflow-hidden">
         {rest.map((song, idx) => {
           const isPlaying = currentSong?.id === song.id;
           return (
-            <button
-              key={song.id}
-              onClick={() => play(song)}
-              className="w-full flex items-center justify-between gap-3 py-2.5 border-b border-white/[0.06] last:border-0 text-left"
-            >
+            <button key={song.id} onClick={() => play(song)} className="w-full flex items-center justify-between gap-3 px-3 py-2.5 border-b border-white/[0.05] last:border-0 text-left active:bg-white/[0.04]">
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums w-6">
-                  {String(idx + 2).padStart(2, '0')}.
-                </span>
+                <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums w-6">{String(idx + 2).padStart(2, '0')}.</span>
                 <div className="min-w-0">
-                  <p className={`text-[13px] font-semibold truncate leading-tight italic ${isPlaying ? 'text-primary' : 'text-foreground'}`}
-                     style={{ fontFamily: "'Playfair Display', serif" }}>
-                    {song.title}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/60 truncate uppercase tracking-[0.12em] mt-0.5 font-medium">
-                    {song.artist}
-                  </p>
+                  <p className={`text-[13px] font-bold truncate leading-tight ${isPlaying ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
+                  <p className="text-[10.5px] text-muted-foreground/65 truncate mt-0.5 font-medium">{song.artist}</p>
                 </div>
               </div>
-              {song.duration ? (
-                <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums">
-                  {Math.floor(song.duration / 60)}:{String(Math.floor(song.duration % 60)).padStart(2, '0')}
-                </span>
-              ) : null}
+              {song.duration ? <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums">{Math.floor(song.duration / 60)}:{String(Math.floor(song.duration % 60)).padStart(2, '0')}</span> : null}
             </button>
           );
         })}

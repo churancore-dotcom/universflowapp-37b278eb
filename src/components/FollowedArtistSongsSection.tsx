@@ -8,10 +8,9 @@ import { getUserArtistPrefs } from '@/lib/userArtistPrefs';
 import { getArtistTopTracksByName } from '@/lib/musicIndexer';
 import { supabase } from '@/integrations/supabase/client';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { isSpamSong } from '@/pages/Search';
 
-interface Props {
-  songs: Song[];
-}
+interface Props { songs: Song[] }
 
 const normalize = (value?: string | null) => value?.trim().toLowerCase() || '';
 
@@ -53,7 +52,7 @@ const dedupeSongs = (songs: Song[]) => {
   const seen = new Set<string>();
   return songs.filter((song) => {
     const key = `${normalize(song.artist)}::${normalize(song.title)}`;
-    if (!key.trim() || seen.has(key)) return false;
+    if (!key.trim() || seen.has(key) || isSpamSong(song)) return false;
     seen.add(key);
     return true;
   });
@@ -66,19 +65,14 @@ const fetchFollowedArtistSongs = async (userId: string, seedSongs: Song[] = []) 
   if (!followed.size) return [];
 
   const seedMatches = seedSongs.filter((song) => followed.has(normalize(song.artist)));
-
   const [{ data: catalog, error }, fallbackGroups] = await Promise.all([
     supabase
       .from('songs')
       .select('*, artists(id, name, photo_url)')
       .eq('is_visible', true)
       .order('created_at', { ascending: false })
-      .limit(1000),
-    Promise.all(
-      followedNames.slice(0, 12).map((artist) =>
-        getArtistTopTracksByName(artist, 10).catch(() => []),
-      ),
-    ),
+      .limit(300),
+    Promise.all(followedNames.slice(0, 8).map((artist) => getArtistTopTracksByName(artist, 8).catch(() => []))),
   ]);
 
   if (error) console.warn('Failed to load followed-artist catalog songs:', error);
@@ -101,24 +95,18 @@ const fetchFollowedArtistSongs = async (userId: string, seedSongs: Song[] = []) 
   return dedupeSongs([...seedMatches, ...catalogMatches, ...fallbackSongs]).slice(0, 24);
 };
 
-/**
- * "The Dispatch" — editorial gallery of songs from followed artists.
- * Magazine roster aesthetic with monochrome→color hover.
- */
 const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ songs }: Props) {
   const { user } = useAuth();
   const userId = user?.id;
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => ['followed-artist-songs', userId] as const, [userId]);
+  const queryKey = useMemo(() => ['followed-artist-songs-v2', userId] as const, [userId]);
 
   useEffect(() => {
     if (!userId) return;
     const refresh = () => queryClient.invalidateQueries({ queryKey });
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
+    const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
     window.addEventListener('uf:artist-prefs-changed', refresh);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
@@ -131,31 +119,23 @@ const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ so
     queryKey,
     queryFn: () => fetchFollowedArtistSongs(userId!, songs),
     enabled: !!userId,
-    staleTime: 15 * 1000,
+    staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
-    refetchOnMount: 'always',
     refetchOnReconnect: true,
   });
 
   if (!user || followedSongs.length === 0) return null;
 
   return (
-    <section className="mb-2 pt-6">
-      {/* Editorial label */}
-      <div className="flex items-baseline justify-between border-t border-white/15 pt-3 mb-5 px-1">
-        <h2
-          className="text-[28px] leading-none italic text-foreground tracking-tight"
-          style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900 }}
-        >
-          The Dispatch
-        </h2>
-        <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground/60 font-semibold">
-          Following
-        </span>
+    <section className="mb-2 pt-4">
+      <div className="flex items-end justify-between mb-3 px-1">
+        <div>
+          <h2 className="text-[20px] leading-tight font-extrabold tracking-tight text-foreground">From Your Artists</h2>
+          <p className="text-[11px] text-muted-foreground/55 font-semibold mt-0.5">New music from people you follow</p>
+        </div>
       </div>
 
-      {/* Roster gallery */}
-      <div className="flex gap-5 overflow-x-auto hide-scrollbar pb-2 px-1">
+      <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 px-1">
         {followedSongs.map((song, idx) => {
           const active = currentSong?.id === song.id;
           return (
@@ -169,36 +149,17 @@ const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ so
               }}
               className="w-32 flex-shrink-0 text-left active:scale-[0.97] transition-transform"
             >
-              <div className="mb-3 aspect-square overflow-hidden bg-muted/40 ring-1 ring-white/10 relative rounded-sm">
+              <div className="mb-2.5 aspect-square overflow-hidden bg-muted/40 ring-1 ring-white/10 relative rounded-2xl">
                 {song.cover_url ? (
-                  <img
-                    src={song.cover_url}
-                    alt={`${song.title} cover art`}
-                    className={`h-full w-full object-cover transition-all duration-500 ${active ? '' : 'grayscale group-hover:grayscale-0'}`}
-                    loading="lazy"
-                  />
+                  <img src={song.cover_url} alt={`${song.title} cover art`} className="h-full w-full object-cover transition-all duration-300" loading={idx < 3 ? 'eager' : 'lazy'} decoding="async" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <Music2 className="w-7 h-7 text-muted-foreground" />
-                  </div>
+                  <div className="flex h-full w-full items-center justify-center"><Music2 className="w-7 h-7 text-muted-foreground" /></div>
                 )}
-                {idx === 0 && (
-                  <div className="absolute -top-px -left-px bg-foreground text-background px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.15em]">
-                    New
-                  </div>
-                )}
-                {active && (
-                  <div className="absolute bottom-1.5 right-1.5 bg-primary text-primary-foreground px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
-                    {isPlaying ? '▶ Live' : 'Ⅱ'}
-                  </div>
-                )}
+                {idx === 0 && <div className="absolute top-2 left-2 rounded-full bg-primary text-primary-foreground px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.15em]">New</div>}
+                {active && <div className="absolute bottom-1.5 right-1.5 rounded-full bg-primary text-primary-foreground px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">{isPlaying ? '▶ Live' : 'Ⅱ'}</div>}
               </div>
-              <p className={`text-[11px] font-black uppercase tracking-[0.08em] leading-tight truncate ${active ? 'text-primary' : 'text-foreground'}`}>
-                {song.title}
-              </p>
-              <p className="mt-1 truncate text-[10px] text-muted-foreground/70 uppercase tracking-[0.18em] font-semibold">
-                {song.artist}
-              </p>
+              <p className={`text-[12px] font-bold leading-tight truncate ${active ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
+              <p className="mt-1 truncate text-[10.5px] text-muted-foreground/70 font-semibold">{song.artist}</p>
             </button>
           );
         })}

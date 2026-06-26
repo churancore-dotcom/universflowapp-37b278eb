@@ -72,25 +72,16 @@ const LoadingSkeleton = memo(() => (
 
 LoadingSkeleton.displayName = 'LoadingSkeleton';
 
-const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v1'] as const;
+const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v2-fast-ytm'] as const;
 
 // Tag flags used by the existing rails (Trending/Fresh) to filter the shared pool.
 type FlaggedSong = Song & { show_in_trending?: boolean; show_in_new_releases?: boolean };
 
-// Pull three real YouTube Music rails in parallel: trending, fresh, and charts.
+// Pull one fast real YouTube Music pool for the hero/bento only.
 // Each track is shaped exactly like the player's Song type with audio_url set to
 // `yt-video:<id>` so PlayerContext routes the tap through extract-audio.
 const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
-  const [trendingRes, freshRes, chartsRes] = await Promise.allSettled([
-    searchYouTubeMusicTracks('trending india 2026', 30),
-    searchYouTubeMusicTracks('new releases 2026', 30),
-    searchYouTubeMusicTracks('top charts india', 30),
-  ]);
-  const grab = (r: PromiseSettledResult<Awaited<ReturnType<typeof searchYouTubeMusicTracks>>>) =>
-    r.status === 'fulfilled' ? r.value : [];
-  const trending = grab(trendingRes);
-  const fresh = grab(freshRes);
-  const charts = grab(chartsRes);
+  const trending = await searchYouTubeMusicTracks('india top songs this week official music', 24);
 
   const byId = new Map<string, FlaggedSong>();
   const ingest = (list: typeof trending, flags: Partial<FlaggedSong>) => {
@@ -115,10 +106,7 @@ const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
     }
   };
 
-  // Order matters — fresh entries set created_at last so they win the "newest" sort.
-  ingest(charts, { show_in_trending: true });
-  ingest(trending, { show_in_trending: true });
-  ingest(fresh, { show_in_new_releases: true });
+  ingest(trending, { show_in_trending: true, show_in_new_releases: true });
 
   return [...byId.values()];
 };
@@ -224,14 +212,6 @@ const Home = () => {
         
         {/* Ambient background — cinematic */}
         <div className="absolute inset-0 pointer-events-none">
-          {currentSong?.cover_url && (
-            <img
-              src={currentSong.cover_url}
-              alt=""
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[250%] blur-[120px] opacity-[0.12] saturate-150"
-              style={{ height: '60%' }}
-            />
-          )}
           <div 
             className="absolute inset-0"
             style={{
@@ -266,11 +246,8 @@ const Home = () => {
                 <img src={appLogo} alt="Universflow app logo" width={40} height={40} {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)} decoding="async" className="w-full h-full rounded-full object-cover" />
               </div>
               <div>
-                <p
-                  className="text-[24px] leading-none text-foreground tracking-[0.02em]"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                >
-                  {greeting().toUpperCase()}
+                <p className="text-[19px] leading-none text-foreground font-extrabold tracking-tight">
+                  {greeting()}
                 </p>
                 <p className="text-[10px] text-[#FFB199]/70 font-bold tracking-[0.2em] uppercase mt-1">
                   Universflow
@@ -328,17 +305,15 @@ const Home = () => {
 
 
 
-              {/* Discovery — Featured Artists */}
-              {!isOffline && <FeaturedArtistsSection />}
-
-              {/* Viral Now Rail — live country chart, real data */}
-              {!isOffline && <CountryViralSection />}
-
               {!isOffline && <FreshReleasesSection songs={allSongs} />}
               {!isOffline && <TrendingNowSection songs={allSongs} />}
+              {/* Discovery — Featured Artists */}
+              {!isOffline && <FeaturedArtistsSection />}
               {!isOffline && <MadeForYouSection />}
               {/* Followed artists rail — sits below Trending Now */}
               {!isOffline && <FollowedArtistSongsSection songs={allSongs} />}
+              {/* Viral Now Rail — live country chart, real data */}
+              {!isOffline && <CountryViralSection />}
 
               {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
               {isOffline && allSongs.length > 0 && (

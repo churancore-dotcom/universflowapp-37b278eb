@@ -15,8 +15,7 @@ import RecognizeSongButton from '@/components/RecognizeSongButton';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { supabase } from '@/integrations/supabase/client';
-import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
-import { searchSongsAsTracks as searchJioSaavnTracks } from '@/lib/jiosaavn';
+import { prefetchIndexedTrack, getTagTopTracks, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
 import { isCatalogSongId } from '@/lib/songSupport';
 import { detectMoodAndLanguage } from '@/lib/moodKeywords';
 import FollowedArtistsRail from '@/components/FollowedArtistsRail';
@@ -35,7 +34,7 @@ const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
 const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new', 'by', 'ft', 'feat', 'featuring', 'from'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
-const SEARCH_CACHE_NAMESPACE = 'stable-search-v10-ytm-innertube';
+const SEARCH_CACHE_NAMESPACE = 'stable-search-v11-ytm-only-clean';
 const SPAM_RESULT_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
@@ -433,17 +432,14 @@ const Search = () => {
         const tagJobs: Promise<IndexedTrack[]>[] = [];
         if (language) tagJobs.push(getTagTopTracks(language, 150));
         if (mood) tagJobs.push(getTagTopTracks(mood, 150));
-        const literalJob = searchIndexedTracks(trimmedQuery, 200);
-        const youtubeJob = searchYouTubeMusicTracks(smartQuery, 120);
-        const saavnJob = searchJioSaavnTracks(trimmedQuery, 60).catch(() => [] as IndexedTrack[]);
+        const youtubeJob = searchYouTubeMusicTracks(smartQuery, 180);
         const uploadedJob = searchUploadedArtistSongs(trimmedQuery);
 
         const artistJob = searchArtistDirectory(trimmedQuery, 30);
-        const [youtube, literal, saavn, uploaded, artists, ...tagSets] = await Promise.all([youtubeJob, literalJob, saavnJob, uploadedJob, artistJob, ...tagJobs]);
+        const [youtube, uploaded, artists, ...tagSets] = await Promise.all([youtubeJob, uploadedJob, artistJob, ...tagJobs]);
         if (cancelled) return;
 
-        const literalMerged = [...saavn, ...literal];
-        const merged = mergeUploadedArtistSongs(uploaded, rankAndDedupeResults(trimmedQuery, youtube, literalMerged, tagSets, pureBrowse))
+        const merged = mergeUploadedArtistSongs(uploaded, rankAndDedupeResults(trimmedQuery, youtube, [], pureBrowse ? tagSets : [], pureBrowse))
           .filter((track) => !isHiddenTrack(track, hiddenResults))
           .slice(0, 300);
 
@@ -816,7 +812,7 @@ const Search = () => {
                         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                         <div className="absolute left-3 right-3 bottom-3">
                           <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-white/70">Artist</p>
-                          <p className="text-sm font-display tracking-wide text-white truncate mt-0.5">{a.name}</p>
+                          <p className="text-sm font-bold tracking-tight text-white truncate mt-0.5">{a.name}</p>
                         </div>
                       </motion.button>
                     ))}
