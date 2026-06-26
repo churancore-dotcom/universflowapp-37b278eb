@@ -72,40 +72,55 @@ const LoadingSkeleton = memo(() => (
 
 LoadingSkeleton.displayName = 'LoadingSkeleton';
 
-const HOME_SONGS_QUERY_KEY = ['home', 'songs'] as const;
+const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v1'] as const;
 
-const fetchHomeSongs = async (): Promise<Song[]> => {
-  const { data, error } = await supabase
-    .from('songs')
-    .select('*, artists(id, name, photo_url)')
-    .eq('is_visible', true)
-    .order('created_at', { ascending: false })
-    .limit(1000);
+// Tag flags used by the existing rails (Trending/Fresh) to filter the shared pool.
+type FlaggedSong = Song & { show_in_trending?: boolean; show_in_new_releases?: boolean };
 
-  if (error) throw error;
-  if (!data) return [];
+// Pull three real YouTube Music rails in parallel: trending, fresh, and charts.
+// Each track is shaped exactly like the player's Song type with audio_url set to
+// `yt-video:<id>` so PlayerContext routes the tap through extract-audio.
+const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
+  const [trendingRes, freshRes, chartsRes] = await Promise.allSettled([
+    searchYouTubeMusicTracks('trending india 2026', 30),
+    searchYouTubeMusicTracks('new releases 2026', 30),
+    searchYouTubeMusicTracks('top charts india', 30),
+  ]);
+  const grab = (r: PromiseSettledResult<Awaited<ReturnType<typeof searchYouTubeMusicTracks>>>) =>
+    r.status === 'fulfilled' ? r.value : [];
+  const trending = grab(trendingRes);
+  const fresh = grab(freshRes);
+  const charts = grab(chartsRes);
 
-  type SongRowDb = (typeof data)[number] & { artists: { id: string; name: string; photo_url: string | null } | null };
-  return (data as SongRowDb[]).map((s) => {
-    const artistData = s.artists;
-    return {
-      id: s.id,
-      title: s.title,
-      artist: s.artist,
-      album: s.album || undefined,
-      cover_url: s.cover_url || undefined,
-      audio_url: s.audio_url,
-      duration: s.duration || undefined,
-      artist_id: artistData?.id || s.artist_id || undefined,
-      artist_photo_url: artistData?.photo_url || undefined,
-      genre: s.genre || undefined,
-      mood: s.mood || undefined,
-      created_at: s.created_at || undefined,
-      show_in_new_releases: s.show_in_new_releases,
-      show_in_trending: s.show_in_trending,
-      is_premium_only: s.is_premium_only,
-    } as Song;
-  });
+  const byId = new Map<string, FlaggedSong>();
+  const ingest = (list: typeof trending, flags: Partial<FlaggedSong>) => {
+    for (const t of list) {
+      if (!t.id || !t.title || !t.artist) continue;
+      const existing = byId.get(t.id);
+      if (existing) {
+        byId.set(t.id, { ...existing, ...flags });
+        continue;
+      }
+      byId.set(t.id, {
+        id: t.id,
+        title: t.title,
+        artist: t.artist,
+        album: t.album,
+        cover_url: t.cover_url,
+        audio_url: t.audio_url || (t.videoId ? `yt-video:${t.videoId}` : 'resolving'),
+        duration: t.duration,
+        created_at: new Date().toISOString(),
+        ...flags,
+      });
+    }
+  };
+
+  // Order matters — fresh entries set created_at last so they win the "newest" sort.
+  ingest(charts, { show_in_trending: true });
+  ingest(trending, { show_in_trending: true });
+  ingest(fresh, { show_in_new_releases: true });
+
+  return [...byId.values()];
 };
 
 const Home = () => {
