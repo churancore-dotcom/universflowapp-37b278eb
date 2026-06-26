@@ -713,22 +713,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch { /* native controls are best-effort */ }
   }, []);
 
-  // ── EQ requires a CORS-safe source. When the user turns EQ on AFTER a song
-  // has started, the current <audio> src is the raw external stream (not the
-  // supabase-proxied URL), so connectAudioElement fails and EQ silently does
-  // nothing. Listen for the EQ-change event, and if the current src isn't
-  // already going through our proxy, re-source it via the proxy while
-  // preserving currentTime + playing state. The engine's `canplay` listener
-  // will then successfully build the processed chain.
+  // Premium streams are ALREADY loaded through the CORS-clean proxy with
+  // crossOrigin="anonymous", so the WebAudio graph is attached on first
+  // canplay. The engine listens to `uf-eq-changed` directly and applies
+  // slider moves instantly (BiquadFilter.gain updates — no reload).
+  //
+  // We still keep a safety reload path for the edge case where a song was
+  // loaded BEFORE the user upgraded to Premium (raw URL, no CORS), so the
+  // graph is permanently tainted on that element. Reloading via proxy gives
+  // the engine a clean source on the next song.
   useEffect(() => {
     const onEqChanged = () => {
       const a = audioRef.current;
       if (!a || !a.src) return;
       if (!isEqProcessingEnabled()) return;
 
-      // If the element is already going through our edge-function proxy AND
-      // already crossOrigin="anonymous", the WebAudio graph can attach without
-      // a reload — just nudge the engine.
+      // Already proxied + anonymous → engine handles it instantly.
       const alreadyProxied = isAudioProxyUrl(a.src);
       const alreadyAnonymous = a.crossOrigin === 'anonymous';
       if (alreadyProxied && alreadyAnonymous) {
@@ -736,11 +736,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // Otherwise we MUST reload the source through a CORS-clean fetch so
-      // createMediaElementSource() doesn't taint the graph. This applies even
-      // to "direct playable" hosts (saavncdn / the-standard / private.coffee):
-      // if the original load wasn't anonymous, the element is permanently
-      // tainted for WebAudio and EQ stays dead until we re-fetch.
+      // Legacy element loaded before Premium activation — reload through proxy.
       const wasPlaying = !a.paused;
       const at = a.currentTime;
       const currentSrc = a.currentSrc || a.src;
