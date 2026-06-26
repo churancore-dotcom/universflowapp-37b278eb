@@ -908,6 +908,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // current song finishes — no gap, infinite playback.
   useEffect(() => {
     if (repeat !== 'off') return;
+    if (!isAutoplayEnabled()) return;
     if (queue.length === 0) return;
     const remaining = queue.length - currentIndex - 1;
     if (remaining > 2) return;
@@ -915,7 +916,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const seed = queue[currentIndex] || currentSong;
     if (!seed) return;
     void extendQueueWithMix(seed);
-  }, [currentIndex, queue, repeat, currentSong, extendQueueWithMix]);
+  }, [currentIndex, queue, repeat, currentSong, extendQueueWithMix, playbackSettingsVersion]);
 
 
 
