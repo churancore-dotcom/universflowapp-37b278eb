@@ -582,10 +582,24 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
   const submitUtr = async () => {
     if (!user) { toast({ title: 'Please sign in first', variant: 'destructive' }); return; }
     if (!requireVerified('submit a payment')) return;
-    const cleanUtr = utr.trim();
-    if (cleanUtr.length < 6) { toast({ title: 'Enter a valid UTR / transaction ID', variant: 'destructive' }); return; }
+    const cleanUtr = utr.replace(/\D/g, '');
+    if (cleanUtr.length !== 12) { toast({ title: 'UTR must be exactly 12 digits', variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
+      // Block re-submitting if a pending request already exists for this user
+      const { data: existing } = await supabase
+        .from('payment_requests')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        toast({ title: 'A payment is already being verified', description: 'Please wait for it to complete.', variant: 'destructive' });
+        setSubmitting(false);
+        onClose();
+        return;
+      }
       const { data, error } = await supabase.from('payment_requests').insert({
         user_id: user.id,
         amount_paise: amountPaise,
@@ -594,14 +608,14 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
         plan,
       }).select('id').single();
       if (error) {
-        if (error.code === '23505') toast({ title: 'This transaction ID is already submitted', variant: 'destructive' });
+        if (error.code === '23505') toast({ title: 'This UTR was already submitted', variant: 'destructive' });
         else toast({ title: 'Submission failed', description: error.message, variant: 'destructive' });
         setSubmitting(false); return;
       }
       haptics.success();
       setPaymentRequestId(data?.id ?? null);
-      setStep('verifying');
-      setVerifyStage(1);
+      // Close the sheet immediately — the page-level live progress banner takes over.
+      onClose();
       // Fire-and-forget Telegram notification
       supabase.functions.invoke('telegram-notify', {
         body: {
