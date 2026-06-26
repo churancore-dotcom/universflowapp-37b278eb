@@ -185,64 +185,8 @@ const Home = () => {
 
   const allSongs = useMemo(() => songs, [songs]);
 
-  // Realtime: DIFF-based cache patch — only mutate the affected row instead of refetching
-  useEffect(() => {
-    if (isOffline) return;
-    const channel = supabase
-      .channel('songs-realtime-diff')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, (payload) => {
-        const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE';
-        const newRow = payload.new as Partial<Song> & { id?: string; is_visible?: boolean; show_in_new_releases?: boolean; show_in_trending?: boolean; is_premium_only?: boolean };
-        const oldRow = payload.old as Partial<Song> & { id?: string };
-
-        queryClient.setQueryData<Song[]>(HOME_SONGS_QUERY_KEY, (current) => {
-          if (!current) return current;
-
-          if (eventType === 'DELETE') {
-            return current.filter((s) => s.id !== oldRow?.id);
-          }
-
-          if (!newRow) return current;
-
-          // Hide if no longer visible
-          if (newRow.is_visible === false) {
-            return current.filter((s) => s.id !== newRow.id);
-          }
-
-          const mapped: Song = {
-            id: newRow.id,
-            title: newRow.title,
-            artist: newRow.artist,
-            album: newRow.album || undefined,
-            cover_url: newRow.cover_url || undefined,
-            audio_url: newRow.audio_url,
-            duration: newRow.duration || undefined,
-            artist_id: newRow.artist_id || undefined,
-            show_in_new_releases: newRow.show_in_new_releases,
-            show_in_trending: newRow.show_in_trending,
-            is_premium_only: newRow.is_premium_only,
-          } as Song;
-
-          const idx = current.findIndex((s) => s.id === newRow.id);
-          if (eventType === 'INSERT' || idx === -1) {
-            // Prepend new song (preserves "latest first" order)
-            return [mapped, ...current];
-          }
-          // UPDATE — patch in place, preserve joined fields like artist_photo_url
-          const next = current.slice();
-          next[idx] = { ...current[idx], ...mapped };
-          return next;
-        });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient, isOffline]);
-
-
-
+  // The home feed is now sourced from YouTube Music — no Realtime postgres_changes
+  // listener is needed. React Query handles refresh + pull-to-refresh handles manual.
 
   const greeting = useCallback(() => {
     const hour = new Date().getHours();
