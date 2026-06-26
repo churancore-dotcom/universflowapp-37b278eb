@@ -34,13 +34,15 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
     const doReapply = () => {
       const s = getEQSettings();
-      const wantsProcessing = getRuntimePremium() && hasWebAudioEffects(s);
+      const isPremium = getRuntimePremium();
 
-      // Always honor playback rate — it's a native <audio> property,
-      // independent of WebAudio.
+      // Always honor playback rate — native <audio> property, no graph needed.
       audioElement.playbackRate = s.playbackSpeed;
 
-      if (!getRuntimePremium()) {
+      if (!isPremium) {
+        // Non-premium: never attach the WebAudio graph. EQ is locked to
+        // Premium, and the direct <audio> path is more reliable for
+        // Android background playback.
         if (getState() === 'processed') {
           setBands([0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0);
           setReverb(0);
@@ -52,13 +54,9 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
         return;
       }
 
-      if (!wantsProcessing && !isAttached) {
-        // Pure HTMLAudio path — best for Android background reliability.
-        return;
-      }
-
-      // User has effects on (or had them on earlier this session) — attach
-      // and push current settings.
+      // Premium: ALWAYS attach the WebAudio graph (transparent when sliders
+      // are flat). This lets EQ tweaks apply instantly with NO reload — the
+      // graph is already wired, we just adjust the BiquadFilter gains.
       const ok = connectAudioElement(audioElement);
       if (ok) isAttached = true;
 
