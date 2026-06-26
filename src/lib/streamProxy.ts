@@ -41,10 +41,10 @@ function isAlreadyCorsClean(target: string): boolean {
  * Returns the original URL unchanged when proxying is unnecessary or
  * impossible (no project URL configured, blob/data scheme, etc.).
  */
-export function wrapStreamUrl(target: string): string {
+export function wrapStreamUrl(target: string, options?: { force?: boolean }): string {
   if (!target || !target.startsWith('http')) return target;
   if (isStreamProxyUrl(target)) return target;
-  if (isAlreadyCorsClean(target)) return target;
+  if (!options?.force && isAlreadyCorsClean(target)) return target;
   const base = getProjectFunctionsBase();
   if (!base) return target;
   return `${base}${STREAM_PROXY_PATH}?u=${encodeURIComponent(target)}`;

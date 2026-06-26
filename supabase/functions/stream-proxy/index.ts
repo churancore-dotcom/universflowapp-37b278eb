@@ -82,6 +82,9 @@ const ipHits = new Map<string, number[]>();
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const SUPABASE_PROJECT_HOST = (() => {
+  try { return SUPABASE_URL ? new URL(SUPABASE_URL).hostname.toLowerCase() : ''; } catch { return ''; }
+})();
 
 function clientIp(req: Request): string {
   return (
@@ -131,6 +134,10 @@ function isAllowed(target: string): boolean {
   try { url = new URL(target); } catch { return false; }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
   const host = url.hostname.toLowerCase();
+  // Own Supabase storage/function host is allowed so Premium EQ can force our
+  // uploaded tracks through this proxy and get guaranteed CORS-clean WebAudio.
+  // Do NOT allow every *.supabase.co project — only this app's project host.
+  if (SUPABASE_PROJECT_HOST && host === SUPABASE_PROJECT_HOST) return true;
   return ALLOWED_HOST_SUFFIXES.some((suffix) => {
     const bare = suffix.startsWith('.') ? suffix.slice(1) : suffix;
     return host === bare || host.endsWith(suffix);

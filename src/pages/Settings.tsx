@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Trash2, Info, Headphones, Palette, ChevronRight, Heart, Crown, Check, MessageSquare, Gauge, RotateCcw, Sliders } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Crown, MessageSquare, Gauge, RotateCcw, Sliders } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
@@ -15,7 +15,6 @@ import EqualizerModal from '@/components/EqualizerModal';
 import { SettingsUpdateButton } from '@/components/SettingsUpdateButton';
 import { supabase } from '@/integrations/supabase/client';
 
-import { applyTheme, type ThemeMode } from '@/lib/themeBoot';
 import { setEQSettings } from '@/lib/eqSettings';
 import SEOHead from '@/components/SEOHead';
 
@@ -48,7 +47,6 @@ const Settings = () => {
   const [notifications, setNotifications] = useState(() => localStorage.getItem('uf_notifications') !== 'false');
   const [moodPushes, setMoodPushes] = useState(() => localStorage.getItem('uf_mood_pushes') !== 'false');
   const [haptics, setHaptics] = useState(() => localStorage.getItem('uf_haptics') !== 'false');
-  const [theme, setTheme] = useState<ThemeMode>(() => (localStorage.getItem('uf_theme') as ThemeMode) || 'default');
   const [cacheSize, setCacheSize] = useState('0 MB');
   const [showSupport, setShowSupport] = useState(false);
   const [showEq, setShowEq] = useState(false);
@@ -85,10 +83,20 @@ const Settings = () => {
     calcSize();
   }, []);
 
-  useEffect(() => { applyTheme(theme); }, [theme]);
+  const emitPlaybackSettingsChanged = () => {
+    try { window.dispatchEvent(new CustomEvent('uf-playback-settings-changed')); } catch { /* ignore */ }
+  };
 
-  const handleGapless = (val: boolean) => { setGaplessPlayback(val); localStorage.setItem('uf_gapless', String(val)); };
-  const handleAutoplay = (val: boolean) => { setAutoplay(val); localStorage.setItem('uf_autoplay', String(val)); };
+  const handleGapless = (val: boolean) => {
+    setGaplessPlayback(val);
+    localStorage.setItem('uf_gapless', String(val));
+    emitPlaybackSettingsChanged();
+  };
+  const handleAutoplay = (val: boolean) => {
+    setAutoplay(val);
+    localStorage.setItem('uf_autoplay', String(val));
+    emitPlaybackSettingsChanged();
+  };
   const handleNotifications = async (val: boolean) => {
     setNotifications(val);
     localStorage.setItem('uf_notifications', String(val));
@@ -124,13 +132,8 @@ const Settings = () => {
     handleGapless(true);
     handleAutoplay(true);
     if (cfEnabled) toggleCrossfade();
+    if (gaplessPro) toggleGaplessPro();
     toast.success('Playback settings restored');
-  };
-
-  const handleTheme = (t: ThemeMode) => {
-    setTheme(t);
-    applyTheme(t);
-    toast.success(`${themes.find(x => x.id === t)?.label} theme applied`);
   };
 
 
@@ -155,25 +158,18 @@ const Settings = () => {
     } catch { toast.error('Failed to clear cache'); }
   };
 
-  const themes: { id: ThemeMode; label: string; preview: string; ring?: string }[] = [
-    { id: 'light', label: 'White', preview: 'linear-gradient(135deg, #ffffff 0%, #f4f1ec 100%)', ring: '#ff2d55' },
-    { id: 'black', label: 'Black', preview: 'linear-gradient(135deg, #000000 0%, #0a0a0a 100%)', ring: '#ff2d55' },
-  ];
-
-  const isLight = theme === 'light';
-
   return (
     <PageTransition>
       <SEOHead
         title="Settings — Univers Flow"
-        description="Tune playback, audio quality, themes, notifications and storage controls inside your Univers Flow account."
-        keywords="Univers Flow settings, music app preferences, audio quality, theme, notifications"
+        description="Tune playback, audio quality, notifications and storage controls inside your Univers Flow account."
+        keywords="Univers Flow settings, music app preferences, audio quality, notifications"
       />
       <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
         <header
           className="flex-shrink-0 z-30 px-2 pt-3 pb-2 flex items-center safe-area-pt"
           style={{
-            background: isLight ? 'hsl(var(--background) / 0.85)' : 'hsl(var(--background) / 0.85)',
+            background: 'hsl(var(--background) / 0.85)',
             backdropFilter: 'blur(40px)',
             WebkitBackdropFilter: 'blur(40px)',
           }}
@@ -204,14 +200,22 @@ const Settings = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">Crossfade</span>
+                    {!isPremium && <Crown className="w-3 h-3 text-primary" fill="currentColor" />}
                     <Switch
                       checked={cfEnabled}
-                      onCheckedChange={() => toggleCrossfade()}
+                      onCheckedChange={() => {
+                        if (!isPremium) {
+                          toast.error('Crossfade is a Premium feature');
+                          navigate('/premium');
+                          return;
+                        }
+                        toggleCrossfade();
+                      }}
                       className="data-[state=checked]:bg-primary scale-75"
                       aria-label="Toggle crossfade"
                     />
                   </div>
-                  <span className="text-sm text-primary font-medium">{cfEnabled ? `${cfDuration}s` : 'Off'}</span>
+                  <span className="text-sm text-primary font-medium">{!isPremium ? 'Pro' : cfEnabled ? `${cfDuration}s` : 'Off'}</span>
                 </div>
                 {cfEnabled && (
                   <Slider value={[cfDuration]} onValueChange={([val]) => setCrossfadeDuration(val)} max={12} step={1} className="[&_[role=slider]]:w-5 [&_[role=slider]]:h-5" />
@@ -311,7 +315,14 @@ const Settings = () => {
 
               {/* Equalizer shortcut */}
               <button
-                onClick={() => setShowEq(true)}
+                onClick={() => {
+                  if (!isPremium) {
+                    toast.error('Equalizer is a Premium feature');
+                    navigate('/premium');
+                    return;
+                  }
+                  setShowEq(true);
+                }}
                 className="w-full px-4 py-3 flex items-center justify-between border-b border-white/5 active:bg-muted/30"
               >
                 <div className="flex items-center gap-2">
@@ -394,43 +405,6 @@ const Settings = () => {
               <div className="px-4 py-3 flex items-center justify-between">
                 <span className="text-sm">Haptic Feedback</span>
                 <Switch checked={haptics} onCheckedChange={handleHaptics} className="data-[state=checked]:bg-primary scale-90" aria-label="Toggle haptic feedback" />
-              </div>
-            </div>
-          </section>
-
-          {/* Appearance - Theme */}
-          <section>
-            <div className="flex items-center gap-2 mb-2.5 px-1">
-              <h2 className="text-[10px] font-extrabold text-white/40 uppercase tracking-[0.2em]">Appearance</h2>
-            </div>
-            <div className="rounded-3xl overflow-hidden bg-card/50 border border-white/5 backdrop-blur-sm">
-              <div className="px-4 py-3">
-                <span className="text-sm mb-3 block">Theme</span>
-                <div className="grid grid-cols-3 gap-3">
-                  {themes.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => handleTheme(t.id)}
-                      className="flex flex-col items-center gap-1.5"
-                    >
-                      <div
-                        className="w-full aspect-square rounded-3xl relative flex items-center justify-center transition-all overflow-hidden"
-                        style={{
-                          background: t.preview,
-                          border: theme === t.id ? `2.5px solid hsl(var(--primary))` : '2px solid hsl(var(--border))',
-                          boxShadow: theme === t.id ? '0 0 16px hsl(var(--primary) / 0.45)' : 'none',
-                        }}
-                      >
-                        {theme === t.id && (
-                          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                            <Check className="w-4 h-4 text-primary-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-[11px] font-medium">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           </section>

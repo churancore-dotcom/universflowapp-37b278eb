@@ -6,7 +6,7 @@ import { resolveIndexedTrack, resolveYouTubeVideoStream, prefetchIndexedTrack } 
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { recordPerfEvent } from '@/lib/perfMonitor';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
-import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
+import { EQ_SETTINGS_KEY, getEQSettings, hasWebAudioEffects } from '@/lib/eqSettings';
 import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
 import { getRuntimePremium } from '@/lib/premiumState';
 import { initNativeBridge } from '@/services/NativeBridge';
@@ -224,15 +224,25 @@ if (typeof window !== 'undefined') {
 const buildStreamProxyUrl = (sourceUrl: string) => {
   if (!shouldProxyStreamUrl(sourceUrl)) return sourceUrl;
   if (!isEqProcessingEnabled()) return sourceUrl;
-  return wrapStreamUrl(sourceUrl);
+  return wrapStreamUrl(sourceUrl, { force: true });
 };
 
 const isAudioProxyUrl = (url?: string | null) =>
   isStreamProxyUrl(url) || Boolean(url?.includes('/functions/v1/music-indexer?audio='));
 
 const isEqProcessingEnabled = () => {
-  try { return isEqActive(getEQSettings()); } catch { return false; }
+  try { return getRuntimePremium() && hasWebAudioEffects(getEQSettings()); } catch { return false; }
 };
+
+const isAutoplayEnabled = () => {
+  try { return localStorage.getItem('uf_autoplay') !== 'false'; } catch { return true; }
+};
+
+const isGaplessPreloadEnabled = () => {
+  try { return localStorage.getItem('uf_gapless') !== 'false'; } catch { return true; }
+};
+
+const GAPLESS_PRO_OVERLAP_SECONDS = 0.45;
 
 const isYouTubeFallbackUrl = (url?: string | null) => Boolean(url?.startsWith('yt-video:'));
 
@@ -321,6 +331,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [showPrerollAd, setShowPrerollAd] = useState(false);
   const [adType, setAdType] = useState<'start' | 'end'>('start');
   const [pendingSong, setPendingSong] = useState<{ song: Song; offlineUrl?: string | null; songsQueue?: Song[] } | null>(null);
+  const [playbackSettingsVersion, setPlaybackSettingsVersion] = useState(0);
 
   useEffect(() => {
     playerProgressStore.setPlaying(isPlaying);
@@ -657,6 +668,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const preloadedNextIdRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    const onPlaybackSettingsChanged = () => setPlaybackSettingsVersion((value) => value + 1);
+    window.addEventListener('uf-playback-settings-changed', onPlaybackSettingsChanged);
+    return () => window.removeEventListener('uf-playback-settings-changed', onPlaybackSettingsChanged);
+  }, []);
+
+  useEffect(() => {
+    const syncPremiumAudioTransitions = (premium = getRuntimePremium()) => {
+      if (!premium) {
+        setCrossfade(false);
+        setGaplessPro(false);
+        try {
+          localStorage.setItem('uf_crossfade', 'false');
+          localStorage.setItem('uf_gapless_pro', 'false');
+        } catch { /* noop */ }
+        return;
+      }
+      try {
+        setCrossfade(localStorage.getItem('uf_crossfade') === 'true');
+        setGaplessPro(localStorage.getItem('uf_gapless_pro') === 'true');
+      } catch { /* noop */ }
+    };
+    if (getRuntimePremium()) syncPremiumAudioTransitions(true);
+    const onPremiumChanged = (event: Event) => {
+      syncPremiumAudioTransitions(Boolean((event as CustomEvent<boolean>).detail));
+    };
+    window.addEventListener('uf-premium-changed', onPremiumChanged);
+    return () => window.removeEventListener('uf-premium-changed', onPremiumChanged);
+  }, []);
+
   // Wire the global EQ/audio engine to the live audio element. Persists across modal open/close.
   useGlobalAudioEngine(audioElement);
 
@@ -706,7 +747,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // tainted for WebAudio and EQ stays dead until we re-fetch.
       const wasPlaying = !a.paused;
       const at = a.currentTime;
-      const original = currentSong?.audio_url;
+      const currentSrc = a.currentSrc || a.src;
+      const songSource = currentSong?.audio_url;
+      const original = songSource && songSource.startsWith('http') && !isYouTubeFallbackUrl(songSource) ? songSource : currentSrc;
       if (!original) return;
       try {
         configureAudioElementSource(a, buildStreamProxyUrl(original));
@@ -865,6 +908,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // current song finishes — no gap, infinite playback.
   useEffect(() => {
     if (repeat !== 'off') return;
+    if (!isAutoplayEnabled()) return;
     if (queue.length === 0) return;
     const remaining = queue.length - currentIndex - 1;
     if (remaining > 2) return;
@@ -872,7 +916,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const seed = queue[currentIndex] || currentSong;
     if (!seed) return;
     void extendQueueWithMix(seed);
-  }, [currentIndex, queue, repeat, currentSong, extendQueueWithMix]);
+  }, [currentIndex, queue, repeat, currentSong, extendQueueWithMix, playbackSettingsVersion]);
 
 
 
@@ -960,6 +1004,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       preloadedNextIdRef.current = null;
       return;
     }
+    if (!isGaplessPreloadEnabled()) {
+      preloadedNextIdRef.current = null;
+      return;
+    }
     if (isCrossfading.current) return;
 
     const nextIdx = getNextIndex(currentIndex, queue.length, shuffle, repeat);
@@ -1010,7 +1058,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         prefetchIndexedTrack(afterNext.artist, afterNext.title);
       }
     }
-  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl, resolveAudioUrl]);
+  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl, resolveAudioUrl, playbackSettingsVersion]);
 
   // ── YouTube IFrame fallback helpers ──
   const stopYouTubeProgressLoop = useCallback(() => {
@@ -1263,7 +1311,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Preload next song for gapless playback
     const nextIdx = (index + 1) % songQueue.length;
-    if (nextIdx !== index && nextAudioRef.current) {
+    if (isGaplessPreloadEnabled() && nextIdx !== index && nextAudioRef.current) {
       const nextSong = songQueue[nextIdx];
       if (nextSong && isPlayableUrl(nextSong.audio_url) && !isYouTubeFallbackUrl(nextSong.audio_url)) {
         configureAudioElementSource(nextAudioRef.current, buildStreamProxyUrl(nextSong.audio_url));
@@ -1275,7 +1323,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         prefetchIndexedTrack(nextSong.artist, nextSong.title);
       }
     }
-  }, [volume, isPlayableUrl, resolveAudioUrl, playYouTubeFallback, teardownYouTubePlayback, publishNativeMusicControls, getNextIndex, shuffle, repeat]);
+  }, [volume, isPlayableUrl, resolveAudioUrl, playYouTubeFallback, teardownYouTubePlayback, publishNativeMusicControls, getNextIndex, shuffle, repeat, playbackSettingsVersion]);
 
   // Handle song end and crossfade
   useEffect(() => {
@@ -1287,6 +1335,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const handleEnded = () => {
+      if (isCrossfading.current) return;
       // De-dupe: 'ended' + the timeupdate safety net could both fire for the
       // same song. Only the first wins until the next play request bumps seq.
       if (endedFiredForSeqRef.current === playRequestSeqRef.current) return;
@@ -1294,6 +1343,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (repeat === 'one') {
         audio.currentTime = 0;
         audio.play().catch(console.warn);
+        return;
+      }
+
+      if (!isAutoplayEnabled()) {
+        setIsPlaying(false);
+        setProgress(audio.duration || audio.currentTime || 0);
         return;
       }
 
@@ -1366,7 +1421,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       // Premium audio transitions are gated in the engine itself — never trust
       // localStorage/UI toggles because users can tamper with them in DevTools.
-      const premiumAudioTransitions = getRuntimePremium();
+      const premiumAudioTransitions = getRuntimePremium() && isAutoplayEnabled();
       if (premiumAudioTransitions && crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
         const timeLeft = audio.duration - audio.currentTime;
         if (timeLeft <= crossfadeDuration && timeLeft > 0) {
@@ -1376,8 +1431,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Gapless Pro — fire a ~0.45s overlap right before end so the swap is
         // truly seamless even when the next track needs a beat to decode.
         const timeLeft = audio.duration - audio.currentTime;
-        if (timeLeft <= 0.45 && timeLeft > 0) {
-          startCrossfade();
+        if (timeLeft <= GAPLESS_PRO_OVERLAP_SECONDS && timeLeft > 0) {
+          startCrossfade(GAPLESS_PRO_OVERLAP_SECONDS);
         }
       }
       // ── Auto-advance safety net (Android WebView sometimes swallows 'ended').
@@ -1501,10 +1556,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('error', handleAudioError);
     };
-  }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, gaplessPro, getNextIndex, playSongAtIndex, resolveAudioUrl, playYouTubeFallback, extendQueueWithMix, currentSong]);
+  }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, crossfadeCurve, volume, gaplessPro, getNextIndex, playSongAtIndex, resolveAudioUrl, playYouTubeFallback, extendQueueWithMix, currentSong, playbackSettingsVersion]);
 
   // Crossfade implementation
-  const startCrossfade = useCallback(() => {
+  const startCrossfade = useCallback((transitionSeconds = crossfadeDuration) => {
     if (!audioRef.current || !nextAudioRef.current || isCrossfading.current) return;
     if (queue.length <= 1) return;
 
@@ -1527,8 +1582,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     nextAudioRef.current.currentTime = 0;
     
     nextAudioRef.current.play().then(() => {
-      const steps = 30;
-      const stepDuration = (crossfadeDuration * 1000) / steps;
+      const effectiveDuration = Math.max(0.25, transitionSeconds);
+      const steps = Math.max(12, Math.min(90, Math.round(effectiveDuration * 24)));
+      const stepDuration = Math.max(16, (effectiveDuration * 1000) / steps);
       let currentStep = 0;
 
       crossfadeIntervalRef.current = window.setInterval(() => {
@@ -1596,7 +1652,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }).catch(() => {
       isCrossfading.current = false;
     });
-  }, [queue, currentIndex, shuffle, repeat, crossfadeDuration, crossfadeCurve, volume, getNextIndex]);
+  }, [queue, currentIndex, shuffle, repeat, crossfadeDuration, crossfadeCurve, volume, getNextIndex, isPlayableUrl]);
 
   const playActualSong = useCallback(async (song: Song, offlineUrl?: string | null, songsQueue?: Song[]) => {
     if (!audioRef.current) return;
@@ -2014,12 +2070,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const setCrossfadeDurationFn = useCallback((seconds: number) => {
+    if (!getRuntimePremium()) {
+      toast.error('Crossfade is a Premium feature');
+      return;
+    }
     const clamped = Math.max(1, Math.min(12, seconds));
     setCrossfadeDurationState(clamped);
     try { localStorage.setItem('uf_crossfade_duration', String(clamped)); } catch { /* noop */ }
   }, []);
 
   const setCrossfadeCurveFn = useCallback((curve: 'linear' | 'equal-power' | 'smooth' | 'exponential') => {
+    if (!getRuntimePremium()) {
+      toast.error('Crossfade Curve is a Premium feature');
+      return;
+    }
     setCrossfadeCurveState(curve);
     try { localStorage.setItem('uf_crossfade_curve', curve); } catch { /* noop */ }
   }, []);

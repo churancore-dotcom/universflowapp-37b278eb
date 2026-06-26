@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Disc3, RotateCcw, Volume2, Zap, Waves, Music2, Headphones, Globe, Radio, Mic2, Home, Building2, Church, Trophy, Moon } from 'lucide-react';
+import { X, Disc3, RotateCcw, Volume2, Zap, Waves, Music2, Headphones, Globe, Radio, Mic2, Home, Building2, Church, Trophy, Moon, Crown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { iosSpring } from '@/lib/animations';
 import { usePlayer } from '@/contexts/PlayerContext';
+import { usePremium } from '@/hooks/usePremium';
 import { toast } from 'sonner';
 import { resume as engineResume, type StudioSpaceId } from '@/lib/audioEngine';
 import { useEngineState } from '@/hooks/useGlobalAudioEngine';
@@ -74,6 +76,8 @@ const defaultBands: EQBand[] = [
 ];
 
 const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
+  const navigate = useNavigate();
+  const { isPremium, isLoading } = usePremium();
   const { currentSong } = usePlayer();
   const engineMode = useEngineState();
   const isConnected = engineMode === 'processed';
@@ -99,12 +103,12 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   // handled by useGlobalAudioEngine listening for the `uf-eq-changed` event
   // that setEQSettings dispatches. The modal is purely a state surface.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isPremium) return;
     engineResume();
     window.setTimeout(() => {
       window.dispatchEvent(new CustomEvent('uf-eq-changed', { detail: getEQSettings() }));
     }, 40);
-  }, [isOpen]);
+  }, [isOpen, isPremium]);
 
   const handleBandChange = useCallback((index: number, value: number) => {
     setEQSettings((prev) => ({ bands: prev.bands.map((gain, i) => i === index ? value : gain), activePreset: 'custom' }));
@@ -146,6 +150,52 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   }, []);
 
   if (!isOpen) return null;
+
+  if (!isPremium) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          className="fixed inset-0 z-[100] flex items-end justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div className="absolute inset-0 bg-black/70 backdrop-blur-xl" onClick={onClose} />
+          <motion.div
+            className="relative w-full max-w-lg mx-4 mb-4 rounded-3xl overflow-hidden bg-background border border-white/10 p-5"
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={iosSpring}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-primary/15 shrink-0">
+                  <Crown className="w-5 h-5 text-primary" fill="currentColor" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-primary">Premium audio</p>
+                  <h2 className="text-xl font-semibold leading-tight">Equalizer is locked</h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isLoading ? 'Checking your Premium status…' : 'Studio EQ, bass boost, reverb, spatial audio, and surround effects require Premium.'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center bg-muted/60 shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <button
+              onClick={() => { onClose(); navigate('/premium'); }}
+              className="mt-5 w-full h-12 rounded-2xl bg-primary text-primary-foreground text-sm font-semibold"
+            >
+              Upgrade to Premium
+            </button>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   const speedMarks = [0.5, 1, 1.5, 2];
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { connectAudioElement, getState, setBands, setReverb, setSpatial, setLateNight, setHeadphoneSurround, setStudioSpace as engineSetStudioSpace, resume, subscribe } from '@/lib/audioEngine';
-import { getEQSettings, isEqActive } from '@/lib/eqSettings';
+import { getEQSettings, hasWebAudioEffects } from '@/lib/eqSettings';
+import { getRuntimePremium } from '@/lib/premiumState';
 
 /**
  * Mount once at app root.
@@ -33,11 +34,23 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
     const doReapply = () => {
       const s = getEQSettings();
-      const wantsProcessing = isEqActive(s);
+      const wantsProcessing = getRuntimePremium() && hasWebAudioEffects(s);
 
       // Always honor playback rate — it's a native <audio> property,
       // independent of WebAudio.
       audioElement.playbackRate = s.playbackSpeed;
+
+      if (!getRuntimePremium()) {
+        if (getState() === 'processed') {
+          setBands([0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0);
+          setReverb(0);
+          engineSetStudioSpace('off');
+          setSpatial(false);
+          setLateNight(false);
+          setHeadphoneSurround(false);
+        }
+        return;
+      }
 
       if (!wantsProcessing && !isAttached) {
         // Pure HTMLAudio path — best for Android background reliability.
@@ -73,7 +86,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       // Only resume the WebAudio context if we've ever attached. Calling
       // resume() on a non-existent context is a no-op but cleaner this way.
       if (isAttached) resume();
-      if (isEqActive(getEQSettings())) reapply();
+      if (getRuntimePremium() && hasWebAudioEffects(getEQSettings())) reapply();
     };
     const onPointer = () => { if (isAttached) resume(); };
 
@@ -94,6 +107,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('uf-eq-changed', onEqChanged);
     window.addEventListener('uf-eq-source-ready', onEqChanged);
+    window.addEventListener('uf-premium-changed', onEqChanged);
 
     return () => {
       if (reapplyTimer != null) clearTimeout(reapplyTimer);
@@ -106,6 +120,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('uf-eq-changed', onEqChanged);
       window.removeEventListener('uf-eq-source-ready', onEqChanged);
+      window.removeEventListener('uf-premium-changed', onEqChanged);
     };
   }, [audioElement]);
 }

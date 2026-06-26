@@ -320,7 +320,7 @@ const Home = () => {
             <div className="flex items-center gap-1.5">
               {[
                 { icon: ListMusic, action: () => setShowQueue(true), label: 'Open queue' },
-                ...(isPremium || isOffline ? [{ icon: Sliders, action: () => setShowEqualizer(true), label: 'Open equalizer' }] : []),
+                ...(isPremium ? [{ icon: Sliders, action: () => setShowEqualizer(true), label: 'Open equalizer' }] : []),
                 { icon: Lock, action: () => setShowLockScreen(true), label: 'Open lock screen player' },
               ].map(({ icon: Icon, action, label }, i) => (
                 <motion.button
