@@ -351,7 +351,7 @@ const Search = () => {
   const [artistResults, setArtistResults] = useState<IndexedArtistInfo[]>([]);
   const [searching, setSearching] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [source, setSource] = useState<SearchSource>('all');
+  const [source, setSource] = useState<SearchSource>('songs');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<SongHistoryEntry[]>(() => getSongHistory());
   const [hiddenResults, setHiddenResults] = useState<HiddenSearchEntry[]>(() => loadHiddenResults());
