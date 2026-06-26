@@ -100,7 +100,7 @@ const fetchHomeSongs = async (heroQuery: string): Promise<FlaggedSong[]> => {
     }
   };
 
-  ingest(trending, { show_in_trending: true, show_in_new_releases: true });
+  ingest(trending, { show_in_trending: true });
 
   return [...byId.values()];
 };
