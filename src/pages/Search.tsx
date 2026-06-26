@@ -6,7 +6,7 @@ import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import BottomNav from '@/components/BottomNav';
 import LikeButton from '@/components/LikeButton';
-import PinToViralButton from '@/components/PinToViralButton';
+
 import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import SEOHead from '@/components/SEOHead';
@@ -727,17 +727,6 @@ const Search = () => {
                               <Loader2 className="w-4 h-4 animate-spin text-primary" />
                             ) : (
                               <>
-                                <PinToViralButton
-                                  song={{
-                                    track_id: track.id,
-                                    title: track.title,
-                                    artist: track.artist,
-                                    cover_url: track.cover_url,
-                                    audio_url: track.audio_url,
-                                    source: (track as { source?: string }).source === 'audius' ? 'audius' : 'indexed',
-                                  }}
-                                  variant="inline"
-                                />
                                 <LikeButton songId={track.id} song={{ id: track.id, title: track.title, artist: track.artist, cover_url: track.cover_url, audio_url: 'resolving', duration: track.duration, source: (track as { source?: string }).source === 'audius' ? 'audius' : 'indexed' } as Song} size="sm" className="w-8 h-8" />
                               </>
                             )}
