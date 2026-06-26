@@ -5,9 +5,8 @@
 // Each theme defines a COMPLETE token set so no element renders unstyled
 // in any mode (Pearl/white especially).
 
-// Only two themes are user-selectable: Pearl (white) and Onyx (pure black).
-// 'default' is kept as an alias of 'black' so any legacy localStorage value
-// or component referencing it still resolves to a valid token set.
+// Universflow is locked to Onyx / pure black. Legacy ids remain only so old
+// localStorage values/imports do not crash; applyTheme always resolves to black.
 type ThemeMode = 'default' | 'light' | 'black';
 
 interface ThemeTokens {
@@ -91,13 +90,13 @@ export const THEMES: Record<ThemeMode, ThemeTokens> = {
   },
 };
 
-export const applyTheme = (theme: ThemeMode) => {
+export const applyTheme = (_theme: ThemeMode) => {
   const root = document.documentElement;
-  const t = THEMES[theme] || THEMES.default;
+  const theme: ThemeMode = 'black';
+  const t = THEMES.black;
 
-  // Toggle .light class on <html> for any CSS that gates on it
-  if (theme === 'light') root.classList.add('light');
-  else root.classList.remove('light');
+  // Hard lock: no Pearl / white mode can leak through old saved preferences.
+  root.classList.remove('light');
 
   // Core surface tokens
   root.style.setProperty('--background', t.background);
@@ -153,15 +152,14 @@ export const applyTheme = (theme: ThemeMode) => {
     meta.content = t.statusBar;
   } catch { /* ignore */ }
 
-  try { localStorage.setItem('uf_theme', theme); } catch { /* ignore */ }
+  try { localStorage.setItem('uf_theme', 'black'); } catch { /* ignore */ }
 };
 
 export type { ThemeMode };
 
 // Run immediately on import — before React mounts.
 try {
-  const saved = (localStorage.getItem('uf_theme') as ThemeMode) || 'default';
-  applyTheme(saved);
+  applyTheme('black');
 } catch {
   applyTheme('default');
 }

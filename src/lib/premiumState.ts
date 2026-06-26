@@ -4,9 +4,21 @@
 // tampering ("set uf_audio_fx_allowed = 1") cannot flip it.
 
 let _isPremium = false;
+const listeners = new Set<(value: boolean) => void>();
 
 export const setRuntimePremium = (value: boolean) => {
-  _isPremium = !!value;
+  const next = !!value;
+  if (_isPremium === next) return;
+  _isPremium = next;
+  listeners.forEach((listener) => {
+    try { listener(_isPremium); } catch { /* noop */ }
+  });
+  try { window.dispatchEvent(new CustomEvent('uf-premium-changed', { detail: _isPremium })); } catch { /* noop */ }
 };
 
 export const getRuntimePremium = (): boolean => _isPremium;
+
+export const subscribeRuntimePremium = (listener: (value: boolean) => void): (() => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};

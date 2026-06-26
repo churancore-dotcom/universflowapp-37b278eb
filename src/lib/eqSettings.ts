@@ -97,6 +97,12 @@ export function useEQSettings() {
  * on lock screen / background and audio gaps 2-4s.
  */
 export function isEqActive(settings = currentSettings): boolean {
+  if (hasWebAudioEffects(settings)) return true;
+  if (settings.playbackSpeed && settings.playbackSpeed !== 1) return true;
+  return false;
+}
+
+export function hasWebAudioEffects(settings = currentSettings): boolean {
   if (!settings) return false;
   if (settings.bands?.some((gain) => Math.abs(gain) >= 0.5)) return true;
   if (settings.bassBoost > 0) return true;
@@ -105,7 +111,6 @@ export function isEqActive(settings = currentSettings): boolean {
   if (settings.studioSpace && settings.studioSpace !== 'off') return true;
   if (settings.lateNight) return true;
   if (settings.headphoneSurround) return true;
-  if (settings.playbackSpeed && settings.playbackSpeed !== 1) return true;
   return false;
 }
 
