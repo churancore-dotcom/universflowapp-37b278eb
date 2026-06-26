@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, Music, X, Radio, Loader2, Clock, Trash2 } from 'lucide-react';
@@ -14,6 +14,7 @@ import RoseHero from '@/components/RoseHero';
 import RecognizeSongButton from '@/components/RecognizeSongButton';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
+import VirtualList from '@/components/VirtualList';
 import { supabase } from '@/integrations/supabase/client';
 import { prefetchIndexedTrack, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
 // FollowedArtistsRail removed from Search per product decision
