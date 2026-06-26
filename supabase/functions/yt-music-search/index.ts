@@ -63,6 +63,7 @@ const SPAM_PATTERNS = [
 // Channels we always drop (low-quality reuploaders / spam farms).
 const BANNED_CHANNEL_PATTERNS = [
   /\b(speed\s*songs?|slowed\s*songs?|reverb\s*nation|nightcore\s*mania|karaoke\s*world)\b/i,
+  /\b(7\s*clouds|lyrics?\s*vibes?|rap\s*samurai|summervibzz|chill\s*nation|wave\s*music)\b/i,
   /\boriginals?\b/i,
   /\bringtone\s*(king|world|hub)\b/i,
 ];
@@ -97,13 +98,14 @@ function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: stri
 
   const left = dash[1].trim();
   const right = dash[2].trim();
-  const leftNorm = normalize(left);
   const rightNorm = normalize(right);
-  const leftHits = qTokens.filter((t) => leftNorm.includes(t)).length;
   const rightHits = qTokens.filter((t) => rightNorm.includes(t)).length;
 
-  if (rightHits > leftHits) return { artist: left || channelTitle || 'Unknown Artist', title: right || cleaned };
-  return { artist: channelTitle || left || 'Unknown Artist', title: left || cleaned };
+  // YouTube music uploads overwhelmingly use "Artist - Song". Keep that shape
+  // even when the user's query includes the artist name, otherwise searches like
+  // "perfect ed sheeran" incorrectly display the title as "Ed Sheeran".
+  if (rightHits > 0 || qTokens.length === 0) return { artist: left || channelTitle || 'Unknown Artist', title: right || cleaned };
+  return { artist: channelTitle || left || 'Unknown Artist', title: cleaned || rawTitle };
 }
 
 function queryMatchesResult(item: any, query: string) {
