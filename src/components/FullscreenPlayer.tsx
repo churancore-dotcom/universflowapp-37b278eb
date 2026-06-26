@@ -7,7 +7,7 @@ import { usePlayerProgress } from '@/lib/playerProgressStore';
 import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import LikeButton from './LikeButton';
-import PinToViralButton from './PinToViralButton';
+
 import DownloadButton from './DownloadButton';
 import SocialShareModal from './SocialShareModal';
 import AddToPlaylistModal from './AddToPlaylistModal';
@@ -510,19 +510,6 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 >
                   <ListMusic className="w-[18px] h-[18px] text-white/60" />
                 </button>
-                <PinToViralButton
-                  song={{
-                    track_id: currentSong.id,
-                    title: currentSong.title,
-                    artist: currentSong.artist,
-                    cover_url: currentSong.cover_url,
-                    audio_url: currentSong.audio_url,
-                    source: (currentSong as { source?: string }).source,
-                  }}
-                  size="md"
-                  variant="inline"
-                  className="!bg-transparent"
-                />
               </div>
 
             </div>
