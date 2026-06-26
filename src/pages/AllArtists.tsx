@@ -86,7 +86,7 @@ const AllArtists = () => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const [allArtists, setAllArtists] = useState<ArtistEntry[]>([]);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
-  const [activeCategory, setActiveCategory] = useState<'All' | 'Universflow' | ArtistCategory>('All');
+  const [activeCategory, setActiveCategory] = useState<'All' | 'Following' | 'Universflow' | ArtistCategory>('All');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -278,25 +278,23 @@ const AllArtists = () => {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = allArtists.filter(a => {
-      if (activeCategory === 'Universflow' && a.source !== 'platform') return false;
-      if (activeCategory === 'Trending' && a.category !== 'Trending') return false;
-      if (
-        activeCategory !== 'All' &&
-        activeCategory !== 'Trending' &&
-        activeCategory !== 'Universflow' &&
-        a.category !== activeCategory
-      ) return false;
-      if (q && !a.name.toLowerCase().includes(q)) return false;
+      const key = a.name.toLowerCase();
+      if (activeCategory === 'Following') {
+        if (!followed.has(key)) return false;
+      } else if (activeCategory === 'Universflow') {
+        if (a.source !== 'platform') return false;
+      } else if (activeCategory === 'Trending') {
+        if (a.category !== 'Trending') return false;
+      } else if (activeCategory !== 'All') {
+        if (a.category !== activeCategory) return false;
+      }
+      if (q && !key.includes(q)) return false;
       return true;
     });
-    // Always pin Universflow's own artists to the top
-    return list.sort((a, b) => {
-      const ap = a.source === 'platform' ? 0 : 1;
-      const bp = b.source === 'platform' ? 0 : 1;
-      if (ap !== bp) return ap - bp;
-      return (b.listeners || 0) - (a.listeners || 0);
-    });
-  }, [allArtists, activeCategory, query]);
+    // Sort: followed first (in Following view it's everything), then by listeners.
+    // No more force-pinning of Universflow artists — they rank by real popularity.
+    return list.sort((a, b) => (b.listeners || 0) - (a.listeners || 0));
+  }, [allArtists, activeCategory, query, followed]);
 
 
   const handleFollow = useCallback(async (artist: ArtistEntry) => {
@@ -380,7 +378,7 @@ const AllArtists = () => {
     }
   }, [playSong, artistSongs]);
 
-  const categoriesWithAll = useMemo(() => ['All', 'Universflow', ...ARTIST_CATEGORIES] as const, []);
+  const categoriesWithAll = useMemo(() => ['Following', 'All', 'Universflow', ...ARTIST_CATEGORIES] as const, []);
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
@@ -442,7 +440,7 @@ const AllArtists = () => {
                   return (
                     <button
                       key={cat}
-                      onClick={() => { triggerHaptic('selection'); setActiveCategory(cat as ArtistCategory | 'All' | 'Universflow'); }}
+                      onClick={() => { triggerHaptic('selection'); setActiveCategory(cat as ArtistCategory | 'All' | 'Universflow' | 'Following'); }}
                       className="px-3 h-8 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
                       style={{
                         background: active ? 'hsl(var(--primary))' : 'rgba(255,255,255,0.06)',
@@ -507,13 +505,27 @@ const AllArtists = () => {
             )}
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-center text-muted-foreground py-12 text-sm">
-            No artists match your search.
-          </p>
+          <div className="text-center py-16 px-6">
+            {activeCategory === 'Following' ? (
+              <>
+                <Heart className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-foreground">No artists followed yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Tap the heart on any artist to follow them.</p>
+                <button
+                  onClick={() => setActiveCategory('All')}
+                  className="mt-4 px-4 h-9 rounded-full text-xs font-semibold bg-primary text-primary-foreground"
+                >
+                  Browse Artists
+                </button>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">No artists match your search.</p>
+            )}
+          </div>
         ) : (
           <div className="space-y-1.5">
             <p className="text-[11px] text-muted-foreground px-1 mb-1">
-              {filtered.length} artists · Tap heart to follow
+              {filtered.length} {activeCategory === 'Following' ? 'followed' : 'artists'} · Tap heart to {activeCategory === 'Following' ? 'unfollow' : 'follow'}
             </p>
             {filtered.map(a => (
               <ArtistRow
