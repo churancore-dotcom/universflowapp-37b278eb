@@ -854,6 +854,53 @@ const Search = () => {
                 </motion.div>
               )}
 
+              {/* Artists tab — grid of real artist profiles */}
+              {source === 'artists' && artistResults.length > 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+                    <Radio className="w-4 h-4 text-primary" />
+                    Artists · {artistResults.length}
+                  </h2>
+                  <div className="grid grid-cols-2 gap-3">
+                    {artistResults.map((a, i) => (
+                      <motion.button
+                        key={`${a.name}-${i}`}
+                        type="button"
+                        onClick={() => navigate(`/artists?focus=${encodeURIComponent(a.name)}`)}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03, duration: 0.25 }}
+                        className="relative aspect-square overflow-hidden rounded-2xl text-left active:scale-[0.97] transition-transform bg-card border border-white/10"
+                      >
+                        <img
+                          src={a.image_url}
+                          alt={`${a.name} artist photo`}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          style={{ objectPosition: '50% 22%' }}
+                          loading="lazy"
+                          decoding="async"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                        <div className="absolute left-3 right-3 bottom-3">
+                          <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-white/70">Artist</p>
+                          <p className="text-sm font-display tracking-wide text-white truncate mt-0.5">{a.name}</p>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {source === 'artists' && !searching && query.length > 1 && artistResults.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground text-sm">No matching artists</p>
+                  <p className="text-muted-foreground/60 text-xs mt-1">Try searching the artist's exact name</p>
+                </div>
+              )}
+
+
+
               {/* No results */}
               {query.length > 1 && !searching && libraryResults.length === 0 && displayedIndexedResults.length === 0 && artistResults.length === 0 && (
                 <div className="text-center py-8">
