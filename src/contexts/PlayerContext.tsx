@@ -6,7 +6,7 @@ import { resolveIndexedTrack, resolveYouTubeVideoStream, prefetchIndexedTrack } 
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { recordPerfEvent } from '@/lib/perfMonitor';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
-import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
+import { EQ_SETTINGS_KEY, getEQSettings, hasWebAudioEffects } from '@/lib/eqSettings';
 import { wrapStreamUrl, isStreamProxyUrl } from '@/lib/streamProxy';
 import { getRuntimePremium } from '@/lib/premiumState';
 import { initNativeBridge } from '@/services/NativeBridge';
@@ -231,8 +231,18 @@ const isAudioProxyUrl = (url?: string | null) =>
   isStreamProxyUrl(url) || Boolean(url?.includes('/functions/v1/music-indexer?audio='));
 
 const isEqProcessingEnabled = () => {
-  try { return isEqActive(getEQSettings()); } catch { return false; }
+  try { return getRuntimePremium() && hasWebAudioEffects(getEQSettings()); } catch { return false; }
 };
+
+const isAutoplayEnabled = () => {
+  try { return localStorage.getItem('uf_autoplay') !== 'false'; } catch { return true; }
+};
+
+const isGaplessPreloadEnabled = () => {
+  try { return localStorage.getItem('uf_gapless') !== 'false'; } catch { return true; }
+};
+
+const GAPLESS_PRO_OVERLAP_SECONDS = 0.45;
 
 const isYouTubeFallbackUrl = (url?: string | null) => Boolean(url?.startsWith('yt-video:'));
 
