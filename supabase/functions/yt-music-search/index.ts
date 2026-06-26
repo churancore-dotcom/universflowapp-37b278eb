@@ -63,6 +63,7 @@ const SPAM_PATTERNS = [
 // Channels we always drop (low-quality reuploaders / spam farms).
 const BANNED_CHANNEL_PATTERNS = [
   /\b(speed\s*songs?|slowed\s*songs?|reverb\s*nation|nightcore\s*mania|karaoke\s*world)\b/i,
+  /\b(7\s*clouds|lyrics?\s*vibes?|rap\s*samurai|summervibzz|chill\s*nation|wave\s*music)\b/i,
   /\boriginals?\b/i,
   /\bringtone\s*(king|world|hub)\b/i,
 ];
@@ -79,6 +80,32 @@ function isLyricQuery(query: string) {
   const raw = query.trim();
   const wordCount = raw.split(/\s+/).filter(Boolean).length;
   return wordCount >= 4 || raw.length >= 25;
+}
+
+function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: string) {
+  const cleaned = rawTitle
+    .replace(/\s*\(Official\s*(Music\s*)?Video\)/gi, '')
+    .replace(/\s*\[Official\s*(Music\s*)?Video\]/gi, '')
+    .replace(/\s*\(Official\s*Audio\)/gi, '')
+    .replace(/\s*\[Official\s*Audio\]/gi, '')
+    .replace(/\s*\(Lyrics?\)/gi, '')
+    .replace(/\s*\[Lyrics?\]/gi, '')
+    .replace(/\s*\|\s*.*$/, '')
+    .trim();
+  const qTokens = meaningfulTokens(query);
+  const dash = cleaned.match(/^(.+?)\s*[-–—]\s+(.+)$/);
+  if (!dash) return { artist: channelTitle || 'Unknown Artist', title: cleaned || rawTitle };
+
+  const left = dash[1].trim();
+  const right = dash[2].trim();
+  const rightNorm = normalize(right);
+  const rightHits = qTokens.filter((t) => rightNorm.includes(t)).length;
+
+  // YouTube music uploads overwhelmingly use "Artist - Song". Keep that shape
+  // even when the user's query includes the artist name, otherwise searches like
+  // "perfect ed sheeran" incorrectly display the title as "Ed Sheeran".
+  if (rightHits > 0 || qTokens.length === 0) return { artist: left || channelTitle || 'Unknown Artist', title: right || cleaned };
+  return { artist: channelTitle || left || 'Unknown Artist', title: cleaned || rawTitle };
 }
 
 function queryMatchesResult(item: any, query: string) {
@@ -147,21 +174,6 @@ function scoreResult(item: any, query: string, index: number) {
 }
 
 
-function cleanTitle(raw: string) {
-  const cleaned = raw
-    .replace(/\s*\(Official\s*(Music\s*)?Video\)/gi, '')
-    .replace(/\s*\[Official\s*(Music\s*)?Video\]/gi, '')
-    .replace(/\s*\(Official\s*Audio\)/gi, '')
-    .replace(/\s*\[Official\s*Audio\]/gi, '')
-    .replace(/\s*\(Lyrics?\)/gi, '')
-    .replace(/\s*\[Lyrics?\]/gi, '')
-    .replace(/\s*\|\s*.*$/, '')
-    .trim();
-  const dash = cleaned.match(/^(.+?)\s*[-–—]\s+(.+)$/);
-  if (dash) return { artist: dash[1].trim(), title: dash[2].trim() };
-  return { artist: '', title: cleaned };
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -215,258 +227,102 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    // Cap raised to 100 so artist searches can return a full discography.
-    const limit = Math.max(1, Math.min(100, typeof requestedLimit === 'number' ? requestedLimit : 50));
-
-    // ---------- Try YouTube Music Innertube FIRST (no quota, music-tuned) ----------
-    try {
-      const ir = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Origin': 'https://music.youtube.com',
-          'Referer': 'https://music.youtube.com/',
-        },
-        body: JSON.stringify({
-          context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20250101.01.00', hl: 'en', gl: 'US' } },
-          query: query.trim(),
-          params: 'EgWKAQIIAWoOEAMQBBAJEAoQBRAVEBE%3D', // Songs filter
-        }),
-      });
-      if (ir.ok) {
-        const data = await ir.json();
-        const tabs = data?.contents?.tabbedSearchResultsRenderer?.tabs || [];
-        const sections = tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
-        const itResults: SearchResult[] = [];
-        const parseDur = (t?: string) => {
-          if (!t) return undefined;
-          const p = t.split(':').map((x) => parseInt(x, 10));
-          if (p.some(isNaN)) return undefined;
-          return p.reduce((a, b) => a * 60 + b, 0) || undefined;
-        };
-        for (const sec of sections) {
-          const contents = sec?.musicShelfRenderer?.contents || sec?.musicCardShelfRenderer?.contents || [];
-          for (const c of contents) {
-            const it = c?.musicResponsiveListItemRenderer;
-            const vid = it?.playlistItemData?.videoId
-              || it?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
-            if (!vid) continue;
-            const cols = it?.flexColumns || [];
-            const title = (cols?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []).map((r: any) => r?.text || '').join('').trim();
-            const meta = cols?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
-            const artist = (meta.filter((r: any) => r?.navigationEndpoint?.browseEndpoint).map((r: any) => r.text).join(', ') || (meta[0]?.text || 'Unknown Artist')).trim();
-            const durationText = meta.length ? meta[meta.length - 1]?.text : undefined;
-            const thumbs = it?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-            const cover_url = thumbs[thumbs.length - 1]?.url;
-            if (!title) continue;
-            itResults.push({
-              id: `ytm-${vid}`, videoId: vid, title, artist,
-              audio_url: `yt-video:${vid}`, cover_url, duration: parseDur(durationText),
-            });
-            if (itResults.length >= limit) break;
-          }
-          if (itResults.length >= limit) break;
-        }
-        if (itResults.length > 0) {
-          console.log(`Innertube OK: ${itResults.length} results`);
-          await persistSearchResults(adminClient, itResults);
-          return new Response(JSON.stringify({ success: true, results: itResults, source: 'innertube' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-      } else {
-        console.warn('Innertube non-OK:', ir.status);
-      }
-    } catch (e) {
-      console.warn('Innertube failed:', (e as Error).message);
-    }
-    const INVIDIOUS_INSTANCES = [
-      'https://invidious-production-d29a.up.railway.app',
-      'https://inv.nadeko.net',
-      'https://invidious.nerdvpn.de',
-      'https://iv.datura.network',
-      'https://invidious.privacyredirect.com',
-    ];
-
-    // sort_by: relevance | upload_date | view_count | rating
-    // We pick upload_date when user prefixes "new:" else relevance, BUT bias to recent
+    // YouTube Data API search.list has a hard maxResults limit of 50.
+    const limit = Math.max(1, Math.min(50, typeof requestedLimit === 'number' ? requestedLimit : 50));
     let sortBy = 'relevance';
     let cleanQuery = query.trim();
     if (cleanQuery.toLowerCase().startsWith('new:')) {
       sortBy = 'upload_date';
       cleanQuery = cleanQuery.slice(4).trim();
     }
-
-    let invResults: SearchResult[] = [];
     const lyricMode = isLyricQuery(cleanQuery);
-    // Artist-style query = short (1-3 words), not a lyric. For these we fetch
-    // multiple pages from a single Invidious instance so the user sees the
-    // singer's full discography instead of just the first 20.
     const artistMode = !lyricMode && cleanQuery.split(/\s+/).filter(Boolean).length <= 3;
-    const dateWindows = lyricMode || artistMode ? [''] : ['year', ''];
     const providerQuery = lyricMode
       ? `${cleanQuery} lyrics`
       : artistMode
         ? `${cleanQuery} songs`
         : `${cleanQuery} music`;
-    const pagesPerInstance = artistMode ? [1, 2, 3] : [1];
 
-    for (const dateWindow of dateWindows) {
-      for (const inst of INVIDIOUS_INSTANCES) {
-        try {
-          const seen = new Set<string>();
-          const aggregated: any[] = [];
-          for (const page of pagesPerInstance) {
-            const u = new URL(`${inst}/api/v1/search`);
-            u.searchParams.set('q', providerQuery);
-            u.searchParams.set('type', 'video');
-            u.searchParams.set('sort_by', sortBy);
-            if (dateWindow) u.searchParams.set('date', dateWindow);
-            if (page > 1) u.searchParams.set('page', String(page));
-            const ctrl = new AbortController();
-            const tm = setTimeout(() => ctrl.abort(), 6000);
-            const r = await fetch(u.toString(), { headers: { Accept: 'application/json' }, signal: ctrl.signal });
-            clearTimeout(tm);
-            if (!r.ok) { if (page === 1) break; else continue; }
-            const items: any[] = await r.json();
-            if (!Array.isArray(items) || items.length === 0) break;
-            for (const it of items) {
-              const vid = it?.videoId;
-              if (!vid || seen.has(vid)) continue;
-              seen.add(vid);
-              aggregated.push(it);
-            }
-            if (aggregated.length >= limit * 2) break;
-          }
-          if (aggregated.length === 0) continue;
-          invResults = aggregated
-            .map((item: any, index: number) => ({ item, score: scoreResult(item, cleanQuery, index) }))
-            .filter(({ item, score }: any) => item?.videoId && score > -20 && !looksSpammy(item, cleanQuery))
-            .sort((a: any, b: any) => b.score - a.score)
-            .slice(0, limit)
-            .map((entry: any) => {
-              const item = entry.item;
-              const videoId = item?.videoId;
-              if (!videoId) return null;
-              const parsed = cleanTitle(item.title || 'Unknown Title');
-              const thumb = item.videoThumbnails?.find((t: any) => t.quality === 'medium')?.url
-                || item.videoThumbnails?.find((t: any) => t.quality === 'high')?.url
-                || item.videoThumbnails?.[0]?.url;
-              const cover_url = thumb?.startsWith('/') ? `${inst}${thumb}` : thumb;
-              return {
-                id: `ytm-${videoId}`,
-                videoId,
-                title: parsed.title,
-                artist: parsed.artist || item.author || 'Unknown Artist',
-                audio_url: `yt-video:${videoId}`,
-                cover_url,
-                duration: item.lengthSeconds || undefined,
-                published: item.published || undefined,
-              };
-            })
-            .filter(Boolean) as SearchResult[];
-          if (invResults.length > 0) {
-            console.log(`Invidious OK via ${inst} (${dateWindow || 'all-time'}, pages=${pagesPerInstance.length}): ${invResults.length}/${aggregated.length} results`);
-            break;
-          }
-        } catch (e) {
-          console.warn(`Invidious search failed on ${inst}:`, (e as Error).message);
-        }
-      }
-      if (invResults.length > 0) break;
-    }
-
-    if (invResults.length > 0) {
-      await persistSearchResults(adminClient, invResults);
-      return new Response(JSON.stringify({ success: true, results: invResults, source: 'invidious' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // ---------- Fallback: YouTube Data API ----------
-    console.log('Invidious returned 0 results, falling back to YouTube Data API');
+    // ---------- Primary: Official YouTube Data API ----------
     const apiKeys = [
       Deno.env.get('YOUTUBE_API_KEY'),
       Deno.env.get('YOUTUBE_API_KEY_2'),
     ].filter(Boolean) as string[];
 
-    if (apiKeys.length === 0) {
-      return new Response(JSON.stringify({ success: false, error: 'YouTube search service is not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    let officialData: any = null;
+    let officialErr = '';
+    if (apiKeys.length > 0) {
+      const freshOnlyPasses = lyricMode ? [false] : [false, true];
+      for (const freshOnly of freshOnlyPasses) {
+        for (const apiKey of apiKeys) {
+          const url = new URL('https://www.googleapis.com/youtube/v3/search');
+          url.searchParams.set('part', 'snippet');
+          url.searchParams.set('q', providerQuery);
+          url.searchParams.set('type', 'video');
+          url.searchParams.set('videoCategoryId', '10');
+          url.searchParams.set('maxResults', String(limit));
+          url.searchParams.set('order', sortBy === 'upload_date' ? 'date' : 'relevance');
+          if (freshOnly) url.searchParams.set('publishedAfter', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
+          url.searchParams.set('key', apiKey);
 
-    let data: any = null;
-    let lastErr = '';
-    // Lyric queries: skip the freshOnly pass entirely (most lyrics are older songs).
-    const freshOnlyPasses = lyricMode ? [false] : [true, false];
-    for (const freshOnly of freshOnlyPasses) {
-      for (const apiKey of apiKeys) {
-        const url = new URL('https://www.googleapis.com/youtube/v3/search');
-        url.searchParams.set('part', 'snippet');
-        url.searchParams.set('q', providerQuery);
-        url.searchParams.set('type', 'video');
-        url.searchParams.set('videoCategoryId', '10');
-        url.searchParams.set('maxResults', String(limit));
-        url.searchParams.set('order', sortBy === 'upload_date' ? 'date' : 'relevance');
-        if (freshOnly) url.searchParams.set('publishedAfter', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
-        url.searchParams.set('key', apiKey);
-
-        const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-        if (response.ok) {
-          const candidateData = await response.json();
-          const hasMatch = (candidateData.items || []).some((item: any) => queryMatchesResult({ title: item?.snippet?.title, author: item?.snippet?.channelTitle }, cleanQuery));
-          if (hasMatch || !freshOnly) {
-            data = candidateData;
-            break;
+          const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+          if (response.ok) {
+            const candidateData = await response.json();
+            const hasMatch = (candidateData.items || []).some((item: any) => queryMatchesResult({ title: item?.snippet?.title, author: item?.snippet?.channelTitle }, cleanQuery));
+            if (hasMatch || !freshOnly) {
+              officialData = candidateData;
+              break;
+            }
+            officialErr = 'No matching fresh videos';
+            continue;
           }
-          lastErr = 'No matching fresh videos';
-          continue;
+          officialErr = await response.text().catch(() => 'No matching videos');
+          console.warn(`YouTube Data API failed (${response.status}), trying next key/window...`, officialErr.slice(0, 200));
         }
-        lastErr = await response.text().catch(() => 'No matching videos');
-        console.warn(`YouTube key/search window failed (${response.status}), trying next...`, lastErr.slice(0, 200));
+        if (officialData) break;
       }
-      if (data) break;
+    } else {
+      officialErr = 'YouTube Data API keys are not configured';
     }
 
-    if (!data) {
-      console.error('All YouTube keys failed:', lastErr);
-      return new Response(JSON.stringify({ success: false, error: 'YouTube search is temporarily unavailable' }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (officialData) {
+      const results: SearchResult[] = (officialData.items || [])
+        .map((item: any, index: number) => {
+          const videoId = item?.id?.videoId;
+          if (!videoId) return null;
+          const snippet = item.snippet || {};
+          const comparable = {
+            videoId,
+            title: snippet.title || '',
+            author: snippet.channelTitle || '',
+            published: snippet.publishedAt ? Math.floor(new Date(snippet.publishedAt).getTime() / 1000) : 0,
+          };
+          if (looksSpammy(comparable, cleanQuery) || scoreResult(comparable, cleanQuery, index) <= -20) return null;
+          const parsed = parseTitleWithQuery(snippet.title || 'Unknown Title', snippet.channelTitle || '', cleanQuery);
+          return {
+            id: `ytm-${videoId}`,
+            videoId,
+            title: parsed.title,
+            artist: parsed.artist,
+            audio_url: `yt-video:${videoId}`,
+            cover_url: snippet.thumbnails?.high?.url || snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url,
+            published: comparable.published || undefined,
+          };
+        })
+        .filter(Boolean);
+
+      if (results.length > 0) {
+        await persistSearchResults(adminClient, results);
+        return new Response(JSON.stringify({ success: true, results, source: 'youtube-data-api' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      officialErr = 'Official YouTube Data API returned no usable music results after filtering';
     }
 
-    const results: SearchResult[] = (data.items || [])
-      .map((item: any, index: number) => {
-        const videoId = item?.id?.videoId;
-        if (!videoId) return null;
-        const snippet = item.snippet || {};
-        const comparable = {
-          videoId,
-          title: snippet.title || '',
-          author: snippet.channelTitle || '',
-          published: snippet.publishedAt ? Math.floor(new Date(snippet.publishedAt).getTime() / 1000) : 0,
-        };
-        if (looksSpammy(comparable, cleanQuery) || scoreResult(comparable, cleanQuery, index) <= -20) return null;
-        const parsed = cleanTitle(snippet.title || 'Unknown Title');
-        return {
-          id: `ytm-${videoId}`,
-          videoId,
-          title: parsed.title,
-          artist: parsed.artist || snippet.channelTitle || 'Unknown Artist',
-          audio_url: `yt-video:${videoId}`,
-          cover_url: snippet.thumbnails?.high?.url || snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url,
-          published: comparable.published || undefined,
-        };
-      })
-      .filter(Boolean);
-
-    await persistSearchResults(adminClient, results);
-
-    return new Response(JSON.stringify({ success: true, results }), {
+    console.warn('Official YouTube Data API returned no usable results:', officialErr.slice(0, 200));
+    return new Response(JSON.stringify({ success: false, error: 'YouTube search is temporarily unavailable' }), {
+      status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: unknown) {
