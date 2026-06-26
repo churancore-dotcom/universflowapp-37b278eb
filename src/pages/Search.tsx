@@ -444,18 +444,19 @@ const Search = () => {
           .slice(0, 300);
 
         setCached(SEARCH_CACHE_NAMESPACE, trimmedQuery, merged);
-        // Surface artists more liberally — Last.fm doesn't track every regional /
-        // indie artist, so requiring 100k listeners was dropping legitimate hits.
-        // Rule: keep any artist that has a real photo AND either (a) a matching
-        // listener signal, or (b) a name that visibly matches the user's query.
+        // Artist cards: require BOTH a real listener signal AND a name overlap.
+        // Name-only matches were surfacing obscure record-label entries (e.g.
+        // searching "kesariya" the song would render a random "Kesariya" indie
+        // cover labeled as a "REAL ARTIST PROFILE").
         const qNorm = normalizeText(trimmedQuery);
-        const MIN_ARTIST_LISTENERS = 25_000;
+        const MIN_ARTIST_LISTENERS = 50_000;
         const verifiedArtists = artists.filter((a) => {
           if (!a.image_url) return false;
           const nameNorm = normalizeText(a.name || '');
+          if (!nameNorm) return false;
           const nameMatches = nameNorm === qNorm || nameNorm.includes(qNorm) || qNorm.includes(nameNorm);
           const hasListeners = typeof a.listeners === 'number' && a.listeners >= MIN_ARTIST_LISTENERS;
-          return nameMatches || hasListeners;
+          return nameMatches && hasListeners;
         });
         setArtistResults(verifiedArtists.slice(0, 6));
         setIndexedResults(merged);
