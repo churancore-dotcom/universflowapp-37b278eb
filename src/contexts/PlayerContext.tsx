@@ -179,12 +179,9 @@ const shouldProxyStreamUrl = (sourceUrl: string) => {
     if (parsed.origin === window.location.origin) return false;
     if (sourceUrl.includes('/functions/v1/music-indexer?audio=')) return false;
 
-    // When EQ/effects are active, proxy EVERY external HTTP stream through the
-    // backend audio endpoint — including the "direct playable" hosts. WebAudio
-    // needs a guaranteed CORS-clean response; several CDNs advertise CORS
-    // inconsistently on media ranges, which leaves the element "tainted" so
-    // createMediaElementSource silently outputs nothing and the EQ sliders
-    // move while the sound stays unchanged.
+    // Premium users always go through the proxy so the WebAudio graph stays
+    // attached and EQ toggles apply INSTANTLY without reloading the stream.
+    // Free users use the direct path (no EQ, best background reliability).
     if (isEqProcessingEnabled()) return true;
 
     if (DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host))) return false;
@@ -212,14 +209,10 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Edge-function proxy is ONLY used when EQ effects are active (so the
- * WebAudio graph can process the CORS-safe stream). When EQ is flat —
- * the default for almost every user — we play the raw URL directly so
- * Android can stream natively without going through our edge function.
- * That removes ~2-4s of buffering on lock-screen and background.
- *
- * Uses the dedicated `stream-proxy` edge function (clean Range/206 semantics,
- * tight Cache-Control so repeat plays hit the edge cache).
+ * For Premium users we ALWAYS proxy external HTTP streams. That guarantees a
+ * CORS-clean response from the very first byte so the WebAudio graph attaches
+ * cleanly on `canplay` and EQ tweaks apply instantly — no reload, no glitch.
+ * Free users get the raw URL (no EQ available, best background playback).
  */
 const buildStreamProxyUrl = (sourceUrl: string) => {
   if (!shouldProxyStreamUrl(sourceUrl)) return sourceUrl;
@@ -230,8 +223,11 @@ const buildStreamProxyUrl = (sourceUrl: string) => {
 const isAudioProxyUrl = (url?: string | null) =>
   isStreamProxyUrl(url) || Boolean(url?.includes('/functions/v1/music-indexer?audio='));
 
+// Premium = always run audio through the WebAudio graph (transparent when
+// sliders are flat). This removes the reload-on-EQ-toggle that made EQ feel
+// dead. Non-premium = never touch the graph (EQ is locked to Premium anyway).
 const isEqProcessingEnabled = () => {
-  try { return getRuntimePremium() && hasWebAudioEffects(getEQSettings()); } catch { return false; }
+  try { return getRuntimePremium(); } catch { return false; }
 };
 
 const isAutoplayEnabled = () => {
@@ -717,22 +713,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch { /* native controls are best-effort */ }
   }, []);
 
-  // ── EQ requires a CORS-safe source. When the user turns EQ on AFTER a song
-  // has started, the current <audio> src is the raw external stream (not the
-  // supabase-proxied URL), so connectAudioElement fails and EQ silently does
-  // nothing. Listen for the EQ-change event, and if the current src isn't
-  // already going through our proxy, re-source it via the proxy while
-  // preserving currentTime + playing state. The engine's `canplay` listener
-  // will then successfully build the processed chain.
+  // Premium streams are ALREADY loaded through the CORS-clean proxy with
+  // crossOrigin="anonymous", so the WebAudio graph is attached on first
+  // canplay. The engine listens to `uf-eq-changed` directly and applies
+  // slider moves instantly (BiquadFilter.gain updates — no reload).
+  //
+  // We still keep a safety reload path for the edge case where a song was
+  // loaded BEFORE the user upgraded to Premium (raw URL, no CORS), so the
+  // graph is permanently tainted on that element. Reloading via proxy gives
+  // the engine a clean source on the next song.
   useEffect(() => {
     const onEqChanged = () => {
       const a = audioRef.current;
       if (!a || !a.src) return;
       if (!isEqProcessingEnabled()) return;
 
-      // If the element is already going through our edge-function proxy AND
-      // already crossOrigin="anonymous", the WebAudio graph can attach without
-      // a reload — just nudge the engine.
+      // Already proxied + anonymous → engine handles it instantly.
       const alreadyProxied = isAudioProxyUrl(a.src);
       const alreadyAnonymous = a.crossOrigin === 'anonymous';
       if (alreadyProxied && alreadyAnonymous) {
@@ -740,11 +736,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // Otherwise we MUST reload the source through a CORS-clean fetch so
-      // createMediaElementSource() doesn't taint the graph. This applies even
-      // to "direct playable" hosts (saavncdn / the-standard / private.coffee):
-      // if the original load wasn't anonymous, the element is permanently
-      // tainted for WebAudio and EQ stays dead until we re-fetch.
+      // Legacy element loaded before Premium activation — reload through proxy.
       const wasPlaying = !a.paused;
       const at = a.currentTime;
       const currentSrc = a.currentSrc || a.src;

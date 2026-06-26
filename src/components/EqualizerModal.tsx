@@ -105,9 +105,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   useEffect(() => {
     if (!isOpen || !isPremium) return;
     engineResume();
-    window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('uf-eq-changed', { detail: getEQSettings() }));
-    }, 40);
+    window.dispatchEvent(new CustomEvent('uf-eq-changed', { detail: getEQSettings() }));
   }, [isOpen, isPremium]);
 
   const handleBandChange = useCallback((index: number, value: number) => {
