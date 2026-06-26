@@ -1334,6 +1334,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const handleEnded = () => {
+      if (isCrossfading.current) return;
       // De-dupe: 'ended' + the timeupdate safety net could both fire for the
       // same song. Only the first wins until the next play request bumps seq.
       if (endedFiredForSeqRef.current === playRequestSeqRef.current) return;
@@ -1341,6 +1342,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (repeat === 'one') {
         audio.currentTime = 0;
         audio.play().catch(console.warn);
+        return;
+      }
+
+      if (!isAutoplayEnabled()) {
+        setIsPlaying(false);
+        setProgress(audio.duration || audio.currentTime || 0);
         return;
       }
 
@@ -1413,7 +1420,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       // Premium audio transitions are gated in the engine itself — never trust
       // localStorage/UI toggles because users can tamper with them in DevTools.
-      const premiumAudioTransitions = getRuntimePremium();
+      const premiumAudioTransitions = getRuntimePremium() && isAutoplayEnabled();
       if (premiumAudioTransitions && crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
         const timeLeft = audio.duration - audio.currentTime;
         if (timeLeft <= crossfadeDuration && timeLeft > 0) {
@@ -1423,8 +1430,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Gapless Pro — fire a ~0.45s overlap right before end so the swap is
         // truly seamless even when the next track needs a beat to decode.
         const timeLeft = audio.duration - audio.currentTime;
-        if (timeLeft <= 0.45 && timeLeft > 0) {
-          startCrossfade();
+        if (timeLeft <= GAPLESS_PRO_OVERLAP_SECONDS && timeLeft > 0) {
+          startCrossfade(GAPLESS_PRO_OVERLAP_SECONDS);
         }
       }
       // ── Auto-advance safety net (Android WebView sometimes swallows 'ended').
@@ -1548,7 +1555,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('error', handleAudioError);
     };
-  }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, gaplessPro, getNextIndex, playSongAtIndex, resolveAudioUrl, playYouTubeFallback, extendQueueWithMix, currentSong]);
+  }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, gaplessPro, getNextIndex, playSongAtIndex, resolveAudioUrl, playYouTubeFallback, extendQueueWithMix, currentSong, playbackSettingsVersion]);
 
   // Crossfade implementation
   const startCrossfade = useCallback(() => {
