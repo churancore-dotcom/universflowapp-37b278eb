@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { supabase } from '@/integrations/supabase/client';
 import { prefetchIndexedTrack, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
-import { isCatalogSongId } from '@/lib/songSupport';
 import FollowedArtistsRail from '@/components/FollowedArtistsRail';
 import { clearCache, getCached, setCached } from '@/lib/searchCache';
 import {
