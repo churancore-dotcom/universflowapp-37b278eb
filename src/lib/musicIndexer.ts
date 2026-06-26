@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { findSongStreamUrl } from '@/lib/jiosaavn';
+import { getCachedStream as getYtmCached, setCachedStream as setYtmCached, invalidateStream as invalidateYtmCached } from '@/lib/ytmStreamCache';
 
 export interface IndexedTrack {
   id: string;
