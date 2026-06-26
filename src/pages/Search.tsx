@@ -454,11 +454,13 @@ const Search = () => {
           if (!a.image_url) return false;
           const nameNorm = normalizeText(a.name || '');
           if (!nameNorm) return false;
+          // Hard-block spam artist patterns (remix kings, status channels, AI covers, etc.)
+          if (SPAM_ARTIST_PATTERNS.some((p) => p.test(a.name || ''))) return false;
           const nameMatches = nameNorm === qNorm || nameNorm.includes(qNorm) || qNorm.includes(nameNorm);
           const hasListeners = typeof a.listeners === 'number' && a.listeners >= MIN_ARTIST_LISTENERS;
           return nameMatches && hasListeners;
         });
-        setArtistResults(verifiedArtists.slice(0, 6));
+        setArtistResults(verifiedArtists.slice(0, 24));
         setIndexedResults(merged);
         setSearchHistory(getSongHistory());
       } catch {
