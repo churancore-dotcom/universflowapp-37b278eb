@@ -5,6 +5,24 @@ import { useAuth } from '@/contexts/AuthContext';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { toast } from 'sonner';
 
+// Shared admin-only cache of currently-pinned track ids. Loaded once per
+// session and refreshed on toggles — avoids one query per song card render.
+let pinnedCache: Promise<Set<string>> | null = null;
+const loadPinned = (): Promise<Set<string>> => {
+  if (pinnedCache) return pinnedCache;
+  pinnedCache = (async () => {
+    const { data } = await supabase
+      .from('viral_picks')
+      .select('track_id')
+      .eq('is_active', true);
+    return new Set((data ?? []).map((r) => r.track_id as string));
+  })();
+  return pinnedCache;
+};
+const pinnedTrackIds = () => loadPinned();
+const invalidatePinned = () => { pinnedCache = null; };
+
+
 export interface PinToViralPayload {
   track_id: string;
   title: string;
