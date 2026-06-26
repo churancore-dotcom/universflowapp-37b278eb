@@ -500,28 +500,19 @@ const Search = () => {
   const featuredArtist = matchedArtists[0];
   const artistNameSearch = matchedArtists.length > 0;
   const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
-  // Restrict song results to verified Universflow artists only.
-  // Uploaded artist tracks always pass (their owner is verified by definition).
-  const universflowFilteredResults = visibleIndexedResults.filter((track) => {
-    if (isUploadedArtistTrack(track)) return true;
-    if (verifiedArtistNames.size === 0) return false;
-    const artistNorm = normalizeText(track.artist || '');
-    if (!artistNorm) return false;
-    if (verifiedArtistNames.has(artistNorm)) return true;
-    // Allow multi-artist credits like "A & B" or "A, B" if any token matches a verified name.
-    for (const name of verifiedArtistNames) {
-      if (artistNorm.includes(name) || name.includes(artistNorm)) return true;
-    }
-    return false;
-  });
+  // Universflow-uploaded tracks already merge to the TOP via mergeUploadedArtistSongs.
+  // We do NOT hard-filter to verified artists only — that produced an empty
+  // "All Songs" tab for every famous song (e.g. Kesariya, Perfect) because the
+  // platform only has a handful of verified artists. Show real songs; let the
+  // Universflow uploads surface naturally on top.
   const displayedIndexedResults = artistNameSearch
-    ? universflowFilteredResults.filter((track) => {
+    ? visibleIndexedResults.filter((track) => {
         if (isUploadedArtistTrack(track)) return true;
         const artist = normalizeText(track.artist);
         const q = normalizeText(query);
         return artist.includes(q) || matchedArtists.some((result) => artist.includes(normalizeText(result.name)) || normalizeText(result.name).includes(artist));
       })
-    : universflowFilteredResults;
+    : visibleIndexedResults;
 
   const handleHideIndexed = useCallback((track: IndexedTrack) => {
     hideSearchTrack(track);
