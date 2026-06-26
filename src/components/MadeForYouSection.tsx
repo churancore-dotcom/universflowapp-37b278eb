@@ -8,36 +8,46 @@ import OptimizedImage from './OptimizedImage';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { readLocalRecent } from '@/lib/localRecentlyPlayed';
 import { searchYouTubeMusicTracks } from '@/lib/musicIndexer';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Made For You — builds a personalized mix from the user's last 5 local plays.
- * Each play seeds a "<artist> mix" query against YouTube Music; results are
- * merged and deduped. Falls back to "trending india 2026" for new users.
+ * Made For You — builds a personalized mix from the user's last ~5 plays.
+ * Reads song_ids from localStorage, hydrates artist names from `stream_songs`,
+ * then seeds parallel YouTube Music searches and merges the results.
  */
 const MadeForYouSection = memo(() => {
   const { user } = useAuth();
   const { playSong, currentSong } = usePlayer();
 
-  const recentSeeds = useMemo(() => {
-    if (!user?.id) return [] as { artist: string; title: string }[];
-    const recent = readLocalRecent(user.id).slice(0, 5);
-    return recent
-      .map((r) => ({ artist: (r as { artist?: string }).artist || '', title: (r as { title?: string }).title || '' }))
-      .filter((r) => r.artist || r.title);
+  const recentIds = useMemo(() => {
+    if (!user?.id) return [] as string[];
+    return readLocalRecent(user.id).slice(0, 5).map((r) => r.song_id).filter(Boolean);
   }, [user?.id]);
 
   const { data: mix = [] } = useQuery({
-    queryKey: ['ytm-made-for-you', user?.id ?? 'anon', recentSeeds.map((s) => `${s.artist}|${s.title}`).join(',')],
+    queryKey: ['ytm-made-for-you', user?.id ?? 'anon', recentIds.join(',')],
     enabled: !!user,
     staleTime: 30 * 60 * 1000,
     gcTime: 6 * 60 * 60 * 1000,
     queryFn: async (): Promise<Song[]> => {
-      const queries = recentSeeds.length
-        ? recentSeeds.slice(0, 3).map((s) => `${s.artist || s.title} mix`)
-        : ['trending india 2026'];
-      const perQuery = Math.max(8, Math.ceil(20 / queries.length));
+      let seedQueries: string[] = [];
+      if (recentIds.length) {
+        const { data: rows } = await supabase
+          .from('stream_songs')
+          .select('artist, title')
+          .in('id', recentIds)
+          .limit(5);
+        const seeds = (rows ?? [])
+          .map((r) => (r.artist || r.title || '').trim())
+          .filter(Boolean);
+        const uniq = [...new Set(seeds)].slice(0, 3);
+        seedQueries = uniq.map((s) => `${s} mix`);
+      }
+      if (!seedQueries.length) seedQueries = ['trending india 2026'];
+
+      const perQuery = Math.max(8, Math.ceil(20 / seedQueries.length));
       const settled = await Promise.allSettled(
-        queries.map((q) => searchYouTubeMusicTracks(q, perQuery)),
+        seedQueries.map((q) => searchYouTubeMusicTracks(q, perQuery)),
       );
       const seen = new Set<string>();
       const out: Song[] = [];
