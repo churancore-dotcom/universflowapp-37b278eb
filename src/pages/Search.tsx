@@ -358,11 +358,15 @@ const Search = () => {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<SongHistoryEntry[]>(() => getSongHistory());
   const [hiddenResults, setHiddenResults] = useState<HiddenSearchEntry[]>(() => loadHiddenResults());
+  const [visibleCount, setVisibleCount] = useState(40);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const expandedQueriesRef = useRef<Set<string>>(new Set());
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const scrollRef = useRef<HTMLElement>(null);
+
 
   useEffect(() => {
     const urlQuery = params.get('q')?.trim() || '';
