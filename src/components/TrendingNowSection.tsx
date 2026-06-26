@@ -7,25 +7,23 @@ import { triggerHaptic } from '@/hooks/useHaptics';
 import { useTasteProfile } from '@/hooks/useTasteProfile';
 import { rerank } from '@/lib/feedPersonalizer';
 import { isSpamSong } from '@/pages/Search';
+import { useYtmRail } from '@/lib/ytmRails';
 
-interface Props { songs: Song[] }
+interface Props { songs?: Song[] }
 
 /**
- * Spotify "Top 50" style — vertical ranked Top-10 list with big numerals,
- * NOT a horizontal scroll. Feels like a chart, instantly scannable.
+ * Spotify "Top 50" style — vertical ranked Top-10 list of YouTube Music's
+ * current trending India tracks. Real data, no mock.
  */
-const TrendingNowSection = memo(({ songs }: Props) => {
+const TrendingNowSection = memo((_props: Props) => {
   const { playSong, currentSong } = usePlayer();
   const taste = useTasteProfile();
+  const { data: pool = [] } = useYtmRail('trending', 'trending india 2026', 30);
 
   const trending = useMemo(() => {
-    const clean = songs.filter((s) => !isSpamSong(s));
-    const flagged = clean.filter((s) => (s as Song & { show_in_trending?: boolean }).show_in_trending);
-    const pool = flagged.length > 0 ? flagged : clean;
-    // Pull a larger window then silently re-rank to user taste, finally trim.
-    const window = pool.slice(0, 30);
-    return rerank(window, taste).slice(0, 10);
-  }, [songs, taste]);
+    const clean = pool.filter((s) => !isSpamSong(s));
+    return rerank(clean, taste).slice(0, 10);
+  }, [pool, taste]);
 
   if (trending.length === 0) return null;
 
