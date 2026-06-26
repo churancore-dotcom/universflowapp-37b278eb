@@ -313,9 +313,14 @@ const Library = () => {
                 ) : likedSongs.length === 0 ? (
                   <EmptyState icon={Heart} text="No liked songs yet" />
                 ) : (
-                  <div className="space-y-0.5">
-                    {likedSongs.map((song, i) => <SongRow key={`${song.id}-${i}`} song={song} index={i} />)}
-                  </div>
+                  <VirtualList
+                    items={likedSongs}
+                    estimateSize={64}
+                    gap={2}
+                    scrollParentRef={scrollRef}
+                    getKey={(song, i) => `${song.id}-${i}`}
+                    renderItem={(song, i) => <SongRow song={song} index={i} />}
+                  />
                 )}
               </TabsContent>
 
