@@ -39,6 +39,12 @@ interface YoutubeSearchResponse {
   error?: string;
 }
 
+interface YoutubeNewReleasesResponse {
+  success: boolean;
+  results?: IndexedTrack[];
+  error?: string;
+}
+
 // ── Persistent stream cache (localStorage + memory) ──
 // Memory cache for instant hits, localStorage for survival across reloads.
 // TTL is 55min because most CDN signed URLs from the resolver are valid ~1h.
@@ -221,6 +227,22 @@ export async function searchYouTubeMusicTracks(query: string, limit = 50): Promi
     try {
       const data = await requestFunction<YoutubeSearchResponse>('yt-music-search', {
         query: q,
+        limit,
+      });
+      return Array.isArray(data.results) ? data.results : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+export async function getYouTubeMusicNewReleases(country = 'US', limit = 24): Promise<IndexedTrack[]> {
+  const cc = /^[A-Z]{2}$/.test(country.toUpperCase()) ? country.toUpperCase() : 'US';
+  return cachedSearch(searchKey('youtube-new-releases-v1', cc, limit), async () => {
+    try {
+      const data = await requestFunction<YoutubeNewReleasesResponse>('yt-music-search', {
+        mode: 'new-releases',
+        country: cc,
         limit,
       });
       return Array.isArray(data.results) ? data.results : [];
