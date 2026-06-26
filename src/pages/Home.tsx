@@ -12,12 +12,9 @@ import MadeForYouSection from '@/components/MadeForYouSection';
 import AllSongsSection from '@/components/AllSongsSection';
 import HomeBento from '@/components/HomeBento';
 
-import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
-import PremiumFirstSection from '@/components/PremiumFirstSection';
 import TrendingNowSection from '@/components/TrendingNowSection';
 import FreshReleasesSection from '@/components/FreshReleasesSection';
-import AlbumsShelf from '@/components/AlbumsShelf';
 import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
 
 
@@ -32,7 +29,7 @@ import LockScreenPlayer from '@/components/LockScreenPlayer';
 import EqualizerModal from '@/components/EqualizerModal';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { TabTransition } from '@/components/PageTransition';
-import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
+import { Music, Lock, ListMusic, Sliders } from 'lucide-react';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { usePremium } from '@/hooks/usePremium';
 import appLogo from '@/assets/app-logo.webp';
@@ -77,6 +74,12 @@ const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v2-fast-ytm'] as const;
 // Tag flags used by the existing rails (Trending/Fresh) to filter the shared pool.
 type FlaggedSong = Song & { show_in_trending?: boolean; show_in_new_releases?: boolean };
 
+const upgradeThumb = (url?: string) => {
+  if (!url) return undefined;
+  if (url.includes('googleusercontent.com')) return url.replace(/=w\d+-h\d+[^&]*/i, '=w544-h544-l90-rj');
+  return url.replace(/\/default\.jpg/i, '/hqdefault.jpg').replace(/\/mqdefault\.jpg/i, '/hqdefault.jpg');
+};
+
 // Pull one fast real YouTube Music pool for the hero/bento only.
 // Each track is shaped exactly like the player's Song type with audio_url set to
 // `yt-video:<id>` so PlayerContext routes the tap through extract-audio.
@@ -97,7 +100,7 @@ const fetchHomeSongs = async (): Promise<FlaggedSong[]> => {
         title: t.title,
         artist: t.artist,
         album: t.album,
-        cover_url: t.cover_url,
+        cover_url: upgradeThumb(t.cover_url),
         audio_url: t.audio_url || (t.videoId ? `yt-video:${t.videoId}` : 'resolving'),
         duration: t.duration,
         created_at: new Date().toISOString(),
@@ -170,6 +173,7 @@ const Home = () => {
   }, [onlineSongs, updateCache, isOffline]);
 
   const loading = isLoading && songs.length === 0 && !isOffline;
+  const homeReady = songs.length > 0 && !isOffline;
 
   const allSongs = useMemo(() => songs, [songs]);
 
@@ -305,8 +309,8 @@ const Home = () => {
 
 
 
-              {!isOffline && <FreshReleasesSection songs={allSongs} />}
-              {!isOffline && <TrendingNowSection songs={allSongs} />}
+              {!isOffline && <FreshReleasesSection songs={allSongs} enabled={homeReady} />}
+              {!isOffline && <TrendingNowSection songs={allSongs} enabled={homeReady} />}
               {/* Discovery — Featured Artists */}
               {!isOffline && <FeaturedArtistsSection />}
               {!isOffline && <MadeForYouSection />}
