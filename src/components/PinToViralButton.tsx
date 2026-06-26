@@ -91,7 +91,7 @@ const PinToViralButton = memo(({ song, size = 'sm', className = '', variant = 'o
             pinned_at: new Date().toISOString(),
           }, { onConflict: 'track_id' });
         if (error) throw error;
-        setPinned(true);
+        setPinned(true); invalidatePinned();
         toast.success('Pinned to Trending Now 🔥');
       }
     } catch (err) {
