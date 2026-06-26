@@ -285,24 +285,22 @@ const AllArtists = () => {
         if (a.source !== 'platform') return false;
       } else if (activeCategory === 'Trending') {
         if (a.category !== 'Trending') return false;
-      } else if (activeCategory !== 'All') {
+        if (a.source === 'platform') return false;
+      } else if (activeCategory === 'All') {
+        // Hide platform artists from the default "All" view — they only
+        // appear under the dedicated "Universflow" chip until they earn
+        // organic listeners.
+        if (a.source === 'platform') return false;
+      } else {
         if (a.category !== activeCategory) return false;
+        if (a.source === 'platform') return false;
       }
       if (q && !key.includes(q)) return false;
       return true;
     });
-    // Sort strictly by real popularity (Last.fm listeners). Platform artists
-    // are NOT pinned — and when they have no real listener data they sink to
-    // the bottom of the All view so famous artists surface first.
-    return list.sort((a, b) => {
-      if (activeCategory === 'All' || activeCategory === 'Following') {
-        const aPlat = a.source === 'platform' && !a.listeners ? 1 : 0;
-        const bPlat = b.source === 'platform' && !b.listeners ? 1 : 0;
-        if (aPlat !== bPlat) return aPlat - bPlat;
-      }
-      return (b.listeners || 0) - (a.listeners || 0);
-    });
+    return list.sort((a, b) => (b.listeners || 0) - (a.listeners || 0));
   }, [allArtists, activeCategory, query, followed]);
+
 
 
   const handleFollow = useCallback(async (artist: ArtistEntry) => {
@@ -386,7 +384,7 @@ const AllArtists = () => {
     }
   }, [playSong, artistSongs]);
 
-  const categoriesWithAll = useMemo(() => ['Following', 'All', ...ARTIST_CATEGORIES] as const, []);
+  const categoriesWithAll = useMemo(() => ['Following', 'All', 'Universflow', ...ARTIST_CATEGORIES] as const, []);
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
