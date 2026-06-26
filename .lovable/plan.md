@@ -1,63 +1,79 @@
-# Artist Experience — Premium Overhaul
+# YouTube Music–Backed Search, Home & Player
 
-Goal: every artist surface feels hand-crafted (Spotify-for-Artists / Apple-grade), not generic AI. Locked palette: Obsidian + Rose (`#0A0A0B` / `#141417` / `#FF2D55` / `#F5F5F7`). Mobile-first, with desktop refinements.
+Goal: every track the user sees and hears comes from `yt-music-search` + `extract-audio`. No mock/seeded catalog. UI stays identical.
 
-Shipped in 4 focused turns so each surface lands polished, not half-done.
+## Part 1 — Search (already mostly wired)
 
----
+`src/pages/Search.tsx` already calls `yt-music-search` and renders title/artist/thumbnail/duration. Changes:
+- Remove residual fallbacks to JioSaavn / `stream_songs` / `chart_tracks` lookups inside the Songs tab so results are 100% YouTube Music.
+- Keep the "Artists" tab unchanged (verified Universflow profiles + Last.fm).
 
-## Turn 1 — Onboarding (Apply + Status + Auth)
+## Part 2 — Play any result
 
-New flow at `/artist/auth → /artist/apply → /artist/status`.
+Tap handler resolves audio through one path:
+1. Look up `localStorage` cache for `ytm:stream:<videoId>`.
+2. If miss → `supabase.functions.invoke('extract-audio', { body: { videoId } })`.
+3. Pass `{ id: videoId, title, artist, cover_url, audio_url, duration }` to `PlayerContext.playSong()` — same shape it already accepts.
 
-- **Cinematic intro** on `/artist/auth`: full-bleed obsidian gradient, slow rose aurora, kinetic headline ("Your sound. Our stage."), one CTA. No marketing fluff stack.
-- **5-step wizard** `/artist/apply` with progress rail, step transitions (framer-motion), persisted draft in localStorage:
-  1. Identity (stage name, real name, country)
-  2. Socials (live preview chips, validator)
-  3. ID document (upload with frame guide, doc-type aware)
-  4. Selfie (existing FaceLivenessCapture, restyled)
-  5. Press photo + review screen
-- **Status page**: timeline component (Submitted → Under Review → Decision) with live ETA copy, animated rose pulse on current step. Rejected state shows reason in a quote-block + countdown card to re-apply.
+Mini-player and full-player already read `currentSong.{title,artist,cover_url}`, no UI changes.
 
-## Turn 2 — Artist Studio (Overview + Analytics)
+## Part 3 — Purge mock data
 
-- **Overview** rebuilt as a Bento grid: hero "Today" card (live listeners count w/ pulse), monthly listeners spark, top track card with mini-waveform, fan-map preview, latest follower stream.
-- **Analytics**: real charts (Recharts) — 28-day plays line, demographics donut, top cities bar, save-rate gauge. Time-range pills. Empty states with art, not gray boxes.
-- New **Audience Map** card (country heat list, no maps lib — pure CSS bars sorted).
-- New **Revenue placeholder card** (Coming soon, branded — not a TODO).
+DB state today: `songs=0`, `artist_songs=5` (real uploads, keep), `stream_songs=2714` (cache, keep — it's the URL cache), `chart_tracks=1700` (auto-aggregated, but UI now ignores).
 
-## Turn 3 — Upload Wizard
+Code changes:
+- `HomeBento`, `GlobalTopTracksSection`, `PremiumFirstSection`, `FollowedArtistSongsSection`, `ChartSection`, `FreshReleasesSection`, `TrendingNowSection`, `AllSongsSection` — stop reading `songs` / `stream_songs` / `chart_tracks` as a content source. They become thin wrappers around the new YTM rail hook (Part 6).
+- `Home.tsx` `HOME_SONGS_QUERY_KEY` query that pulls from `songs` is removed.
+- `artist_songs` (real Universflow uploads) keep their dedicated rail.
 
-`/artist/studio/upload` rebuilt as 3-step wizard:
+`stream_songs` table is *retained* — it's the persistent stream URL cache shared with the new 6h client cache.
 
-1. **Source** — URL paste with live host validation, format detection, duration probe.
-2. **Cover & Metadata** — drag/drop cover with square cropper, AI title-case suggest, genre/mood chips, explicit toggle, release date picker.
-3. **Review & Publish** — full preview card identical to how it'll render in the app, publish animation (rose burst → "It's live").
+## Part 4 — 6h client cache
 
-Plus: drafts auto-saved, waveform preview after URL load (Web Audio peaks), share-kit modal post-publish.
+New helper `src/lib/ytmStreamCache.ts`:
+```ts
+get(videoId) → { url, expiresAt } | null   // returns null if older than 6h
+set(videoId, url)                          // stores { url, ts: Date.now() }
+invalidate(videoId)
+```
+Storage key namespace `ytm:stream:v1:<videoId>`. TTL = 6 * 60 * 60 * 1000.
 
-## Turn 4 — Public Artist Page `/a/:slug`
+## Part 5 — Error handling & retry
 
-- **Editorial hero**: parallax banner, large stage name in display font, verified rose check, monthly-listener badge, follow CTA (sticky on scroll).
-- **Top Tracks** list with play counts + inline play.
-- **About** card with social link chips.
-- **Share kit** (copy link, story image gen, X/IG deep links).
-- **SEO**: structured data (MusicGroup schema), OG image per artist.
+In `PlayerContext.playSong()` (audio element error / 403 / 410 path):
+1. On `audio.onerror` or HTTP failure, `invalidate(videoId)` and re-invoke `extract-audio` once.
+2. While resolving, set existing `isLoading` flag so the player shows its current spinner.
+3. If second attempt fails → toast "Couldn't load this track" and skip to next.
 
----
+## Part 6 — Home rails from YTM
 
-## Technical notes
+New hook `src/hooks/useYtmRail.ts`:
+- `useYtmRail(query, { ttlMinutes: 60 })` → React Query wrapper around `yt-music-search`.
+- Localstorage-backed cache key `ytm:rail:v1:<query>` for instant paint.
 
-- New shared primitives in `src/components/artist/`: `StepRail.tsx`, `BentoCard.tsx`, `StatPill.tsx`, `Waveform.tsx`, `EmptyArt.tsx`.
-- Display font: add `@fontsource-variable/fraunces` (editorial serif for hero numbers/names) paired with existing sans. Body stays current.
-- Tokens added to `index.css`: `--rose-glow`, `--obsidian-1/2/3`, `--shadow-hero`, `--gradient-aurora`.
-- No backend schema changes needed for Turns 1, 3, 4. Turn 2 adds two RPCs: `get_artist_overview_stats(_user_id)` and `get_artist_audience_breakdown(_user_id)` (read-only, security-definer, owner-scoped).
-- All existing data hooks (`useArtistLive`) reused — pure presentation rebuild on top.
+Rails:
+| Section | Query |
+|---|---|
+| Trending Now | `trending india 2026` |
+| New Releases | `new releases 2026` |
+| Top Charts | `top charts india` |
+| Made For You | derived: take last-5 from `recently_played` → query = `${artist} ${title} mix` round-robin, dedupe |
 
----
+Component edits (data swap only, no markup changes):
+- `HomeBento.tsx`, `TrendingNowSection.tsx`, `FreshReleasesSection.tsx`, `ChartSection.tsx`, `GlobalTopTracksSection.tsx`, `PremiumFirstSection.tsx`, new `MadeForYouSection.tsx` (replaces personalized rail if one exists).
 
-## Ship order
+`feedPersonalizer.ts` reranking still applies on top of the YTM rails.
 
-I'll do **Turn 1 (Onboarding) now**, then check in with a screenshot. You approve → I roll Turn 2, etc. This keeps each surface tight instead of one giant blurry PR.
+## Technical details
 
-Reply **"go"** to start Turn 1, or tell me to reorder (e.g. "do Studio first").
+- All edge function calls go through the existing `supabase.functions.invoke` client (auth + CORS already set).
+- `extract-audio` already returns `{ audio_url, expires_in? }` — we ignore server TTL and enforce client 6h cap.
+- Make-For-You falls back to `trending india 2026` for users with empty `recently_played`.
+- Cache writes are wrapped in `try/catch` for Safari private-mode quota errors.
+- Bump `SEARCH_CACHE_NAMESPACE` once more so old JioSaavn-mixed results are evicted.
+
+## Out of scope
+
+- No UI/visual changes.
+- No changes to artist upload flow, library, downloads, premium, or admin.
+- `chart_tracks` table left in place (used by admin analytics) — just no longer surfaced on Home.
