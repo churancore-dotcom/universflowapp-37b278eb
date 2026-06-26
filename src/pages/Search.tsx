@@ -467,12 +467,51 @@ const Search = () => {
   const libraryResults: Song[] = [];
   const hasQuery = query.length > 1;
   const visibleIndexedResults = source === 'songs' ? indexedResults : [];
-  // Universflow-uploaded tracks already merge to the TOP via mergeUploadedArtistSongs.
-  // We do NOT hard-filter to verified artists only — that produced an empty
-  // "All Songs" tab for every famous song (e.g. Kesariya, Perfect) because the
-  // platform only has a handful of verified artists. Show real songs; let the
-  // Universflow uploads surface naturally on top.
-  const displayedIndexedResults = visibleIndexedResults;
+  const displayedIndexedResults = visibleIndexedResults.slice(0, visibleCount);
+  const hasMoreLocal = visibleCount < visibleIndexedResults.length;
+
+  // Deeper server fetch when the local pool is exhausted. Runs once per query.
+  const fetchMoreFromServer = useCallback(async () => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return;
+    if (expandedQueriesRef.current.has(trimmed)) return;
+    expandedQueriesRef.current.add(trimmed);
+    setLoadingMore(true);
+    try {
+      const deeper = await searchYouTubeMusicTracks(trimmed, 400);
+      const existing = new Set(indexedResults.map((t) => t.id));
+      const additions = deeper.filter(
+        (t) => !existing.has(t.id) && !isHiddenTrack(t, hiddenResults),
+      );
+      if (additions.length > 0) {
+        setIndexedResults((prev) => [...prev, ...additions]);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [query, indexedResults, hiddenResults]);
+
+  // Infinite scroll — bump visibleCount as the user nears the bottom; when the
+  // local pool runs out, request a deeper page from the server.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || source !== 'songs') return;
+    const onScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (distanceFromBottom < 600) {
+        if (hasMoreLocal) {
+          setVisibleCount((n) => Math.min(n + 40, visibleIndexedResults.length));
+        } else if (!loadingMore) {
+          void fetchMoreFromServer();
+        }
+      }
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [source, hasMoreLocal, loadingMore, visibleIndexedResults.length, fetchMoreFromServer]);
+
 
   const handleHideIndexed = useCallback((track: IndexedTrack) => {
     hideSearchTrack(track);
