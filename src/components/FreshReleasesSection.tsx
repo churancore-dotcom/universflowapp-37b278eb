@@ -7,9 +7,8 @@ import { triggerHaptic } from '@/hooks/useHaptics';
 import { useTasteProfile } from '@/hooks/useTasteProfile';
 import { rerank } from '@/lib/feedPersonalizer';
 import { isSpamSong } from '@/pages/Search';
-import { useYtmRail } from '@/lib/ytmRails';
+import { useYtmNewReleases } from '@/lib/ytmRails';
 import { useUserCountry } from '@/hooks/useUserCountry';
-import { getCountryQueries } from '@/lib/countryQueries';
 
 interface Props { songs?: Song[]; enabled?: boolean }
 
@@ -17,8 +16,7 @@ const FreshReleasesSection = memo(({ enabled = true }: Props) => {
   const { playSong } = usePlayer();
   const taste = useTasteProfile();
   const country = useUserCountry();
-  const q = getCountryQueries(country);
-  const { data: pool = [] } = useYtmRail(`fresh-v3-${country}`, q.fresh, 24, enabled);
+  const { data: pool = [] } = useYtmNewReleases(country, 24, enabled);
 
   const fresh = useMemo(() => {
     const clean = pool.filter((s) => !isSpamSong(s));
