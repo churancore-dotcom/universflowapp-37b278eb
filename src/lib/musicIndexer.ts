@@ -47,7 +47,7 @@ const STREAM_CACHE_TTL = 55 * 60 * 1000; // 55 min
 const LS_KEY = 'uf_stream_cache_v3';
 const LS_MAX_ENTRIES = 200;
 const SEARCH_CACHE_TTL = 20 * 60 * 1000;
-const SEARCH_LS_KEY = 'uf_indexed_search_cache_v5_official_youtube_api';
+const SEARCH_LS_KEY = 'uf_indexed_search_cache_v6_real_query_official_youtube_api';
 const searchCache = new Map<string, { data: IndexedTrack[]; expiresAt: number }>();
 
 function makeCacheKey(artist: string, title: string) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Music, X, Globe, Radio, Loader2, Clock, Trash2 } from 'lucide-react';
+import { Search as SearchIcon, Music, X, Radio, Loader2, Clock, Trash2 } from 'lucide-react';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import BottomNav from '@/components/BottomNav';
@@ -35,7 +35,7 @@ const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|
 const resultKey = (track: IndexedTrack) => `${cleanIdentity(track.artist)}::${cleanIdentity(track.title)}`;
 const queryTokens = (query: string) => normalizeText(query).split(' ').filter((token) => token.length > 1 && !['song', 'songs', 'music', 'track', 'tracks', 'best', 'top', 'latest', 'new'].includes(token));
 const HIDDEN_RESULTS_KEY = 'uf_hidden_search_results_v1';
-const SEARCH_CACHE_NAMESPACE = 'stable-search-v8-official-youtube-api';
+const SEARCH_CACHE_NAMESPACE = 'stable-search-v9-no-song-artist-hijack';
 const SPAM_RESULT_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
@@ -425,7 +425,7 @@ const Search = () => {
           return;
         }
         const { mood, language, pureBrowse } = detectMoodAndLanguage(trimmedQuery);
-        const smartQuery = [language, mood, 'song'].filter(Boolean).join(' ') || trimmedQuery;
+        const smartQuery = pureBrowse ? [language, mood, 'song'].filter(Boolean).join(' ') : trimmedQuery;
         const tagJobs: Promise<IndexedTrack[]>[] = [];
         if (language) tagJobs.push(getTagTopTracks(language, 150));
         if (mood) tagJobs.push(getTagTopTracks(mood, 150));
@@ -444,11 +444,11 @@ const Search = () => {
           .slice(0, 300);
 
         setCached(SEARCH_CACHE_NAMESPACE, trimmedQuery, merged);
-        // Artist cards: require BOTH a real listener signal AND a name overlap.
-        // Name-only matches were surfacing obscure record-label entries (e.g.
-        // searching "kesariya" the song would render a random "Kesariya" indie
-        // cover labeled as a "REAL ARTIST PROFILE").
+        // Artist tab only: require a strong artist-name match. Do NOT allow
+        // substring/plural matches like "Headlight" -> "Headlights" because that
+        // hijacked song searches and surfaced fake-looking artist cards.
         const qNorm = normalizeText(trimmedQuery);
+        const qArtistTokens = queryTokens(trimmedQuery);
         const MIN_ARTIST_LISTENERS = 50_000;
         const verifiedArtists = artists.filter((a) => {
           if (!a.image_url) return false;
@@ -456,7 +456,10 @@ const Search = () => {
           if (!nameNorm) return false;
           // Hard-block spam artist patterns (remix kings, status channels, AI covers, etc.)
           if (SPAM_ARTIST_PATTERNS.some((p) => p.test(a.name || ''))) return false;
-          const nameMatches = nameNorm === qNorm || nameNorm.includes(qNorm) || qNorm.includes(nameNorm);
+          const nameTokens = nameNorm.split(' ').filter(Boolean);
+          const nameMatches = nameNorm === qNorm || (
+            qArtistTokens.length > 0 && qArtistTokens.every((token) => nameTokens.includes(token))
+          );
           const hasListeners = typeof a.listeners === 'number' && a.listeners >= MIN_ARTIST_LISTENERS;
           return nameMatches && hasListeners;
         });
@@ -484,37 +487,13 @@ const Search = () => {
 
   const libraryResults: Song[] = [];
   const hasQuery = query.length > 1;
-  // Only treat an artist as a "real match" when the query clearly names them —
-  // exact match, query starts with the artist name, or the artist name starts
-  // with the query. This prevents tag-based / unrelated artists from being
-  // surfaced when the user is actually searching for a song or lyric line.
-  const qForArtist = normalizeText(query);
-  const isStrongArtistMatch = (name: string) => {
-    const n = normalizeText(name);
-    if (!n || !qForArtist) return false;
-    if (n === qForArtist) return true;
-    // Require a meaningful overlap, not a stray substring
-    if (qForArtist.length >= 3 && n.startsWith(qForArtist)) return true;
-    if (n.length >= 3 && qForArtist.startsWith(n)) return true;
-    return false;
-  };
-  const matchedArtists = hasQuery ? artistResults.filter((a) => isStrongArtistMatch(a.name)) : [];
-  const featuredArtist = matchedArtists[0];
-  const artistNameSearch = matchedArtists.length > 0;
   const visibleIndexedResults = source === 'songs' ? indexedResults : [];
   // Universflow-uploaded tracks already merge to the TOP via mergeUploadedArtistSongs.
   // We do NOT hard-filter to verified artists only — that produced an empty
   // "All Songs" tab for every famous song (e.g. Kesariya, Perfect) because the
   // platform only has a handful of verified artists. Show real songs; let the
   // Universflow uploads surface naturally on top.
-  const displayedIndexedResults = artistNameSearch
-    ? visibleIndexedResults.filter((track) => {
-        if (isUploadedArtistTrack(track)) return true;
-        const artist = normalizeText(track.artist);
-        const q = normalizeText(query);
-        return artist.includes(q) || matchedArtists.some((result) => artist.includes(normalizeText(result.name)) || normalizeText(result.name).includes(artist));
-      })
-    : visibleIndexedResults;
+  const displayedIndexedResults = visibleIndexedResults;
 
   const handleHideIndexed = useCallback((track: IndexedTrack) => {
     hideSearchTrack(track);
@@ -594,7 +573,7 @@ const Search = () => {
                   transition: 'border-color 0.2s',
                 }} />
               {query && (
-                <button onClick={() => { setQuery(''); setIndexedResults([]); }}
+                <button onClick={() => { setQuery(''); setIndexedResults([]); setArtistResults([]); }}
                   aria-label="Clear search"
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full"
                   style={{ background: 'rgba(255,255,255,0.15)' }}>
@@ -735,57 +714,6 @@ const Search = () => {
           {/* Results */}
           {searching ? <SearchSkeleton /> : (
             <>
-              {/* Indexed stream results */}
-              {source === 'songs' && featuredArtist && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
-                  <h2 className="text-sm font-bold mb-3">Artist</h2>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/artists?focus=${encodeURIComponent(featuredArtist.name)}`)}
-                    className="relative w-full aspect-[4/5] max-h-72 overflow-hidden rounded-2xl text-left active:scale-[0.98] transition-transform bg-card border border-white/10"
-                  >
-                    <img
-                      src={featuredArtist.image_url}
-                      alt={`${featuredArtist.name} artist photo`}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      style={{ objectPosition: '50% 22%' }}
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                    />
-                    {/* Bottom-only gradient — keeps faces fully visible */}
-                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                    <div className="absolute left-4 right-4 bottom-4">
-                      <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/70">Real artist profile</p>
-                      <p className="text-2xl leading-none font-display tracking-wide text-white truncate mt-1">{featuredArtist.name}</p>
-                    </div>
-                  </button>
-                  {matchedArtists.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar mt-3 -mx-1 px-1">
-                      {matchedArtists.slice(1).map((a) => (
-                        <button
-                          key={a.name}
-                          type="button"
-                          onClick={() => navigate(`/artists?focus=${encodeURIComponent(a.name)}`)}
-                          className="flex items-center gap-2 flex-shrink-0 bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 rounded-full pl-1 pr-3 py-1 transition"
-                        >
-                          {a.image_url && (
-                            <img
-                              src={a.image_url}
-                              alt=""
-                              className="w-7 h-7 rounded-full object-cover"
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                            />
-                          )}
-                          <span className="text-xs font-semibold text-white truncate max-w-[140px]">{a.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-
               {source === 'songs' && displayedIndexedResults.length > 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={libraryResults.length > 0 ? 'mt-6' : ''}>
                   <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
@@ -902,7 +830,7 @@ const Search = () => {
 
 
               {/* No results */}
-              {query.length > 1 && !searching && libraryResults.length === 0 && displayedIndexedResults.length === 0 && artistResults.length === 0 && (
+              {source === 'songs' && query.length > 1 && !searching && libraryResults.length === 0 && displayedIndexedResults.length === 0 && (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.06)' }}>
