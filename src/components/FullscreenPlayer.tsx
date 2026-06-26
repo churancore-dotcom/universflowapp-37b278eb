@@ -251,7 +251,10 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                   />
                 </div>
               ) : (
-              <div className="relative w-[78vw] max-w-[312px] aspect-square">
+              <div
+                className="relative aspect-square h-full"
+                style={{ maxWidth: 'min(78vw, 312px)', maxHeight: '100%' }}
+              >
                 {isPlaying && (
                   <motion.div
                     className="absolute inset-[-15%] rounded-3xl pointer-events-none"
