@@ -71,6 +71,15 @@ const BANNED_CHANNEL_PATTERNS = [
 
 const normalize = (value = '') => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
+function decodeEntities(value = '') {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
 function meaningfulTokens(query: string) {
   return normalize(query)
     .split(' ')
@@ -89,7 +98,7 @@ function isLyricQuery(query: string) {
 }
 
 function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: string) {
-  const cleaned = rawTitle
+  const cleaned = decodeEntities(rawTitle)
     .replace(/\s*\(Official\s*(Music\s*)?Video\)/gi, '')
     .replace(/\s*\[Official\s*(Music\s*)?Video\]/gi, '')
     .replace(/\s*\(Official\s*Audio\)/gi, '')
@@ -100,7 +109,7 @@ function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: stri
     .trim();
   const qTokens = meaningfulTokens(query);
   const dash = cleaned.match(/^(.+?)\s*[-–—]\s+(.+)$/);
-  if (!dash) return { artist: channelTitle || 'Unknown Artist', title: cleaned || rawTitle };
+  if (!dash) return { artist: decodeEntities(channelTitle) || 'Unknown Artist', title: cleaned || decodeEntities(rawTitle) };
 
   const left = dash[1].trim();
   const right = dash[2].trim();
@@ -110,8 +119,8 @@ function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: stri
   // YouTube music uploads overwhelmingly use "Artist - Song". Keep that shape
   // even when the user's query includes the artist name, otherwise searches like
   // "perfect ed sheeran" incorrectly display the title as "Ed Sheeran".
-  if (rightHits > 0 || qTokens.length === 0) return { artist: left || channelTitle || 'Unknown Artist', title: right || cleaned };
-  return { artist: channelTitle || left || 'Unknown Artist', title: cleaned || rawTitle };
+  if (rightHits > 0 || qTokens.length === 0) return { artist: left || decodeEntities(channelTitle) || 'Unknown Artist', title: right || cleaned };
+  return { artist: decodeEntities(channelTitle) || left || 'Unknown Artist', title: cleaned || decodeEntities(rawTitle) };
 }
 
 function queryMatchesResult(item: any, query: string) {
@@ -139,6 +148,7 @@ function looksSpammy(item: any, query: string) {
   if (duration && (duration < 75 || duration > 540)) return true;
   if (BANNED_CHANNEL_PATTERNS.some((p) => p.test(rawAuthor))) return true;
   if (SPAM_PATTERNS.some((pattern) => pattern.test(haystack))) return true;
+  if (!q.includes('remix') && /\bremix\b/i.test(haystack)) return true;
   if (!q.includes('lofi') && /\b(lofi|lo-fi)\b/i.test(haystack)) return true;
   return false;
 }
