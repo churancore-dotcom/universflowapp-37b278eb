@@ -735,7 +735,7 @@ const Search = () => {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={libraryResults.length > 0 ? 'mt-6' : ''}>
                   <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
                     <Music className="w-4 h-4 text-primary" />
-                    Songs · {displayedIndexedResults.length} results
+                    Songs · {displayedIndexedResults.length}{hasMoreLocal || loadingMore ? '+' : ''} results
                   </h2>
                   <VirtualList<IndexedTrack>
                     items={displayedIndexedResults}
@@ -786,6 +786,12 @@ const Search = () => {
                       );
                     }}
                   />
+                  {(hasMoreLocal || loadingMore) && (
+                    <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Loading more…
+                    </div>
+                  )}
                 </motion.div>
               )}
 
