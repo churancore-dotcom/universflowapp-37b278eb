@@ -44,16 +44,16 @@ function decodeEntities(v = '') {
 const HARD_SPAM = [
   /\b(karaoke|instrumental|backing\s*track)\b/i,
   /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?)\b/i,
-  /\b(non\s*stop|jukebox|mashup|medley|full album|all songs)\b/i,
+  /\b(non\s*stop|jukebox|mashup|medley|full album|all songs|playlist|compilation|collection)\b/i,
   /\b\d+\s*(hour|hours|hr|hrs)\b/i,
   /\b(whatsapp\s*status|ringtone|caller\s*tune)\b/i,
   /\b(ai\s*cover|ai\s*voice|deepfake)\b/i,
-  /\b(shorts?|reels?|tiktok\s*version|status\s*video)\b/i,
+  /\b(shorts?|reels?|tiktok\s*version|status\s*video|lyric\s*video|with\s*lyrics?)\b/i,
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
 ];
 const SPAM_AUTHORS = [
-  /\b(7clouds|cloudx|lyrics?|lyrical|status|ringtone|karaoke|nightcore|cover\s*world|remix\s*(king|world))\b/i,
+  /\b(7clouds|cloudx|wave\s*music|unique\s*vibes|lyrics?|lyrical|lyric\s*zone|status|ringtone|karaoke|nightcore|cover\s*world|remix\s*(king|world))\b/i,
 ];
 function looksHardSpam(title: string, author: string, q: string) {
   const hay = `${title} ${author}`;
@@ -61,6 +61,29 @@ function looksHardSpam(title: string, author: string, q: string) {
   if (SPAM_AUTHORS.some((p) => p.test(author))) return true;
   if (!/remix/i.test(q) && /\bremix\b/i.test(title)) return true;
   return false;
+}
+
+function relevanceScore(r: SearchResult, q: string, index: number, pass: 'songs' | 'videos') {
+  const tokens = normalize(q).split(' ').filter((t) => t.length > 1 && !['song', 'songs', 'music', 'official', 'video', 'audio'].includes(t));
+  const title = normalize(r.title);
+  const artist = normalize(r.artist);
+  const hay = `${title} ${artist}`;
+  const titleHits = tokens.reduce((n, t) => n + (title.includes(t) ? 1 : 0), 0);
+  const artistHits = tokens.reduce((n, t) => n + (artist.includes(t) ? 1 : 0), 0);
+  const qNorm = normalize(q);
+  const titlePhrase = qNorm.length > 2 && title.includes(qNorm);
+  const allTitle = tokens.length > 0 && tokens.every((t) => title.includes(t));
+  const anyHit = tokens.length === 0 || tokens.some((t) => hay.includes(t));
+  if (!anyHit) return -9999;
+  let score = pass === 'songs' ? 500 : 360;
+  score += titlePhrase ? 900 : 0;
+  score += title.startsWith(qNorm) ? 650 : 0;
+  score += allTitle ? 420 : 0;
+  score += titleHits * 150 + artistHits * 55;
+  if (/\b(official\s*(music\s*)?(video|audio)|provided to youtube by|vevo|topic)\b/i.test(`${r.title} ${r.artist}`)) score += 140;
+  if (/\b(lyric|lyrics|status|shorts|reels|cover|remix|slowed|sped)\b/i.test(`${r.title} ${r.artist}`)) score -= 260;
+  if (r.duration && (r.duration < 75 || r.duration > 540)) score -= 600;
+  return score - index * 1.5;
 }
 
 // ---------- Innertube YouTube Music (WEB_REMIX) ----------
@@ -273,17 +296,23 @@ serve(async (req) => {
       ytMusicSearch(cleanQuery, PARAMS_VIDEOS).catch(() => []),
     ]);
 
-    const merged: SearchResult[] = [];
+    const merged: Array<SearchResult & { _score?: number }> = [];
     const seen = new Set<string>();
-    for (const list of [songs, videos]) {
-      for (const r of list) {
+    for (const [pass, list] of [['songs', songs], ['videos', videos]] as const) {
+      for (let i = 0; i < list.length; i++) {
+        const r = list[i];
         if (seen.has(r.videoId)) continue;
+        const score = relevanceScore(r, cleanQuery, i, pass);
+        if (score < 0) continue;
         seen.add(r.videoId);
-        merged.push(r);
+        merged.push({ ...r, _score: score });
       }
     }
 
-    let results = merged.slice(0, limit);
+    let results = merged
+      .sort((a, b) => (b._score || 0) - (a._score || 0))
+      .slice(0, limit)
+      .map(({ _score, ...r }) => r);
     let source = 'youtube-music-innertube';
 
     // FALLBACK: official Data API only if Innertube returns nothing.
