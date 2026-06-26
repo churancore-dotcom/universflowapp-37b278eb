@@ -50,18 +50,37 @@ const PLAN_LABEL: Record<PlanId, string> = {
   quarterly: '3 Months',
 };
 
-const FEATURES: Array<{ icon: typeof Zap; title: string; desc: string; isNew?: boolean }> = [
-  { icon: InfinityIcon, title: 'Smart Crossfade + Gapless Pro', desc: 'DJ-grade equal-power curves and zero-gap track swaps.', isNew: true },
-  { icon: Headphones,   title: 'Headphone 3D Surround',   desc: 'Binaural crossfeed lifts sound out of your head.', isNew: true },
-  { icon: Building2,    title: 'Studio Spaces',           desc: 'Vinyl Booth, Cathedral, Stadium — pick your room.', isNew: true },
-  { icon: Moon,         title: 'Late Night Mode',         desc: 'Whispered details lifted, loud peaks tamed.', isNew: true },
-  { icon: Zap,          title: 'Zero Ads',                desc: 'No pre-rolls, no banners. Music, uninterrupted.' },
-  { icon: Orbit,        title: 'Spatial 3D Audio',        desc: 'Cinema-grade surround that orbits around your head.' },
-  { icon: Sliders,      title: '8-Band Studio EQ',        desc: 'Studio-grade tuning with crafted presets.' },
-  { icon: Download,     title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
-  { icon: Music2,       title: 'Mood Playlists',          desc: 'Mood-matched playlists, made instantly.' },
-  { icon: Disc3,        title: 'Premium-Only Tracks',     desc: 'Early drops and exclusive releases.' },
-  { icon: ShieldCheck,  title: 'Priority Support',        desc: 'Skip the line — we answer first.' },
+interface Feature {
+  icon: typeof Zap;
+  title: string;
+  desc: string;
+  long: string;
+  isNew?: boolean;
+}
+
+const FEATURES: Feature[] = [
+  { icon: InfinityIcon, title: 'Smart Crossfade + Gapless Pro', desc: 'DJ-grade equal-power curves and zero-gap track swaps.', isNew: true,
+    long: 'Choose between linear, equal-power, smooth, and exponential crossfade curves — the same math used in DJ software. Gapless Pro overlaps two decoded tracks so albums and live mixes play with literally zero silence between songs.' },
+  { icon: Headphones, title: 'Headphone 3D Surround', desc: 'Binaural crossfeed lifts sound out of your head.', isNew: true,
+    long: 'Lightweight binaural crossfeed reduces the harsh hard-panned-to-one-ear effect that flat stereo creates on headphones, placing instruments in a wider, more natural space — exactly like good studio monitors.' },
+  { icon: Building2, title: 'Studio Spaces', desc: 'Vinyl Booth, Cathedral, Stadium — pick your room.', isNew: true,
+    long: 'Six convolution-modelled rooms — Vinyl Booth, Jazz Club, Concert Hall, Cathedral, Stadium, and Off. Each adds the natural reflections and decay of a real space without smearing detail.' },
+  { icon: Moon, title: 'Late Night Mode', desc: 'Whispered details lifted, loud peaks tamed.', isNew: true,
+    long: 'A gentle dynamic range compressor pulls quiet vocals and details up while pushing loud peaks down, so you can listen at low volume without missing anything — perfect at 1 AM with someone asleep next to you.' },
+  { icon: Zap, title: 'Zero Ads', desc: 'No pre-rolls, no banners. Music, uninterrupted.',
+    long: 'Every ad surface is removed — no pre-roll audio ads, no banner ads, no interstitials, no skip-counter limits. The app is just music, from open to close.' },
+  { icon: Orbit, title: 'Spatial 3D Audio', desc: 'Cinema-grade surround that orbits around your head.',
+    long: 'A psycho-acoustic panner moves instruments around a virtual sphere around your head. Works on any pair of headphones and feels closest to a real cinema mix on tracks with rich stereo separation.' },
+  { icon: Sliders, title: '8-Band Studio EQ', desc: 'Studio-grade tuning with crafted presets.',
+    long: 'Eight-band parametric EQ with hand-tuned presets for bass, vocal, hip-hop, classical, podcast, and more. Build and save your own profile that follows you across devices.' },
+  { icon: Download, title: 'Unlimited Downloads', desc: 'Save anything. Listen offline. Anywhere.',
+    long: 'Download any track, album, or playlist to your phone for offline listening — no caps, no expiry while your subscription is active. Files stay in app-private storage so they\u2019re safe from other apps.' },
+  { icon: Music2, title: 'Mood Playlists', desc: 'Mood-matched playlists, made instantly.',
+    long: 'Auto-built playlists tuned to your mood and recent listening — focus, late drive, sunrise, sad-girl-hours and more. Refresh anytime; each generation is unique to your taste.' },
+  { icon: Disc3, title: 'Premium-Only Tracks', desc: 'Early drops and exclusive releases.',
+    long: 'A growing shelf of early releases and exclusives from independent artists on Universflow — heard here days or weeks before they go wide.' },
+  { icon: ShieldCheck, title: 'Priority Support', desc: 'Skip the line — we answer first.',
+    long: 'Your support tickets, bug reports and refund requests jump to the top of our queue. We aim to reply within a few hours, not days.' },
 ];
 
 interface PendingPayment {
