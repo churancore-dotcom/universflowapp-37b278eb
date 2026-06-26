@@ -38,7 +38,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
       // Always honor playback rate — it's a native <audio> property,
       // independent of WebAudio.
-      audioElement.playbackRate = getRuntimePremium() ? s.playbackSpeed : 1;
+      audioElement.playbackRate = s.playbackSpeed;
 
       if (!getRuntimePremium()) {
         if (getState() === 'processed') {
