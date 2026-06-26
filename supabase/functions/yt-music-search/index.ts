@@ -474,15 +474,19 @@ serve(async (req) => {
     }
     const cleanQuery = query.trim().replace(/^new:\s*/i, '');
 
-    // PRIMARY: YouTube Music Innertube (songs + videos), no key, no quota.
-    const [songs, videos] = await Promise.all([
-      ytMusicSearch(cleanQuery, PARAMS_SONGS).catch(() => []),
-      ytMusicSearch(cleanQuery, PARAMS_VIDEOS).catch(() => []),
+    // PRIMARY: YouTube Music Innertube. Run songs + videos + "all" in parallel,
+    // each following continuation tokens so we return 100-200 hits, not 20.
+    const PARAMS_ALL = '';
+    const target = Math.max(limit, 100);
+    const [songs, videos, all] = await Promise.all([
+      ytMusicSearch(cleanQuery, PARAMS_SONGS, target).catch(() => []),
+      ytMusicSearch(cleanQuery, PARAMS_VIDEOS, target).catch(() => []),
+      ytMusicSearch(cleanQuery, PARAMS_ALL, target).catch(() => []),
     ]);
 
     const merged: Array<SearchResult & { _score?: number }> = [];
     const seen = new Set<string>();
-    for (const [pass, list] of [['songs', songs], ['videos', videos]] as const) {
+    for (const [pass, list] of [['songs', songs], ['videos', videos], ['videos', all]] as const) {
       for (let i = 0; i < list.length; i++) {
         const r = list[i];
         if (seen.has(r.videoId)) continue;
