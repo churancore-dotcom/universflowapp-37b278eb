@@ -162,8 +162,8 @@ const Settings = () => {
     <PageTransition>
       <SEOHead
         title="Settings — Univers Flow"
-        description="Tune playback, audio quality, themes, notifications and storage controls inside your Univers Flow account."
-        keywords="Univers Flow settings, music app preferences, audio quality, theme, notifications"
+        description="Tune playback, audio quality, notifications and storage controls inside your Univers Flow account."
+        keywords="Univers Flow settings, music app preferences, audio quality, notifications"
       />
       <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
         <header
