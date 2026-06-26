@@ -8,12 +8,12 @@ import { rerank } from '@/lib/feedPersonalizer';
 import { isSpamSong } from '@/pages/Search';
 import { useYtmRail } from '@/lib/ytmRails';
 
-interface Props { songs?: Song[] }
+interface Props { songs?: Song[]; enabled?: boolean }
 
-const TrendingNowSection = memo((_props: Props) => {
+const TrendingNowSection = memo(({ enabled = true }: Props) => {
   const { playSong, currentSong } = usePlayer();
   const taste = useTasteProfile();
-  const { data: pool = [] } = useYtmRail('trending-v2', 'india top songs this week official music', 36);
+  const { data: pool = [] } = useYtmRail('trending-v2', 'india top songs this week official music', 36, enabled);
 
   const trending = useMemo(() => {
     const clean = pool.filter((s) => !isSpamSong(s));
