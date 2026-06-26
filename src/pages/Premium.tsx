@@ -800,18 +800,23 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
 
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={utr}
-              onChange={e => setUtr(e.target.value)}
-              placeholder="e.g. 412345678901"
+              onChange={e => setUtr(e.target.value.replace(/\D/g, '').slice(0, 12))}
+              placeholder="123456789012"
               autoComplete="off"
-              maxLength={30}
-              className="w-full px-4 py-4 rounded-3xl text-[16px] font-mono tracking-wider mb-3 bg-transparent outline-none"
+              maxLength={12}
+              className="w-full px-4 py-4 rounded-3xl text-[18px] font-mono tracking-[0.2em] mb-2 bg-transparent outline-none text-center"
               style={{
                 background: 'hsl(var(--muted) / 0.4)',
                 border: '1px solid hsl(var(--border))',
                 color: 'hsl(var(--foreground))',
               }}
             />
+            <p className="text-[11px] text-muted-foreground text-center mb-4">
+              {utr.length}/12 digits
+            </p>
 
             <div
               className="rounded-3xl p-3 mb-4 text-[12px] leading-relaxed"
@@ -825,7 +830,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
 
             <button
               onClick={submitUtr}
-              disabled={submitting || utr.trim().length < 6}
+              disabled={submitting || utr.length !== 12}
               className="w-full py-4 rounded-3xl font-bold text-[16px] flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
                 background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
@@ -835,15 +840,6 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
               {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit & Activate'}
             </button>
           </>
-        )}
-
-        {step === 'verifying' && (
-          <SubmittedConfirmation
-            activated={activated}
-            amount={amountFinal}
-            utr={utr}
-            onClose={onClose}
-          />
         )}
       </motion.div>
     </motion.div>
