@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Crown, Check, Disc3, Download,
@@ -101,6 +101,7 @@ const PremiumPage = memo(function PremiumPage() {
   const [settings, setSettings] = useState<UpiSettings | null>(null);
   const [pending, setPending] = useState<PendingPayment | null>(null);
   const [openFeature, setOpenFeature] = useState<Feature | null>(null);
+  const pendingBannerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -177,6 +178,14 @@ const PremiumPage = memo(function PremiumPage() {
     haptics.medium();
     setShowCheckout(true);
   }, [haptics]);
+
+  const handlePaymentSubmitted = useCallback((payment: PendingPayment) => {
+    setPending(payment);
+    setShowCheckout(false);
+    window.setTimeout(() => {
+      pendingBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  }, []);
 
   const expiryText = subscription?.expires_at
     ? new Date(subscription.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
@@ -305,7 +314,7 @@ const PremiumPage = memo(function PremiumPage() {
 
           {/* Pending payment */}
           {!isPremium && pending && (
-            <div className="mb-8">
+            <div ref={pendingBannerRef} className="mb-8">
               <PendingProgressBanner pending={pending} />
             </div>
           )}
@@ -451,6 +460,7 @@ const PremiumPage = memo(function PremiumPage() {
               settings={settings}
               plan={selectedPlan}
               onClose={() => setShowCheckout(false)}
+              onSubmitted={handlePaymentSubmitted}
             />
           )}
           {openFeature && (
@@ -547,11 +557,12 @@ interface CheckoutProps {
   settings: UpiSettings;
   plan: PlanId;
   onClose: () => void;
+  onSubmitted: (payment: PendingPayment) => void;
 }
 
 type Step = 'pay' | 'confirm';
 
-const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose }: CheckoutProps) {
+const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose, onSubmitted }: CheckoutProps) {
   const haptics = useHaptics();
   const { user } = useAuth();
   const { requireVerified } = useEmailVerified();
@@ -585,7 +596,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
       // Block re-submitting if a pending request already exists for this user
       const { data: existing } = await supabase
         .from('payment_requests')
-        .select('id')
+        .select('id, utr_number, amount_paise, plan, created_at')
         .eq('user_id', user.id)
         .eq('status', 'pending')
         .limit(1)
@@ -593,7 +604,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
       if (existing) {
         toast({ title: 'A payment is already being verified', description: 'Please wait for it to complete.', variant: 'destructive' });
         setSubmitting(false);
-        onClose();
+        onSubmitted(existing as PendingPayment);
         return;
       }
       const { data, error } = await supabase.from('payment_requests').insert({
@@ -602,15 +613,15 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
         utr_number: cleanUtr,
         status: 'pending',
         plan,
-      }).select('id').single();
+      }).select('id, utr_number, amount_paise, plan, created_at').single();
       if (error) {
         if (error.code === '23505') toast({ title: 'This UTR was already submitted', variant: 'destructive' });
         else toast({ title: 'Submission failed', description: error.message, variant: 'destructive' });
         setSubmitting(false); return;
       }
       haptics.success();
-      // Close the sheet immediately — the page-level live progress banner takes over.
-      onClose();
+      // Push the freshly-created request into parent state immediately — no refresh/realtime wait.
+      if (data) onSubmitted(data as PendingPayment);
       // Fire-and-forget Telegram notification
       supabase.functions.invoke('telegram-notify', {
         body: {
