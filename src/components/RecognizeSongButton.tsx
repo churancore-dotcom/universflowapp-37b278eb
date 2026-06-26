@@ -82,15 +82,26 @@ const RecognizeSongButton = () => {
         const fd = new FormData();
         fd.append('file', blob, `sample.${mimeType.includes('mp4') ? 'mp4' : 'webm'}`);
         const { data, error: fnErr } = await supabase.functions.invoke('recognize-song', { body: fd });
-        if (fnErr) throw fnErr;
-        const m = (data as { match: Match | null; error?: string } | null);
-        if (m?.error) { setPhase('error'); setError(m.error); return; }
-        if (!m?.match) {
+        let payload = data as { match: Match | null; error?: string } | null;
+        if (fnErr) {
+          // supabase-js hides the response body on non-2xx; try to read it.
+          try {
+            const resp = (fnErr as { context?: { response?: Response } }).context?.response;
+            if (resp) payload = await resp.clone().json();
+          } catch { /* ignore */ }
+          if (!payload?.error) {
+            setPhase('error');
+            setError("Couldn't reach the recognition service. Please try again.");
+            return;
+          }
+        }
+        if (payload?.error) { setPhase('error'); setError(payload.error); return; }
+        if (!payload?.match) {
           setPhase('error');
           setError("Couldn't recognize that song. Try moving closer to the speaker.");
           return;
         }
-        setMatch(m.match);
+        setMatch(payload.match);
         setPhase('result');
       } catch (err) {
         setPhase('error');
@@ -144,7 +155,7 @@ const RecognizeSongButton = () => {
             <motion.div
               initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}
               transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-              className="w-full max-w-md mx-3 mb-3 rounded-3xl p-6 safe-area-pb"
+              className="w-full max-w-md mx-3 mb-[calc(env(safe-area-inset-bottom)+96px)] rounded-3xl p-6"
               style={{
                 background: 'hsl(var(--card))',
                 border: '1px solid rgba(255,255,255,0.08)',
