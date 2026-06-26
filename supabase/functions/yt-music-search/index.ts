@@ -299,19 +299,24 @@ function extractFromItem(item: any): { videoId?: string; title: string; artist: 
   return { videoId, title: decodeEntities(title), artist: decodeEntities(artist), duration: parseDuration(durationText), cover };
 }
 
-async function ytMusicSearch(query: string, params: string): Promise<SearchResult[]> {
-  const resp = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
-    method: 'POST',
-    headers: YTM_HEADERS,
-    body: JSON.stringify({ context: YTM_CONTEXT, query, params }),
-  });
-  if (!resp.ok) {
-    console.warn('YT Music search failed', resp.status);
-    return [];
+function findContinuationToken(json: any): string | null {
+  const stack: any[] = [json];
+  while (stack.length) {
+    const n = stack.pop();
+    if (!n || typeof n !== 'object') continue;
+    const tok =
+      n?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token ||
+      n?.nextContinuationData?.continuation;
+    if (tok && typeof tok === 'string') return tok;
+    for (const k of Object.keys(n)) {
+      const v = (n as any)[k];
+      if (v && typeof v === 'object') stack.push(v);
+    }
   }
-  const json = await resp.json();
-  const out: SearchResult[] = [];
-  const seen = new Set<string>();
+  return null;
+}
+
+function parseSearchPage(json: any, query: string, out: SearchResult[], seen: Set<string>) {
   for (const item of walkItems(json)) {
     const parsed = extractFromItem(item);
     if (!parsed?.videoId || seen.has(parsed.videoId)) continue;
@@ -327,6 +332,47 @@ async function ytMusicSearch(query: string, params: string): Promise<SearchResul
       cover_url: parsed.cover,
       duration: parsed.duration || undefined,
     });
+  }
+}
+
+async function ytMusicSearch(query: string, params: string, targetCount = 80): Promise<SearchResult[]> {
+  const resp = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
+    method: 'POST',
+    headers: YTM_HEADERS,
+    body: JSON.stringify({ context: YTM_CONTEXT, query, params }),
+  });
+  if (!resp.ok) {
+    console.warn('YT Music search failed', resp.status);
+    return [];
+  }
+  const json = await resp.json();
+  const out: SearchResult[] = [];
+  const seen = new Set<string>();
+  parseSearchPage(json, query, out, seen);
+
+  // Follow continuation tokens for deeper results (Innertube paginates ~20/page).
+  let continuation = findContinuationToken(json);
+  let pages = 0;
+  while (continuation && out.length < targetCount && pages < 5) {
+    pages += 1;
+    try {
+      const cResp = await fetch(
+        `https://music.youtube.com/youtubei/v1/search?prettyPrint=false&ctoken=${encodeURIComponent(continuation)}&continuation=${encodeURIComponent(continuation)}&type=next`,
+        {
+          method: 'POST',
+          headers: YTM_HEADERS,
+          body: JSON.stringify({ context: YTM_CONTEXT }),
+        },
+      );
+      if (!cResp.ok) break;
+      const cJson = await cResp.json();
+      const before = out.length;
+      parseSearchPage(cJson, query, out, seen);
+      if (out.length === before) break;
+      continuation = findContinuationToken(cJson);
+    } catch {
+      break;
+    }
   }
   return out;
 }
@@ -428,15 +474,19 @@ serve(async (req) => {
     }
     const cleanQuery = query.trim().replace(/^new:\s*/i, '');
 
-    // PRIMARY: YouTube Music Innertube (songs + videos), no key, no quota.
-    const [songs, videos] = await Promise.all([
-      ytMusicSearch(cleanQuery, PARAMS_SONGS).catch(() => []),
-      ytMusicSearch(cleanQuery, PARAMS_VIDEOS).catch(() => []),
+    // PRIMARY: YouTube Music Innertube. Run songs + videos + "all" in parallel,
+    // each following continuation tokens so we return 100-200 hits, not 20.
+    const PARAMS_ALL = '';
+    const target = Math.max(limit, 100);
+    const [songs, videos, all] = await Promise.all([
+      ytMusicSearch(cleanQuery, PARAMS_SONGS, target).catch(() => []),
+      ytMusicSearch(cleanQuery, PARAMS_VIDEOS, target).catch(() => []),
+      ytMusicSearch(cleanQuery, PARAMS_ALL, target).catch(() => []),
     ]);
 
     const merged: Array<SearchResult & { _score?: number }> = [];
     const seen = new Set<string>();
-    for (const [pass, list] of [['songs', songs], ['videos', videos]] as const) {
+    for (const [pass, list] of [['songs', songs], ['videos', videos], ['videos', all]] as const) {
       for (let i = 0; i < list.length; i++) {
         const r = list[i];
         if (seen.has(r.videoId)) continue;
