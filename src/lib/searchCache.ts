@@ -18,12 +18,14 @@ interface Entry<T> {
 }
 
 // Bump when filter logic changes so old polluted entries get evicted automatically.
-const CACHE_VERSION = 'v2-strict-spam';
+const CACHE_VERSION = 'v3-no-song-artist-hijack';
+
+const namespaceKey = (namespace: string) => `${CACHE_VERSION}:${namespace}`;
 
 const stores = new Map<string, Map<string, Entry<unknown>>>();
 
 const getStore = <T>(namespace: string): Map<string, Entry<T>> => {
-  const ns = `${CACHE_VERSION}:${namespace}`;
+  const ns = namespaceKey(namespace);
   let s = stores.get(ns);
   if (!s) {
     s = new Map();
@@ -62,6 +64,6 @@ export const setCached = <T>(namespace: string, key: string, value: T): void => 
 };
 
 export const clearCache = (namespace?: string): void => {
-  if (namespace) stores.get(namespace)?.clear();
+  if (namespace) stores.get(namespaceKey(namespace))?.clear();
   else stores.clear();
 };

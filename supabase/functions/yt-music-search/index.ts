@@ -39,6 +39,7 @@ async function persistSearchResults(adminClient: any, results: SearchResult[]) {
 
 const GENERIC_QUERY_WORDS = new Set([
   'song', 'songs', 'music', 'track', 'tracks', 'latest', 'new', 'fresh', 'official', 'audio', 'video',
+  'by', 'ft', 'feat', 'featuring', 'from',
   'hindi', 'bollywood', 'punjabi', 'tamil', 'telugu', 'bhojpuri', 'marathi', 'bengali', 'gujarati', 'malayalam', 'kannada', 'urdu',
   'sad', 'love', 'romantic', 'happy', 'party', 'dance', 'lofi', 'lo-fi', 'chill', 'workout', 'gym', 'rap', 'pop', 'rock'
 ]);
@@ -70,10 +71,24 @@ const BANNED_CHANNEL_PATTERNS = [
 
 const normalize = (value = '') => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
+function decodeEntities(value = '') {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
 function meaningfulTokens(query: string) {
   return normalize(query)
     .split(' ')
     .filter((token) => token.length > 1 && !GENERIC_QUERY_WORDS.has(token));
+}
+
+function textHasToken(text: string, token: string) {
+  const parts = normalize(text).split(' ').filter(Boolean);
+  return parts.some((part) => part === token || part.replace(/s$/, '') === token.replace(/s$/, ''));
 }
 
 function isLyricQuery(query: string) {
@@ -83,7 +98,7 @@ function isLyricQuery(query: string) {
 }
 
 function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: string) {
-  const cleaned = rawTitle
+  const cleaned = decodeEntities(rawTitle)
     .replace(/\s*\(Official\s*(Music\s*)?Video\)/gi, '')
     .replace(/\s*\[Official\s*(Music\s*)?Video\]/gi, '')
     .replace(/\s*\(Official\s*Audio\)/gi, '')
@@ -94,7 +109,7 @@ function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: stri
     .trim();
   const qTokens = meaningfulTokens(query);
   const dash = cleaned.match(/^(.+?)\s*[-–—]\s+(.+)$/);
-  if (!dash) return { artist: channelTitle || 'Unknown Artist', title: cleaned || rawTitle };
+  if (!dash) return { artist: decodeEntities(channelTitle) || 'Unknown Artist', title: cleaned || decodeEntities(rawTitle) };
 
   const left = dash[1].trim();
   const right = dash[2].trim();
@@ -104,8 +119,8 @@ function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: stri
   // YouTube music uploads overwhelmingly use "Artist - Song". Keep that shape
   // even when the user's query includes the artist name, otherwise searches like
   // "perfect ed sheeran" incorrectly display the title as "Ed Sheeran".
-  if (rightHits > 0 || qTokens.length === 0) return { artist: left || channelTitle || 'Unknown Artist', title: right || cleaned };
-  return { artist: channelTitle || left || 'Unknown Artist', title: cleaned || rawTitle };
+  if (rightHits > 0 || qTokens.length === 0) return { artist: left || decodeEntities(channelTitle) || 'Unknown Artist', title: right || cleaned };
+  return { artist: decodeEntities(channelTitle) || left || 'Unknown Artist', title: cleaned || decodeEntities(rawTitle) };
 }
 
 function queryMatchesResult(item: any, query: string) {
@@ -115,11 +130,11 @@ function queryMatchesResult(item: any, query: string) {
   const haystack = normalize(`${String(item?.title || '')} ${String(item?.author || item?.channelTitle || '')}`);
 
   // STRICT title-first: at least one meaningful token MUST be in the title itself.
-  const titleHay = normalize(String(item?.title || ''));
-  const titleHits = tokens.filter((t) => titleHay.includes(t)).length;
+  const titleRaw = String(item?.title || '');
+  const titleHits = tokens.filter((t) => textHasToken(titleRaw, t)).length;
   if (titleHits === 0) return false;
 
-  const hits = tokens.filter((token) => haystack.includes(token)).length;
+  const hits = tokens.filter((token) => textHasToken(haystack, token)).length;
   return hits > 0 && (tokens.length < 2 || hits / tokens.length >= 0.5);
 }
 
@@ -133,6 +148,7 @@ function looksSpammy(item: any, query: string) {
   if (duration && (duration < 75 || duration > 540)) return true;
   if (BANNED_CHANNEL_PATTERNS.some((p) => p.test(rawAuthor))) return true;
   if (SPAM_PATTERNS.some((pattern) => pattern.test(haystack))) return true;
+  if (!q.includes('remix') && /\bremix\b/i.test(haystack)) return true;
   if (!q.includes('lofi') && /\b(lofi|lo-fi)\b/i.test(haystack)) return true;
   return false;
 }
@@ -155,7 +171,7 @@ function scoreResult(item: any, query: string, index: number) {
   // For lyric queries, reward token hits but never penalize misses
   // (lyrics rarely appear in titles — trust provider ranking via 100 - index).
   score += tokens.reduce(
-    (sum, token) => sum + (haystack.includes(token) ? 34 : lyric ? 0 : -28),
+    (sum, token) => sum + (textHasToken(haystack, token) ? 34 : lyric ? 0 : -28),
     0,
   );
   if (/\b(official audio|official video|music video|lyrics?|lyrical)\b/i.test(String(item?.title || ''))) score += 32;
@@ -236,12 +252,7 @@ serve(async (req) => {
       cleanQuery = cleanQuery.slice(4).trim();
     }
     const lyricMode = isLyricQuery(cleanQuery);
-    const artistMode = !lyricMode && cleanQuery.split(/\s+/).filter(Boolean).length <= 3;
-    const providerQuery = lyricMode
-      ? `${cleanQuery} lyrics`
-      : artistMode
-        ? `${cleanQuery} songs`
-        : `${cleanQuery} music`;
+    const providerQuery = lyricMode ? `${cleanQuery} lyrics` : cleanQuery;
 
     // ---------- Primary: Official YouTube Data API ----------
     const apiKeys = [
@@ -252,8 +263,8 @@ serve(async (req) => {
     let officialData: any = null;
     let officialErr = '';
     if (apiKeys.length > 0) {
-      const freshOnlyPasses = lyricMode ? [false] : [false, true];
-      for (const freshOnly of freshOnlyPasses) {
+      const orderPasses = lyricMode ? ['relevance'] : [sortBy === 'upload_date' ? 'date' : 'relevance', 'viewCount'];
+      for (const order of orderPasses) {
         for (const apiKey of apiKeys) {
           const url = new URL('https://www.googleapis.com/youtube/v3/search');
           url.searchParams.set('part', 'snippet');
@@ -261,19 +272,18 @@ serve(async (req) => {
           url.searchParams.set('type', 'video');
           url.searchParams.set('videoCategoryId', '10');
           url.searchParams.set('maxResults', String(limit));
-          url.searchParams.set('order', sortBy === 'upload_date' ? 'date' : 'relevance');
-          if (freshOnly) url.searchParams.set('publishedAfter', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
+          url.searchParams.set('order', order);
           url.searchParams.set('key', apiKey);
 
           const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
           if (response.ok) {
             const candidateData = await response.json();
             const hasMatch = (candidateData.items || []).some((item: any) => queryMatchesResult({ title: item?.snippet?.title, author: item?.snippet?.channelTitle }, cleanQuery));
-            if (hasMatch || !freshOnly) {
+            if (hasMatch || order === 'viewCount') {
               officialData = candidateData;
               break;
             }
-            officialErr = 'No matching fresh videos';
+            officialErr = `No matching ${order} videos`;
             continue;
           }
           officialErr = await response.text().catch(() => 'No matching videos');
