@@ -942,9 +942,9 @@ const PendingProgressBanner = memo(function PendingProgressBanner({ pending }: P
   const secs = elapsed % 60;
 
   const steps = [
-    { label: 'Payment received', detail: `UTR ${pending.utr_number.slice(0, 6)}…` },
-    { label: 'Verifying with bank', detail: `Matching ₹${amountInr}` },
-    { label: 'Activating your Premium', detail: 'Almost there — stay close' },
+    { label: 'UTR submitted', detail: `UTR ${pending.utr_number.slice(0, 6)}…${pending.utr_number.slice(-2)}` },
+    { label: 'Checking UTR with bank', detail: `Matching exact amount ₹${amountInr}` },
+    { label: 'Activating your Premium', detail: 'Almost there — hold on' },
   ];
 
   return (
