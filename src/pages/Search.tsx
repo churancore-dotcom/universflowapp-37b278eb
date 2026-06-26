@@ -28,7 +28,7 @@ import {
   type SongHistoryEntry,
 } from '@/lib/songHistory';
 
-type SearchSource = 'all' | 'indexer';
+type SearchSource = 'songs' | 'artists';
 
 const normalizeText = (value = '') => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 const cleanIdentity = (value = '') => normalizeText(value).replace(/\b(official|lyrics?|video|audio|hd|4k|topic|vevo|records|music)\b/g, '').replace(/\s+/g, ' ').trim();
