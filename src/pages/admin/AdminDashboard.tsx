@@ -96,24 +96,32 @@ const AdminDashboard = () => {
     try {
       const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
-      const [songsRes, usersRes, albumsRes, activeUsersRes, pendingRequestsRes] = await Promise.all([
+      const [songsRes, artistSongsRes, usersRes, albumsRes, activeUsersRes, pendingRequestsRes, recentsCountRes] = await Promise.all([
         supabase.from('songs').select('id, play_count, download_count, file_size, cover_size'),
+        supabase.from('artist_songs').select('id, play_count, download_count'),
         supabase.from('profiles').select('id'),
         supabase.from('albums').select('id'),
         supabase.from('recently_played').select('user_id, played_at').gte('played_at', fifteenMinutesAgo),
         supabase.from('artist_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('recently_played').select('id', { count: 'exact', head: true }),
       ]);
 
       if (songsRes.error || usersRes.error) throw new Error('fetch failed');
 
       const songs = songsRes.data || [];
+      const artistSongs = artistSongsRes.data || [];
       const activeUsers = new Set((activeUsersRes.data || []).map((entry) => entry.user_id)).size;
-      const totalPlays = songs.reduce((acc, s) => acc + (s.play_count || 0), 0);
-      const totalDownloads = songs.reduce((acc, s) => acc + (s.download_count || 0), 0);
+      const catalogPlays = songs.reduce((acc, s) => acc + (s.play_count || 0), 0);
+      const artistPlays = artistSongs.reduce((acc, s) => acc + (s.play_count || 0), 0);
+      // Fall back to recently_played count when catalog/artist counters are 0
+      const totalPlays = (catalogPlays + artistPlays) || (recentsCountRes.count || 0);
+      const totalDownloads =
+        songs.reduce((acc, s) => acc + (s.download_count || 0), 0) +
+        artistSongs.reduce((acc, s) => acc + (s.download_count || 0), 0);
       const storageUsed = songs.reduce((acc, s) => acc + (s.file_size || 0) + (s.cover_size || 0), 0);
 
       setStats({
-        totalSongs: songs.length,
+        totalSongs: songs.length + artistSongs.length,
         totalUsers: usersRes.data?.length || 0,
         totalPlays,
         totalAlbums: albumsRes.data?.length || 0,
