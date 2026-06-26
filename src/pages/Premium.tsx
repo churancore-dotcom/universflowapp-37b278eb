@@ -609,7 +609,6 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
         setSubmitting(false); return;
       }
       haptics.success();
-      setPaymentRequestId(data?.id ?? null);
       // Close the sheet immediately — the page-level live progress banner takes over.
       onClose();
       // Fire-and-forget Telegram notification
@@ -628,81 +627,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
     } finally { setSubmitting(false); }
   };
 
-  // ── Live verification: progress through stages + listen for activation ──
-  useEffect(() => {
-    if (step !== 'verifying' || !user) return;
 
-    // Animated stage advancement (visual progress while verifying)
-    const stageTimers: number[] = [];
-    stageTimers.push(window.setTimeout(() => setVerifyStage(s => (s < 2 ? 2 : s)), 1500));
-    stageTimers.push(window.setTimeout(() => setVerifyStage(s => (s < 3 ? 3 : s)), 3500));
-
-    // Realtime: payment_requests row changes (admin approving)
-    const prChannel = paymentRequestId
-      ? supabase
-          .channel(`pr-${paymentRequestId}`)
-          .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'payment_requests',
-            filter: `id=eq.${paymentRequestId}`,
-          }, (payload) => {
-            const status = (payload.new as { status?: string } | null)?.status;
-            if (status === 'approved' || status === 'auto_approved') {
-              setVerifyStage(4);
-            } else if (status === 'rejected') {
-              toast({ title: 'Payment could not be verified', description: 'Please contact support with your UTR.', variant: 'destructive' });
-            }
-          })
-          .subscribe()
-      : null;
-
-    // Realtime: subscription becomes active premium
-    const subChannel = supabase
-      .channel(`sub-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_subscriptions',
-        filter: `user_id=eq.${user.id}`,
-      }, (payload) => {
-        const row = payload.new as { status?: string; subscription_type?: string } | null;
-        const isPrem = row?.status === 'active'
-          && (row?.subscription_type === 'premium_monthly' || row?.subscription_type === 'premium_yearly');
-        if (isPrem) {
-          setVerifyStage(4);
-          setActivated(true);
-          haptics.success();
-          refetchPremium();
-        }
-      })
-      .subscribe();
-
-    // Polling fallback (in case realtime is filtered)
-    const poll = window.setInterval(async () => {
-      const { data } = await supabase
-        .from('user_subscriptions')
-        .select('status, subscription_type, expires_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const isPrem = data?.status === 'active'
-        && (data?.subscription_type === 'premium_monthly' || data?.subscription_type === 'premium_yearly')
-        && (!data?.expires_at || new Date(data.expires_at) > new Date());
-      if (isPrem) {
-        setVerifyStage(4);
-        setActivated(true);
-        haptics.success();
-        refetchPremium();
-      }
-    }, 5000);
-
-    return () => {
-      stageTimers.forEach(t => clearTimeout(t));
-      if (prChannel) supabase.removeChannel(prChannel);
-      supabase.removeChannel(subChannel);
-      clearInterval(poll);
-    };
-  }, [step, user, paymentRequestId, haptics, refetchPremium]);
 
 
   return (
