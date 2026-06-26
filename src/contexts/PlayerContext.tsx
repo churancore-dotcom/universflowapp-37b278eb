@@ -1310,7 +1310,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Preload next song for gapless playback
     const nextIdx = (index + 1) % songQueue.length;
-    if (nextIdx !== index && nextAudioRef.current) {
+    if (isGaplessPreloadEnabled() && nextIdx !== index && nextAudioRef.current) {
       const nextSong = songQueue[nextIdx];
       if (nextSong && isPlayableUrl(nextSong.audio_url) && !isYouTubeFallbackUrl(nextSong.audio_url)) {
         configureAudioElementSource(nextAudioRef.current, buildStreamProxyUrl(nextSong.audio_url));
@@ -1322,7 +1322,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         prefetchIndexedTrack(nextSong.artist, nextSong.title);
       }
     }
-  }, [volume, isPlayableUrl, resolveAudioUrl, playYouTubeFallback, teardownYouTubePlayback, publishNativeMusicControls, getNextIndex, shuffle, repeat]);
+  }, [volume, isPlayableUrl, resolveAudioUrl, playYouTubeFallback, teardownYouTubePlayback, publishNativeMusicControls, getNextIndex, shuffle, repeat, playbackSettingsVersion]);
 
   // Handle song end and crossfade
   useEffect(() => {
