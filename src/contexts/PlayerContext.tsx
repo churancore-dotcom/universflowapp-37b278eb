@@ -1003,6 +1003,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       preloadedNextIdRef.current = null;
       return;
     }
+    if (!isGaplessPreloadEnabled()) {
+      preloadedNextIdRef.current = null;
+      return;
+    }
     if (isCrossfading.current) return;
 
     const nextIdx = getNextIndex(currentIndex, queue.length, shuffle, repeat);
@@ -1053,7 +1057,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         prefetchIndexedTrack(afterNext.artist, afterNext.title);
       }
     }
-  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl, resolveAudioUrl]);
+  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl, resolveAudioUrl, playbackSettingsVersion]);
 
   // ── YouTube IFrame fallback helpers ──
   const stopYouTubeProgressLoop = useCallback(() => {
