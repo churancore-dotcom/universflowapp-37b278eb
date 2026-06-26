@@ -440,7 +440,7 @@ const AllArtists = () => {
                   return (
                     <button
                       key={cat}
-                      onClick={() => { triggerHaptic('selection'); setActiveCategory(cat as ArtistCategory | 'All' | 'Universflow'); }}
+                      onClick={() => { triggerHaptic('selection'); setActiveCategory(cat as ArtistCategory | 'All' | 'Universflow' | 'Following'); }}
                       className="px-3 h-8 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
                       style={{
                         background: active ? 'hsl(var(--primary))' : 'rgba(255,255,255,0.06)',
