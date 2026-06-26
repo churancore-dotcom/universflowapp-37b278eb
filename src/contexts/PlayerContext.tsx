@@ -1558,7 +1558,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, gaplessPro, getNextIndex, playSongAtIndex, resolveAudioUrl, playYouTubeFallback, extendQueueWithMix, currentSong, playbackSettingsVersion]);
 
   // Crossfade implementation
-  const startCrossfade = useCallback(() => {
+  const startCrossfade = useCallback((transitionSeconds = crossfadeDuration) => {
     if (!audioRef.current || !nextAudioRef.current || isCrossfading.current) return;
     if (queue.length <= 1) return;
 
@@ -1581,8 +1581,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     nextAudioRef.current.currentTime = 0;
     
     nextAudioRef.current.play().then(() => {
-      const steps = 30;
-      const stepDuration = (crossfadeDuration * 1000) / steps;
+      const effectiveDuration = Math.max(0.25, transitionSeconds);
+      const steps = Math.max(12, Math.min(90, Math.round(effectiveDuration * 24)));
+      const stepDuration = Math.max(16, (effectiveDuration * 1000) / steps);
       let currentStep = 0;
 
       crossfadeIntervalRef.current = window.setInterval(() => {
