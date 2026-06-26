@@ -18,6 +18,7 @@ import { resolveAvatar, isPresetAvatar } from '@/lib/avatars';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { Camera } from 'lucide-react';
 import SEOHead from '@/components/SEOHead';
+import { loadLibrarySongs } from '@/lib/streamSongs';
 
 interface ProfileData {
   username: string | null;
