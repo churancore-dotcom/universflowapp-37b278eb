@@ -200,14 +200,22 @@ const Settings = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">Crossfade</span>
+                    {!isPremium && <Crown className="w-3 h-3 text-primary" fill="currentColor" />}
                     <Switch
                       checked={cfEnabled}
-                      onCheckedChange={() => toggleCrossfade()}
+                      onCheckedChange={() => {
+                        if (!isPremium) {
+                          toast.error('Crossfade is a Premium feature');
+                          navigate('/premium');
+                          return;
+                        }
+                        toggleCrossfade();
+                      }}
                       className="data-[state=checked]:bg-primary scale-75"
                       aria-label="Toggle crossfade"
                     />
                   </div>
-                  <span className="text-sm text-primary font-medium">{cfEnabled ? `${cfDuration}s` : 'Off'}</span>
+                  <span className="text-sm text-primary font-medium">{!isPremium ? 'Pro' : cfEnabled ? `${cfDuration}s` : 'Off'}</span>
                 </div>
                 {cfEnabled && (
                   <Slider value={[cfDuration]} onValueChange={([val]) => setCrossfadeDuration(val)} max={12} step={1} className="[&_[role=slider]]:w-5 [&_[role=slider]]:h-5" />
