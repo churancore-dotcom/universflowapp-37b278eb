@@ -978,7 +978,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const videoId = getYouTubeFallbackVideoId(ytFallback);
         if (videoId) {
           try {
-            const resolved = await resolveYouTubeVideoStream(videoId);
+            if (opts.forceRefresh) invalidateYouTubeStream(videoId);
+            const resolved = await resolveYouTubeVideoStream(videoId, { forceRefresh: opts.forceRefresh });
             if (resolved?.streamUrl) return resolved.streamUrl;
           } catch { /* keep iframe fallback */ }
         }
