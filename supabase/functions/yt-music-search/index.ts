@@ -32,194 +32,201 @@ async function persistSearchResults(adminClient: any, results: SearchResult[]) {
     last_seen_at: now,
     updated_at: now,
   }));
-
   const { error } = await adminClient.from('stream_songs').upsert(rows, { onConflict: 'track_id' });
   if (error) console.warn('Unable to cache search results:', error.message);
 }
 
-const GENERIC_QUERY_WORDS = new Set([
-  'song', 'songs', 'music', 'track', 'tracks', 'latest', 'new', 'fresh', 'official', 'audio', 'video',
-  'by', 'ft', 'feat', 'featuring', 'from',
-  'hindi', 'bollywood', 'punjabi', 'tamil', 'telugu', 'bhojpuri', 'marathi', 'bengali', 'gujarati', 'malayalam', 'kannada', 'urdu',
-  'sad', 'love', 'romantic', 'happy', 'party', 'dance', 'lofi', 'lo-fi', 'chill', 'workout', 'gym', 'rap', 'pop', 'rock'
-]);
+const normalize = (v = '') => v.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+function decodeEntities(v = '') {
+  return v.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+}
 
-// STRICT spam filter — kills covers, karaoke, sped-up/slowed, AI voice, ringtones, fan edits.
-const SPAM_PATTERNS = [
-  /\b(top|best)\s*\d+\b/i,
-  /\b\d+\s*(top|best|hit|hits|songs)\b/i,
-  /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|album full|full album|all songs)\b/i,
-  /\b(90'?s|80'?s|70'?s|evergreen|old is gold|purane|old songs?)\b/i,
-  /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?|reverb)\b/i,
-  /\b(karaoke|instrumental|backing\s*track|minus\s*one)\b/i,
-  /\b(cover(\s*by)?|cover\s*version|fan\s*made|unofficial|tribute)\b/i,
-  /\b(ai\s*cover|ai\s*voice|ai\s*song|deepfake)\b/i,
-  /\b(lyric\s*video|with\s*lyrics?|lyrical\s*video|tutorial|reaction|breakdown|analysis)\b/i,
-  /\b(whatsapp\s*status|status\s*video|ringtone|alarm\s*tone|caller\s*tune|loop(ed)?)\b/i,
-  /\b(tiktok\s*version|reels?\s*version|shorts?|edit\s*audio)\b/i,
-  /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
-  /\b(extended\s*(version|mix)|radio\s*edit|club\s*mix|dance\s*mix)\b/i,
+// Light spam filter — kept conservative so we don't drop real tracks.
+const HARD_SPAM = [
+  /\b(karaoke|instrumental|backing\s*track)\b/i,
+  /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?)\b/i,
+  /\b(non\s*stop|jukebox|mashup|medley|full album|all songs)\b/i,
+  /\b\d+\s*(hour|hours|hr|hrs)\b/i,
+  /\b(whatsapp\s*status|ringtone|caller\s*tune)\b/i,
+  /\b(ai\s*cover|ai\s*voice|deepfake)\b/i,
 ];
-
-// Channels we always drop (low-quality reuploaders / spam farms).
-const BANNED_CHANNEL_PATTERNS = [
-  /\b(speed\s*songs?|slowed\s*songs?|reverb\s*nation|nightcore\s*mania|karaoke\s*world)\b/i,
-  /\b(7\s*clouds|lyrics?\s*vibes?|rap\s*samurai|summervibzz|chill\s*nation|wave\s*music)\b/i,
-  /\boriginals?\b/i,
-  /\bringtone\s*(king|world|hub)\b/i,
-];
-
-const normalize = (value = '') => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-
-function decodeEntities(value = '') {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
-}
-
-function meaningfulTokens(query: string) {
-  return normalize(query)
-    .split(' ')
-    .filter((token) => token.length > 1 && !GENERIC_QUERY_WORDS.has(token));
-}
-
-function textHasToken(text: string, token: string) {
-  const parts = normalize(text).split(' ').filter(Boolean);
-  return parts.some((part) => part === token || part.replace(/s$/, '') === token.replace(/s$/, ''));
-}
-
-function isLyricQuery(query: string) {
-  const raw = query.trim();
-  const wordCount = raw.split(/\s+/).filter(Boolean).length;
-  return wordCount >= 4 || raw.length >= 25;
-}
-
-function parseTitleWithQuery(rawTitle: string, channelTitle: string, query: string) {
-  const cleaned = decodeEntities(rawTitle)
-    .replace(/\s*\(Official\s*(Music\s*)?Video\)/gi, '')
-    .replace(/\s*\[Official\s*(Music\s*)?Video\]/gi, '')
-    .replace(/\s*\(Official\s*Audio\)/gi, '')
-    .replace(/\s*\[Official\s*Audio\]/gi, '')
-    .replace(/\s*\(Lyrics?\)/gi, '')
-    .replace(/\s*\[Lyrics?\]/gi, '')
-    .replace(/\s*\|\s*.*$/, '')
-    .trim();
-  const qTokens = meaningfulTokens(query);
-  const dash = cleaned.match(/^(.+?)\s*[-–—]\s+(.+)$/);
-  if (!dash) return { artist: decodeEntities(channelTitle) || 'Unknown Artist', title: cleaned || decodeEntities(rawTitle) };
-
-  const left = dash[1].trim();
-  const right = dash[2].trim();
-  const rightNorm = normalize(right);
-  const rightHits = qTokens.filter((t) => rightNorm.includes(t)).length;
-
-  // YouTube music uploads overwhelmingly use "Artist - Song". Keep that shape
-  // even when the user's query includes the artist name, otherwise searches like
-  // "perfect ed sheeran" incorrectly display the title as "Ed Sheeran".
-  if (rightHits > 0 || qTokens.length === 0) return { artist: left || decodeEntities(channelTitle) || 'Unknown Artist', title: right || cleaned };
-  return { artist: decodeEntities(channelTitle) || left || 'Unknown Artist', title: cleaned || decodeEntities(rawTitle) };
-}
-
-function queryMatchesResult(item: any, query: string) {
-  if (isLyricQuery(query)) return true;
-  const tokens = meaningfulTokens(query);
-  if (tokens.length === 0) return true;
-  const haystack = normalize(`${String(item?.title || '')} ${String(item?.author || item?.channelTitle || '')}`);
-
-  // STRICT title-first: at least one meaningful token MUST be in the title itself.
-  const titleRaw = String(item?.title || '');
-  const titleHits = tokens.filter((t) => textHasToken(titleRaw, t)).length;
-  if (titleHits === 0) return false;
-
-  const hits = tokens.filter((token) => textHasToken(haystack, token)).length;
-  return hits > 0 && (tokens.length < 2 || hits / tokens.length >= 0.5);
-}
-
-function looksSpammy(item: any, query: string) {
-  const rawTitle = String(item?.title || '');
-  const rawAuthor = String(item?.author || item?.channelTitle || '');
-  const haystack = `${rawTitle} ${rawAuthor}`;
-  const q = normalize(query);
-  const duration = Number(item?.lengthSeconds || item?.duration || 0);
-
-  if (duration && (duration < 75 || duration > 540)) return true;
-  if (BANNED_CHANNEL_PATTERNS.some((p) => p.test(rawAuthor))) return true;
-  if (SPAM_PATTERNS.some((pattern) => pattern.test(haystack))) return true;
-  if (!q.includes('remix') && /\bremix\b/i.test(haystack)) return true;
-  if (!q.includes('lofi') && /\b(lofi|lo-fi)\b/i.test(haystack)) return true;
+function looksHardSpam(title: string, author: string, q: string) {
+  const hay = `${title} ${author}`;
+  if (HARD_SPAM.some((p) => p.test(hay))) return true;
+  if (!/remix/i.test(q) && /\bremix\b/i.test(title)) return true;
   return false;
 }
 
-function scoreResult(item: any, query: string, index: number) {
-  const title = normalize(String(item?.title || ''));
-  const author = normalize(String(item?.author || ''));
-  const haystack = `${title} ${author}`;
-  const q = normalize(query);
-  const tokens = meaningfulTokens(query);
-  const duration = Number(item?.lengthSeconds || item?.duration || 0);
-  const published = Number(item?.published || 0);
-  const ageDays = published > 0 ? Math.max(0, (Date.now() / 1000 - published) / 86400) : 9999;
-  const lyric = isLyricQuery(query);
-  let score = 100 - index;
+// ---------- Innertube YouTube Music (WEB_REMIX) ----------
+// Used by Echo Music, ViMusic, InnerTune, OuterTune, ytmusicapi. No key. No quota.
+const YTM_CONTEXT = {
+  client: {
+    clientName: 'WEB_REMIX',
+    clientVersion: '1.20241218.01.00',
+    hl: 'en',
+    gl: 'US',
+  },
+};
+const YTM_HEADERS = {
+  'Content-Type': 'application/json',
+  'Origin': 'https://music.youtube.com',
+  'Referer': 'https://music.youtube.com/',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'X-Goog-Visitor-Id': 'CgtsZG5pUVRMb2VUcyiMjuG6BjIKCgJVUxIEGgAgOA%3D%3D',
+  'X-Youtube-Client-Name': '67',
+  'X-Youtube-Client-Version': '1.20241218.01.00',
+};
+// Songs-only filter param for YT Music search ("EgWKAQIIAWoKEAkQBRAKEAMQBA").
+const PARAMS_SONGS = 'EgWKAQIIAWoKEAkQBRAKEAMQBA';
+// Videos-only filter param (used as a second pass for broader coverage).
+const PARAMS_VIDEOS = 'EgWKAQIQAWoKEAkQBRAKEAMQBA';
 
-  if (!queryMatchesResult(item, query)) return -999;
-
-  if (q && haystack.includes(q)) score += 80;
-  // For lyric queries, reward token hits but never penalize misses
-  // (lyrics rarely appear in titles — trust provider ranking via 100 - index).
-  score += tokens.reduce(
-    (sum, token) => sum + (textHasToken(haystack, token) ? 34 : lyric ? 0 : -28),
-    0,
-  );
-  if (/\b(official audio|official video|music video|lyrics?|lyrical)\b/i.test(String(item?.title || ''))) score += 32;
-  if (duration >= 120 && duration <= 360) score += 30;
-  if (lyric) {
-    // De-emphasize recency for lyric searches — user usually wants a specific song,
-    // which may be old. Without this, old originals get buried under fresh covers.
-    if (ageDays <= 365) score += 15;
-  } else {
-    if (ageDays <= 90) score += 55;
-    else if (ageDays <= 365) score += 30;
-    else score -= 80;
-  }
-  if (looksSpammy(item, query)) score -= 180;
-  return score;
+function pickThumb(thumbs: any[]): string | undefined {
+  if (!Array.isArray(thumbs) || !thumbs.length) return undefined;
+  return thumbs[thumbs.length - 1]?.url?.replace(/^http:/, 'https:');
 }
 
+function runsText(runs: any): string {
+  if (!runs) return '';
+  if (Array.isArray(runs?.runs)) return runs.runs.map((r: any) => r?.text || '').join('');
+  if (typeof runs === 'string') return runs;
+  return '';
+}
+
+function parseDuration(text: string): number {
+  if (!text) return 0;
+  const parts = text.split(':').map((n) => parseInt(n, 10) || 0);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
+
+// Walk the deeply-nested Innertube response and extract every musicResponsiveListItemRenderer.
+function* walkItems(node: any): Generator<any> {
+  if (!node || typeof node !== 'object') return;
+  if (node.musicResponsiveListItemRenderer) yield node.musicResponsiveListItemRenderer;
+  for (const k of Object.keys(node)) {
+    const v = (node as any)[k];
+    if (v && typeof v === 'object') yield* walkItems(v);
+  }
+}
+
+function extractFromItem(item: any): { videoId?: string; title: string; artist: string; duration: number; cover?: string } | null {
+  const videoId =
+    item?.playlistItemData?.videoId ||
+    item?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId ||
+    item?.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId;
+  if (!videoId) return null;
+  const cols = item?.flexColumns || [];
+  const title = runsText(cols?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text);
+  const subRuns = cols?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
+  // Subtitle format: [TypeBadge] • [Artist] • [Album] • [Duration] (or similar). Artists are the runs with browseEndpoint.
+  const artistParts: string[] = [];
+  let durationText = '';
+  for (const r of subRuns) {
+    const t = r?.text || '';
+    if (t === ' • ') continue;
+    const isArtist = !!r?.navigationEndpoint?.browseEndpoint?.browseId?.startsWith?.('UC');
+    if (isArtist) artistParts.push(t);
+    if (/^\d+:\d+/.test(t)) durationText = t;
+  }
+  const artist = artistParts.length
+    ? artistParts.join(', ')
+    : (subRuns.find((r: any) => r?.text && !/^\d+:\d+/.test(r.text) && r.text !== ' • ')?.text || 'Unknown Artist');
+  const cover = pickThumb(item?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails);
+  return { videoId, title: decodeEntities(title), artist: decodeEntities(artist), duration: parseDuration(durationText), cover };
+}
+
+async function ytMusicSearch(query: string, params: string): Promise<SearchResult[]> {
+  const resp = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
+    method: 'POST',
+    headers: YTM_HEADERS,
+    body: JSON.stringify({ context: YTM_CONTEXT, query, params }),
+  });
+  if (!resp.ok) {
+    console.warn('YT Music search failed', resp.status);
+    return [];
+  }
+  const json = await resp.json();
+  const out: SearchResult[] = [];
+  const seen = new Set<string>();
+  for (const item of walkItems(json)) {
+    const parsed = extractFromItem(item);
+    if (!parsed?.videoId || seen.has(parsed.videoId)) continue;
+    if (!parsed.title) continue;
+    if (looksHardSpam(parsed.title, parsed.artist, query)) continue;
+    seen.add(parsed.videoId);
+    out.push({
+      id: `ytm-${parsed.videoId}`,
+      videoId: parsed.videoId,
+      title: parsed.title,
+      artist: parsed.artist,
+      audio_url: `yt-video:${parsed.videoId}`,
+      cover_url: parsed.cover,
+      duration: parsed.duration || undefined,
+    });
+  }
+  return out;
+}
+
+// ---------- Optional fallback: official YouTube Data API ----------
+async function dataApiSearch(query: string, limit: number): Promise<SearchResult[]> {
+  const apiKeys = [Deno.env.get('YOUTUBE_API_KEY'), Deno.env.get('YOUTUBE_API_KEY_2')].filter(Boolean) as string[];
+  for (const apiKey of apiKeys) {
+    const url = new URL('https://www.googleapis.com/youtube/v3/search');
+    url.searchParams.set('part', 'snippet');
+    url.searchParams.set('q', query);
+    url.searchParams.set('type', 'video');
+    url.searchParams.set('videoCategoryId', '10');
+    url.searchParams.set('maxResults', String(Math.min(50, limit)));
+    url.searchParams.set('key', apiKey);
+    const r = await fetch(url.toString());
+    if (!r.ok) continue;
+    const j = await r.json();
+    const out: SearchResult[] = [];
+    for (const item of j.items || []) {
+      const vid = item?.id?.videoId;
+      if (!vid) continue;
+      const s = item.snippet || {};
+      const title = decodeEntities(s.title || '');
+      const author = decodeEntities(s.channelTitle || '');
+      if (looksHardSpam(title, author, query)) continue;
+      out.push({
+        id: `ytm-${vid}`,
+        videoId: vid,
+        title,
+        artist: author,
+        audio_url: `yt-video:${vid}`,
+        cover_url: s.thumbnails?.high?.url || s.thumbnails?.medium?.url,
+      });
+    }
+    if (out.length) return out;
+  }
+  return [];
+}
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ success: false, error: 'Authentication required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
-
     const token = authHeader.replace('Bearer ', '');
     const { data: userData, error: authError } = await supabaseClient.auth.getUser(token);
     if (authError || !userData?.user) {
       return new Response(JSON.stringify({ success: false, error: 'Invalid authentication' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    // Per-user rate limit (30 req/min) to protect YouTube quota
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -227,120 +234,63 @@ serve(async (req) => {
     const { data: allowed } = await adminClient.rpc('check_and_increment_rate_limit', {
       _user_id: userData.user.id,
       _endpoint: 'yt-music-search',
-      _max_per_minute: 30,
+      _max_per_minute: 60,
     });
     if (allowed === false) {
       return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const { query, limit: requestedLimit } = await req.json();
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return new Response(JSON.stringify({ success: false, error: 'A search query is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    // YouTube Data API search.list has a hard maxResults limit of 50.
-    const limit = Math.max(1, Math.min(50, typeof requestedLimit === 'number' ? requestedLimit : 50));
-    let sortBy = 'relevance';
-    let cleanQuery = query.trim();
-    if (cleanQuery.toLowerCase().startsWith('new:')) {
-      sortBy = 'upload_date';
-      cleanQuery = cleanQuery.slice(4).trim();
-    }
-    const lyricMode = isLyricQuery(cleanQuery);
-    const providerQuery = lyricMode ? `${cleanQuery} lyrics` : cleanQuery;
+    const cleanQuery = query.trim().replace(/^new:\s*/i, '');
+    const limit = Math.max(1, Math.min(100, typeof requestedLimit === 'number' ? requestedLimit : 50));
 
-    // ---------- Primary: Official YouTube Data API ----------
-    const apiKeys = [
-      Deno.env.get('YOUTUBE_API_KEY'),
-      Deno.env.get('YOUTUBE_API_KEY_2'),
-    ].filter(Boolean) as string[];
+    // PRIMARY: YouTube Music Innertube (songs + videos), no key, no quota.
+    const [songs, videos] = await Promise.all([
+      ytMusicSearch(cleanQuery, PARAMS_SONGS).catch(() => []),
+      ytMusicSearch(cleanQuery, PARAMS_VIDEOS).catch(() => []),
+    ]);
 
-    let officialData: any = null;
-    let officialErr = '';
-    if (apiKeys.length > 0) {
-      const orderPasses = lyricMode ? ['relevance'] : [sortBy === 'upload_date' ? 'date' : 'relevance', 'viewCount'];
-      for (const order of orderPasses) {
-        for (const apiKey of apiKeys) {
-          const url = new URL('https://www.googleapis.com/youtube/v3/search');
-          url.searchParams.set('part', 'snippet');
-          url.searchParams.set('q', providerQuery);
-          url.searchParams.set('type', 'video');
-          url.searchParams.set('videoCategoryId', '10');
-          url.searchParams.set('maxResults', String(limit));
-          url.searchParams.set('order', order);
-          url.searchParams.set('key', apiKey);
-
-          const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-          if (response.ok) {
-            const candidateData = await response.json();
-            const hasMatch = (candidateData.items || []).some((item: any) => queryMatchesResult({ title: item?.snippet?.title, author: item?.snippet?.channelTitle }, cleanQuery));
-            if (hasMatch || order === 'viewCount') {
-              officialData = candidateData;
-              break;
-            }
-            officialErr = `No matching ${order} videos`;
-            continue;
-          }
-          officialErr = await response.text().catch(() => 'No matching videos');
-          console.warn(`YouTube Data API failed (${response.status}), trying next key/window...`, officialErr.slice(0, 200));
-        }
-        if (officialData) break;
+    const merged: SearchResult[] = [];
+    const seen = new Set<string>();
+    for (const list of [songs, videos]) {
+      for (const r of list) {
+        if (seen.has(r.videoId)) continue;
+        seen.add(r.videoId);
+        merged.push(r);
       }
-    } else {
-      officialErr = 'YouTube Data API keys are not configured';
     }
 
-    if (officialData) {
-      const results: SearchResult[] = (officialData.items || [])
-        .map((item: any, index: number) => {
-          const videoId = item?.id?.videoId;
-          if (!videoId) return null;
-          const snippet = item.snippet || {};
-          const comparable = {
-            videoId,
-            title: snippet.title || '',
-            author: snippet.channelTitle || '',
-            published: snippet.publishedAt ? Math.floor(new Date(snippet.publishedAt).getTime() / 1000) : 0,
-          };
-          if (looksSpammy(comparable, cleanQuery) || scoreResult(comparable, cleanQuery, index) <= -20) return null;
-          const parsed = parseTitleWithQuery(snippet.title || 'Unknown Title', snippet.channelTitle || '', cleanQuery);
-          return {
-            id: `ytm-${videoId}`,
-            videoId,
-            title: parsed.title,
-            artist: parsed.artist,
-            audio_url: `yt-video:${videoId}`,
-            cover_url: snippet.thumbnails?.high?.url || snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url,
-            published: comparable.published || undefined,
-          };
-        })
-        .filter(Boolean);
+    let results = merged.slice(0, limit);
+    let source = 'youtube-music-innertube';
 
-      if (results.length > 0) {
-        await persistSearchResults(adminClient, results);
-        return new Response(JSON.stringify({ success: true, results, source: 'youtube-data-api' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      officialErr = 'Official YouTube Data API returned no usable music results after filtering';
+    // FALLBACK: official Data API only if Innertube returns nothing.
+    if (results.length === 0) {
+      results = (await dataApiSearch(cleanQuery, limit)).slice(0, limit);
+      source = 'youtube-data-api';
     }
 
-    console.warn('Official YouTube Data API returned no usable results:', officialErr.slice(0, 200));
-    return new Response(JSON.stringify({ success: false, error: 'YouTube search is temporarily unavailable' }), {
-      status: 502,
+    if (results.length === 0) {
+      return new Response(JSON.stringify({ success: false, error: 'No results' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    await persistSearchResults(adminClient, results);
+    return new Response(JSON.stringify({ success: true, results, source }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unexpected error';
     console.error('yt-music-search error:', message);
     return new Response(JSON.stringify({ success: false, error: 'Search is temporarily unavailable' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
