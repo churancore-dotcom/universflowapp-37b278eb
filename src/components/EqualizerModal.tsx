@@ -46,19 +46,27 @@ interface Preset {
   icon: React.ComponentType<{ className?: string }>;
   bands: number[];
   bassBoost: number;
+  reverb?: number;
   spatialAudio?: boolean;
+  studioSpace?: StudioSpaceId;
+  lateNight?: boolean;
+  headphoneSurround?: boolean;
 }
 
-// 10-band presets — matches engine's BAND_DEFS (32Hz → 16kHz)
+// Full sound-mode presets — each preset controls the WHOLE engine, not only EQ sliders.
 const presets: Preset[] = [
   { id: 'flat',         name: 'Flat',         icon: Music2,     bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bassBoost: 0 },
   { id: 'bass-boost',   name: 'Bass Boost',   icon: Zap,        bands: [4, 3, 2, 0, 0, 0, 0, 0, 0, 0], bassBoost: 35 },
-  { id: 'treble-boost', name: 'Treble Boost', icon: Disc3,      bands: [0, 0, 0, 0, 0, 0, 1, 2, 3, 3], bassBoost: 0 },
-  { id: 'vocal',        name: 'Vocal',        icon: Volume2,    bands: [-2, -1, 0, 1, 3, 4, 3, 1, 0, -1], bassBoost: 0 },
-  { id: '8d-audio',     name: '8D Audio',     icon: Globe,      bands: [2, 1, 0, -1, 0, 0, 1, 2, 1, 1], bassBoost: 10, spatialAudio: true },
-  { id: 'phonk',        name: 'Phonk',        icon: Headphones, bands: [6, 5, 3, 1, 0, -1, 0, 1, 2, 2], bassBoost: 55 },
   { id: 'deep-bass',    name: 'Deep Bass',    icon: Waves,      bands: [7, 6, 4, 2, 0, 0, 0, -1, -1, -1], bassBoost: 70 },
-  { id: 'concert',      name: 'Concert',      icon: Disc3,      bands: [3, 2, 1, 0, 1, 1, 2, 2, 2, 1], bassBoost: 15 },
+  { id: 'treble-boost', name: 'Treble',       icon: Disc3,      bands: [0, 0, 0, 0, 0, 0, 1, 2, 3, 3], bassBoost: 0 },
+  { id: 'vocal',        name: 'Vocal',        icon: Volume2,    bands: [-2, -1, 0, 1, 3, 4, 3, 1, 0, -1], bassBoost: 0 },
+  { id: 'late-night',   name: 'Late Night',   icon: Moon,       bands: [-3, -2, -1, 0, 2, 3, 2, 1, -1, -2], bassBoost: 8, lateNight: true },
+  { id: '8d-audio',     name: '8D Audio',     icon: Globe,      bands: [2, 1, 0, -1, 0, 0, 1, 2, 1, 1], bassBoost: 10, spatialAudio: true, reverb: 12 },
+  { id: 'headphones',   name: 'Headphones',   icon: Headphones, bands: [1, 1, 0, -1, 0, 1, 2, 2, 1, 0], bassBoost: 18, headphoneSurround: true },
+  { id: 'phonk',        name: 'Phonk',        icon: Radio,      bands: [6, 5, 3, 1, 0, -1, 0, 1, 2, 2], bassBoost: 55 },
+  { id: 'pop',          name: 'Pop',          icon: Music2,     bands: [1, 2, 1, 0, 0, 1, 2, 3, 2, 1], bassBoost: 18 },
+  { id: 'concert',      name: 'Concert',      icon: Trophy,     bands: [3, 2, 1, 0, 1, 1, 2, 2, 2, 1], bassBoost: 15, studioSpace: 'hall' },
+  { id: 'studio',       name: 'Studio',       icon: Mic2,       bands: [0, 0, 0, -1, 0, 2, 2, 1, 0, -1], bassBoost: 5, studioSpace: 'studio' },
 ];
 
 // Labels mirror engine's BAND_DEFS (32Hz → 16kHz)
@@ -116,8 +124,13 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const handlePresetSelect = useCallback((preset: Preset) => {
     setEQSettings({
       bands: preset.bands,
-      bassBoost: Math.min(preset.bassBoost, 60),
+      bassBoost: preset.bassBoost,
+      reverb: preset.reverb ?? 0,
       spatialAudio: !!preset.spatialAudio,
+      studioSpace: preset.studioSpace ?? 'off',
+      lateNight: !!preset.lateNight,
+      headphoneSurround: !!preset.headphoneSurround,
+      playbackSpeed: 1,
       activePreset: preset.id,
     });
     toast.success(`${preset.name} preset applied`);
@@ -140,7 +153,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
 
 
   const handleSpaceSelect = useCallback((id: StudioSpaceId) => {
-    setEQSettings({ studioSpace: id });
+    setEQSettings({ studioSpace: id, activePreset: 'custom' });
     if (id !== 'off') {
       const name = STUDIO_SPACES.find(s => s.id === id)?.name;
       if (name) toast.success(`Now playing in ${name}`);
@@ -269,10 +282,10 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                 </div>
               )}
 
-            {/* Presets 2x4 Grid */}
+            {/* Full sound-mode presets */}
             <div>
-              <h3 className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary mb-3">Presets</h3>
-              <div className="grid grid-cols-4 gap-2">
+              <h3 className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary mb-3">Sound modes</h3>
+              <div className="grid grid-cols-3 gap-2">
                 {presets.map((preset) => {
                   const Icon = preset.icon;
                   const isSelected = activePreset === preset.id;
@@ -280,7 +293,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     <motion.button
                       key={preset.id}
                       onClick={() => handlePresetSelect(preset)}
-                      className="relative flex flex-col items-center gap-2 py-3 px-2 rounded-xl overflow-hidden transition-all"
+                      className="relative flex min-h-[76px] flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl overflow-hidden transition-all"
                       style={{
                         background: isSelected
                           ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(18 100% 82%))'
@@ -291,8 +304,8 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                       }}
                       whileTap={{ scale: 0.96 }}
                     >
-                      <Icon className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
-                      <span className={`text-[11px] font-medium leading-tight text-center ${isSelected ? 'text-white' : 'text-muted-foreground'}`}>
+                      <Icon className={`w-5 h-5 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
+                      <span className={`text-[11px] font-medium leading-tight text-center ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
                         {preset.name}
                       </span>
                     </motion.button>
@@ -382,7 +395,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     min={0}
                     max={45}
                     step={5}
-                    onValueChange={([value]) => setEQSettings({ reverb: value })}
+                    onValueChange={([value]) => setEQSettings({ reverb: value, studioSpace: 'off', activePreset: 'custom' })}
                     className="w-full [&_[role=slider]]:bg-rose-500 [&_[role=slider]]:border-rose-400 [&_[data-radix-slider-range]]:bg-rose-500/60"
                   />
                 </div>
@@ -401,7 +414,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     min={50}
                     max={200}
                     step={25}
-                    onValueChange={([value]) => setEQSettings({ playbackSpeed: value / 100 })}
+                    onValueChange={([value]) => setEQSettings({ playbackSpeed: value / 100, activePreset: 'custom' })}
                     className="w-full [&_[role=slider]]:bg-rose-500 [&_[role=slider]]:border-rose-400 [&_[data-radix-slider-range]]:bg-rose-500"
                   />
                   <div className="flex justify-between mt-1">
@@ -419,7 +432,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                 <div>
                   <h3 className="text-sm font-medium flex items-center gap-2">
                     Studio Spaces
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-rose-500 to-pink-600 text-white">EXCLUSIVE</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary text-primary-foreground">EXCLUSIVE</span>
                   </h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Hear songs in real acoustic environments</p>
                 </div>
@@ -487,7 +500,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               </div>
               <Switch
                 checked={spatialAudio}
-                onCheckedChange={(value) => setEQSettings({ spatialAudio: value })}
+                onCheckedChange={(value) => setEQSettings({ spatialAudio: value, activePreset: 'custom' })}
                 className="data-[state=checked]:bg-primary"
               />
             </div>
@@ -518,7 +531,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               </div>
               <Switch
                 checked={lateNight}
-                onCheckedChange={(value) => setEQSettings({ lateNight: value })}
+                onCheckedChange={(value) => setEQSettings({ lateNight: value, activePreset: 'custom' })}
                 className="data-[state=checked]:bg-primary"
               />
             </div>
@@ -545,14 +558,14 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Headphone 3D Surround</span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-rose-500 to-pink-600 text-white">EXCLUSIVE</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary text-primary-foreground">EXCLUSIVE</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">Binaural crossfeed — sound out of your head, not inside it</p>
                 </div>
               </div>
               <Switch
                 checked={headphoneSurround}
-                onCheckedChange={(value) => setEQSettings({ headphoneSurround: value })}
+                onCheckedChange={(value) => setEQSettings({ headphoneSurround: value, activePreset: 'custom' })}
                 className="data-[state=checked]:bg-primary"
               />
             </div>
