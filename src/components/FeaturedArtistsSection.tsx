@@ -67,28 +67,14 @@ const FeaturedArtistsSection = () => {
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     queryFn: async (): Promise<DisplayArtist[]> => {
-      if (user) {
-        const prefs: UserArtistPref[] = await getUserArtistPrefs(user.id);
-        if (prefs.length > 0) {
-          return prefs.map(p => ({
-            key: p.id,
-            name: p.artist_name,
-            image: p.artist_image,
-          }));
-        }
-      }
-      const { data } = await supabase
-        .from('artist_profiles')
-        .select('user_id, stage_name, avatar_url, total_followers, total_plays')
-        .eq('is_verified', true)
-        .not('avatar_url', 'is', null)
-        .order('total_followers', { ascending: false })
-        .limit(12);
-
-      return (data || []).map(a => ({
-        key: a.user_id,
-        name: a.stage_name,
-        image: a.avatar_url || null,
+      // Only show artists the user has actually followed.
+      // We never surface internal platform/demo artist profiles here.
+      if (!user) return [];
+      const prefs: UserArtistPref[] = await getUserArtistPrefs(user.id);
+      return prefs.map(p => ({
+        key: p.id,
+        name: p.artist_name,
+        image: p.artist_image,
       }));
     },
   });

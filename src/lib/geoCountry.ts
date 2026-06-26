@@ -1,26 +1,34 @@
-// Silent country detection — uses the edge CDN IP header (no permission
-// prompt, no PII stored). Falls back to the browser locale (e.g. en-IN → IN)
-// and finally to 'IN'. Result is cached in sessionStorage so we hit the edge
-// at most once per tab.
+// Silent country detection — Spotify-style.
+// 1) Edge function (uses CDN country header OR a real IP geo lookup).
+// 2) Browser-locale region tag ONLY if it actually contains a region
+//    (e.g. "en-IN" → "IN"; bare "en" / "en-US-default" is ignored).
+// 3) Empty string → consumers fall back to a Global feed (never forced US).
+// Cached per session so we hit the edge at most once per tab.
 import { supabase } from '@/integrations/supabase/client';
 
 const CACHE_KEY = 'uf-geo-country';
 
-function localeFallback(): string {
+function localeRegion(): string {
   try {
-    const locale = (Intl.DateTimeFormat().resolvedOptions().locale || '').toUpperCase();
-    const m = locale.match(/-([A-Z]{2})\b/);
-    return m?.[1] || 'IN';
-  } catch {
-    return 'IN';
-  }
+    const navAny = navigator as unknown as { languages?: string[]; language?: string };
+    const candidates = [
+      ...(navAny.languages || []),
+      navAny.language || '',
+      Intl.DateTimeFormat().resolvedOptions().locale || '',
+    ];
+    for (const raw of candidates) {
+      const m = raw.toUpperCase().match(/-([A-Z]{2})(?:[-_]|$)/);
+      if (m && m[1] !== 'US') return m[1]; // skip the default en-US Android ships with
+    }
+  } catch { /* noop */ }
+  return '';
 }
 
 export async function detectCountrySilently(): Promise<string> {
   try {
     const cached = sessionStorage.getItem(CACHE_KEY);
     if (cached && /^[A-Z]{2}$/.test(cached)) return cached;
-  } catch {}
+  } catch { /* noop */ }
 
   let cc: string | null = null;
   try {
@@ -28,11 +36,12 @@ export async function detectCountrySilently(): Promise<string> {
     if (data?.country_code && /^[A-Z]{2}$/.test(data.country_code)) {
       cc = data.country_code;
     }
-  } catch {
-    // edge unavailable — fall back
-  }
+  } catch { /* edge unavailable */ }
 
-  const final = cc || localeFallback();
-  try { sessionStorage.setItem(CACHE_KEY, final); } catch {}
+  const final = cc || localeRegion() || '';
+  if (final) {
+    try { sessionStorage.setItem(CACHE_KEY, final); } catch { /* noop */ }
+  }
   return final;
 }
+

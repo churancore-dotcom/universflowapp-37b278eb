@@ -37,14 +37,18 @@ export function useUserCountry(): string {
 
       if (!cc) {
         try {
-          cc = await detectCountrySilently();
-        } catch {}
+          cc = (await detectCountrySilently()) || null;
+        } catch { /* noop */ }
       }
 
-      if (!cc) cc = 'US';
+      // No hard-coded country fallback: empty string means
+      // "Global feed" downstream, never silently forces US/IN.
       if (cancelled) return;
-      try { sessionStorage.setItem(SESSION_KEY, cc); } catch {}
-      setCountry(cc);
+      const final = cc || '';
+      if (final) {
+        try { sessionStorage.setItem(SESSION_KEY, final); } catch { /* noop */ }
+      }
+      setCountry(final);
     })();
     return () => { cancelled = true; };
   }, [user?.id]);

@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { supabase } from '@/integrations/supabase/client';
 import { prefetchIndexedTrack, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
-import FollowedArtistsRail from '@/components/FollowedArtistsRail';
+// FollowedArtistsRail removed from Search per product decision
 import { clearCache, getCached, setCached } from '@/lib/searchCache';
 import {
   getSongHistory,
@@ -673,10 +673,7 @@ const Search = () => {
                   </div>
                 )}
 
-                {/* Followed artists rail (shows on browse / empty state) */}
-                <div className="mt-4">
-                  <FollowedArtistsRail />
-                </div>
+                {/* Followed artists rail removed from search browse state */}
               </motion.div>
             )}
           </AnimatePresence>
