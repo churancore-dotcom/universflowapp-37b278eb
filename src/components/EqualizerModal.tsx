@@ -153,7 +153,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
 
 
   const handleSpaceSelect = useCallback((id: StudioSpaceId) => {
-    setEQSettings({ studioSpace: id });
+    setEQSettings({ studioSpace: id, activePreset: 'custom' });
     if (id !== 'off') {
       const name = STUDIO_SPACES.find(s => s.id === id)?.name;
       if (name) toast.success(`Now playing in ${name}`);
@@ -395,7 +395,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     min={0}
                     max={45}
                     step={5}
-                    onValueChange={([value]) => setEQSettings({ reverb: value })}
+                    onValueChange={([value]) => setEQSettings({ reverb: value, studioSpace: 'off', activePreset: 'custom' })}
                     className="w-full [&_[role=slider]]:bg-rose-500 [&_[role=slider]]:border-rose-400 [&_[data-radix-slider-range]]:bg-rose-500/60"
                   />
                 </div>
@@ -414,7 +414,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     min={50}
                     max={200}
                     step={25}
-                    onValueChange={([value]) => setEQSettings({ playbackSpeed: value / 100 })}
+                    onValueChange={([value]) => setEQSettings({ playbackSpeed: value / 100, activePreset: 'custom' })}
                     className="w-full [&_[role=slider]]:bg-rose-500 [&_[role=slider]]:border-rose-400 [&_[data-radix-slider-range]]:bg-rose-500"
                   />
                   <div className="flex justify-between mt-1">
@@ -432,7 +432,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                 <div>
                   <h3 className="text-sm font-medium flex items-center gap-2">
                     Studio Spaces
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-rose-500 to-pink-600 text-white">EXCLUSIVE</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary text-primary-foreground">EXCLUSIVE</span>
                   </h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Hear songs in real acoustic environments</p>
                 </div>
@@ -500,7 +500,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               </div>
               <Switch
                 checked={spatialAudio}
-                onCheckedChange={(value) => setEQSettings({ spatialAudio: value })}
+                onCheckedChange={(value) => setEQSettings({ spatialAudio: value, activePreset: 'custom' })}
                 className="data-[state=checked]:bg-primary"
               />
             </div>
@@ -531,7 +531,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               </div>
               <Switch
                 checked={lateNight}
-                onCheckedChange={(value) => setEQSettings({ lateNight: value })}
+                onCheckedChange={(value) => setEQSettings({ lateNight: value, activePreset: 'custom' })}
                 className="data-[state=checked]:bg-primary"
               />
             </div>
@@ -558,14 +558,14 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Headphone 3D Surround</span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-rose-500 to-pink-600 text-white">EXCLUSIVE</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary text-primary-foreground">EXCLUSIVE</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">Binaural crossfeed — sound out of your head, not inside it</p>
                 </div>
               </div>
               <Switch
                 checked={headphoneSurround}
-                onCheckedChange={(value) => setEQSettings({ headphoneSurround: value })}
+                onCheckedChange={(value) => setEQSettings({ headphoneSurround: value, activePreset: 'custom' })}
                 className="data-[state=checked]:bg-primary"
               />
             </div>
