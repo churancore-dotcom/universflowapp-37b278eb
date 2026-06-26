@@ -499,7 +499,7 @@ const Search = () => {
   const matchedArtists = hasQuery ? artistResults.filter((a) => isStrongArtistMatch(a.name)) : [];
   const featuredArtist = matchedArtists[0];
   const artistNameSearch = matchedArtists.length > 0;
-  const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
+  const visibleIndexedResults = source === 'songs' ? indexedResults : [];
   // Universflow-uploaded tracks already merge to the TOP via mergeUploadedArtistSongs.
   // We do NOT hard-filter to verified artists only — that produced an empty
   // "All Songs" tab for every famous song (e.g. Kesariya, Perfect) because the
