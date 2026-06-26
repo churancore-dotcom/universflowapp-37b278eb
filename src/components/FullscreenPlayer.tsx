@@ -240,7 +240,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
             </div>
 
             {/* Album Art OR Lyrics — flex-1 to fill available space */}
-            <div className="flex-1 flex items-center justify-center min-h-0">
+            <div className="flex-1 flex items-center justify-center min-h-0 w-full overflow-hidden">
               {showLyrics ? (
                 <div className="w-full h-full max-w-[420px]">
                   <SyncedLyricsView
@@ -252,8 +252,12 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 </div>
               ) : (
               <div
-                className="relative aspect-square h-full"
-                style={{ maxWidth: 'min(78vw, 312px)', maxHeight: '100%' }}
+                className="relative"
+                style={{
+                  width: 'min(78vw, 100%, calc(100vh - 360px), 360px)',
+                  height: 'min(78vw, 100%, calc(100vh - 360px), 360px)',
+                  aspectRatio: '1 / 1',
+                }}
               >
                 {isPlaying && (
                   <motion.div
@@ -270,7 +274,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div
                     key={currentSong.id}
-                    className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl z-10 bg-muted"
+                    className="absolute inset-0 rounded-2xl overflow-hidden shadow-2xl z-10 bg-muted"
                     variants={albumArtVariants}
                     initial="initial"
                     animate="animate"
