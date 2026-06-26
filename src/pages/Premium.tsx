@@ -200,7 +200,7 @@ const PremiumPage = memo(function PremiumPage() {
             offers: {
               '@type': 'Offer',
               priceCurrency: 'INR',
-              price: '99',
+              price: '199',
               url: 'https://universflow.in/premium',
               availability: 'https://schema.org/InStock',
             },
