@@ -92,8 +92,9 @@ const Library = () => {
   const requestedTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(isOffline ? 'downloads' : (requestedTab || 'liked'));
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
-  
+  const scrollRef = useRef<HTMLDivElement>(null);
 
+  
   const libraryQueryKey = ['library', user?.id] as const;
   const initialCached = user ? readLibraryCache(user.id) : undefined;
   const { data, isLoading } = useQuery({
@@ -299,7 +300,7 @@ const Library = () => {
             </TabsList>
 
             {/* Content — scrollable */}
-            <div className="flex-1 overflow-y-auto pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={scrollRef} className="flex-1 overflow-y-auto pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
               {!isOffline && likedSongs.length > 0 && activeTab === 'liked' && (
                 <div className="mb-4">
                   <FollowedArtistSongsSection songs={likedSongs} />
