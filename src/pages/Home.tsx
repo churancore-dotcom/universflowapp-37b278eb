@@ -60,15 +60,6 @@ const EmptyState = memo(() => (
 
 EmptyState.displayName = 'EmptyState';
 
-// Simple loading
-const LoadingSkeleton = memo(() => (
-  <div className="flex justify-center py-8">
-    <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-  </div>
-));
-
-LoadingSkeleton.displayName = 'LoadingSkeleton';
-
 const HOME_SONGS_QUERY_KEY = ['home', 'ytm-feed', 'v2-fast-ytm'] as const;
 
 // Tag flags used by the existing rails (Trending/Fresh) to filter the shared pool.
