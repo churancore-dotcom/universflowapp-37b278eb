@@ -32,7 +32,9 @@ const MadeForYouSection = memo(() => {
     queryFn: async (): Promise<Song[]> => {
       let seedQueries: string[] = [];
       if (recentIds.length) {
-        const { data: rows } = await supabase
+        const { data: rows } = await (supabase as unknown as {
+          from: (t: string) => { select: (c: string) => { in: (col: string, vals: string[]) => { limit: (n: number) => Promise<{ data: Array<{ artist: string | null; title: string | null }> | null }> } } };
+        })
           .from('stream_songs')
           .select('artist, title')
           .in('id', recentIds)
