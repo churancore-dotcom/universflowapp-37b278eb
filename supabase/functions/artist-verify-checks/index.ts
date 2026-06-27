@@ -249,15 +249,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Do not leak raw scores or OCR text to the applicant — they could iterate
+    // and game the KYC system. Only return a generic submitted status.
     return new Response(
-      JSON.stringify({
-        ok: true,
-        face_match_score: faceScore,
-        face_match_status: faceStatus,
-        ocr_extracted_name: ocrName,
-        name_match_score: nameScore,
-        warnings,
-      }),
+      JSON.stringify({ ok: true, status: "submitted" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
