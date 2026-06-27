@@ -93,18 +93,26 @@ const ManageUsers = () => {
     }
   };
 
-  const toggleAdminStatus = async (user: UserProfile) => {
-    const newStatus = !user.is_admin;
-    if (!confirm(`${newStatus ? 'Grant admin to' : 'Revoke admin from'} ${user.email || user.username}?`)) return;
+  const toggleAdminStatus = async (_user: UserProfile) => {
+    toast.error('Admin role is locked to a single account and cannot be changed from the panel.');
+  };
+
+  const deleteUser = async (user: UserProfile) => {
+    if (user.is_admin) { toast.error('Cannot delete the admin account.'); return; }
+    const label = user.email || user.username || user.user_id;
+    if (!confirm(`Permanently delete ${label}? This wipes their profile, library, playlists, plays, subscriptions and all uploads. This cannot be undone.`)) return;
     try {
-      if (newStatus) {
-        await supabase.from('user_roles').insert({ user_id: user.user_id, role: 'admin' });
-      } else {
-        await supabase.from('user_roles').delete().eq('user_id', user.user_id).eq('role', 'admin');
-      }
-      toast.success(newStatus ? 'Admin granted' : 'Admin revoked');
-      fetchUsers();
-    } catch { toast.error('Failed to update'); }
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { user_id: user.user_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('User deleted everywhere');
+      setUsers((prev) => prev.filter((u) => u.user_id !== user.user_id));
+    } catch (err) {
+      console.error('Delete user error:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to delete user');
+    }
   };
 
   const updateUserStatus = async (user: UserProfile, newStatus: 'active' | 'banned' | 'suspended') => {
