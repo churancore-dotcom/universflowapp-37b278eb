@@ -25,7 +25,7 @@ import {
 } from '@/lib/artist';
 import type { ArtistApplicationSafe } from '@/lib/artist';
 import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
-import { validateSocialLink, atLeastOneValidLink, SocialPlatform } from '@/lib/socialLinkValidator';
+import { validateSocialLink, atLeastNValidLinks, SocialPlatform } from '@/lib/socialLinkValidator';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 const TOTAL_STEPS = 6;
@@ -218,6 +218,10 @@ export default function ArtistApply() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [livenessShots, setLivenessShots] = useState<LivenessShots | null>(null);
+  // True when phone+country came from the verified signup step. Re-typing
+  // those mid-application would let users break the link to their verified
+  // identity, so we lock them.
+  const [signupLocked, setSignupLocked] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
@@ -257,18 +261,16 @@ export default function ArtistApply() {
           if (s.full_name) setRealName(s.full_name);
           if (s.country_code) { setCountry(s.country_code); prefilledCountry = s.country_code; }
           if (s.phone) {
-            // The signup stores the phone as "+91 9876543210" (dial code + space + digits).
-            // The Apply phone <Input> is digits-only and renders the dial code separately,
-            // so we must strip the dial code prefix here. Otherwise the field shows
-            // "+91 9876…" and the user can't edit it without corrupting the number.
             const dial = prefilledCountry ? getDialCode(prefilledCountry) : '';
-            const raw = String(s.phone);
-            const digitsOnly = raw.replace(/\D/g, '');
+            const rawPhone = String(s.phone);
+            const digitsOnly = rawPhone.replace(/\D/g, '');
             const dialDigits = dial.replace(/\D/g, '');
             setPhone(dialDigits && digitsOnly.startsWith(dialDigits)
               ? digitsOnly.slice(dialDigits.length)
               : digitsOnly);
           }
+          // Lock phone + country once we have them from the verified signup.
+          if (s.country_code && s.phone) setSignupLocked(true);
         }
       } catch { /* ignore */ }
 
@@ -295,7 +297,7 @@ export default function ArtistApply() {
   const allowedDocs = country ? docsForCountry(country) : [];
 
   const phoneCheck = country ? validatePhone(country, phone) : { ok: false, reason: '' };
-  const linksCheck = atLeastOneValidLink({ instagram, youtube, spotify, apple_music: appleMusic });
+  const linksCheck = atLeastNValidLinks({ instagram, youtube, spotify, apple_music: appleMusic }, 2);
   const countryLabel = COUNTRIES.find(([c]) => c === country)?.[1] ?? country;
 
   const canNext = () => {
