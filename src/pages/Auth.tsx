@@ -189,7 +189,7 @@ const Auth = () => {
                       background: '#FF2D55',
                       boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
                     }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    transition={{ type: 'spring', stiffness: 600, damping: 38, mass: 0.5 }}
                   />
                 )}
                 <span className="relative z-10">{labels[m]}</span>
