@@ -145,6 +145,15 @@ const ManageUsers = () => {
     active: accountScopedUsers.filter(u => u.status === 'active').length,
   };
 
+  const statCards = [
+    { label: 'Total', value: stats.total, icon: Users, iconWrap: 'bg-primary/20', iconText: 'text-primary' },
+    { label: 'Active', value: stats.active, icon: UserCheck, iconWrap: 'bg-green-500/20', iconText: 'text-green-500' },
+    { label: 'Artist Signups', value: stats.artists, icon: Music, iconWrap: 'bg-primary/20', iconText: 'text-primary' },
+    { label: 'Admins', value: stats.admins, icon: Crown, iconWrap: 'bg-accent/20', iconText: 'text-accent' },
+    { label: 'Banned', value: stats.banned, icon: Ban, iconWrap: 'bg-red-500/20', iconText: 'text-red-500' },
+    { label: 'New This Month', value: stats.thisMonth, icon: Calendar, iconWrap: 'bg-blue-500/20', iconText: 'text-blue-500' },
+  ];
+
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const getInitials = (email: string | null, username: string | null) => {
     if (username) return username.slice(0, 2).toUpperCase();
@@ -167,17 +176,10 @@ const ManageUsers = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
-        {[
-          { label: 'Total', value: stats.total, icon: Users, color: 'primary' },
-          { label: 'Active', value: stats.active, icon: UserCheck, color: 'green-500' },
-          { label: 'Artist Signups', value: stats.artists, icon: Music, color: 'primary' },
-          { label: 'Admins', value: stats.admins, icon: Crown, color: 'accent' },
-          { label: 'Banned', value: stats.banned, icon: Ban, color: 'red-500' },
-          { label: 'New This Month', value: stats.thisMonth, icon: Calendar, color: 'blue-500' },
-        ].map(s => (
+        {statCards.map(s => (
           <div key={s.label} className="glass rounded-xl p-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg bg-${s.color}/20 flex items-center justify-center`}>
-              <s.icon className={`w-5 h-5 text-${s.color}`} />
+            <div className={`w-10 h-10 rounded-lg ${s.iconWrap} flex items-center justify-center`}>
+              <s.icon className={`w-5 h-5 ${s.iconText}`} />
             </div>
             <div>
               <p className="text-xl font-bold">{s.value}</p>
