@@ -80,7 +80,7 @@ const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const LiveInsights = lazy(() => import("./pages/admin/LiveInsights"));
 const ActivityLogs = lazy(() => import("./pages/admin/ActivityLogs"));
 const SystemHealth = lazy(() => import("./pages/admin/SystemHealth"));
-const PromoCodes = lazy(() => import("./pages/admin/PromoCodes"));
+
 const PaymentRequests = lazy(() => import("./pages/admin/PaymentRequests"));
 const PushNotifications = lazy(() => import("./pages/admin/PushNotifications"));
 const RegisteredDevices = lazy(() => import("./pages/admin/RegisteredDevices"));
@@ -362,7 +362,7 @@ const AnimatedRoutes = () => {
             <Route path="health" element={<SystemHealth />} />
             <Route path="revenue" element={<RevenueInsights />} />
             <Route path="listener-insights" element={<ListenerInsights />} />
-            <Route path="promo-codes" element={<PromoCodes />} />
+            
             <Route path="payments" element={<PaymentRequests />} />
             <Route path="notifications" element={<PushNotifications />} />
             <Route path="devices" element={<RegisteredDevices />} />
