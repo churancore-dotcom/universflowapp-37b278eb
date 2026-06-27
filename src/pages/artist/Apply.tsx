@@ -225,6 +225,34 @@ export default function ArtistApply() {
   // those mid-application would let users break the link to their verified
   // identity, so we lock them.
   const [signupLocked, setSignupLocked] = useState(false);
+  const [handlePreview, setHandlePreview] = useState<{ slug: string; taken: boolean } | null>(null);
+
+  // Live preview of the public artist link. Same stage names are allowed — the
+  // backend appends -2, -3… so two artists named "KAYO" never collide. We just
+  // show the user what their real shareable link will be so there's no surprise.
+  useEffect(() => {
+    const raw = stageName.trim();
+    if (raw.length < 2) { setHandlePreview(null); return; }
+    const base = raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'artist';
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('artist_profiles')
+          .select('slug')
+          .ilike('slug', `${base}%`)
+          .limit(20);
+        if (cancelled) return;
+        const taken = new Set((data ?? []).map((r) => (r.slug || '').toLowerCase()));
+        // If reapply, our own existing slug shouldn't count as "taken".
+        if (!taken.has(base)) { setHandlePreview({ slug: base, taken: false }); return; }
+        let i = 2; let candidate = `${base}-${i}`;
+        while (taken.has(candidate) && i < 50) { i += 1; candidate = `${base}-${i}`; }
+        setHandlePreview({ slug: candidate, taken: true });
+      } catch { if (!cancelled) setHandlePreview({ slug: base, taken: false }); }
+    }, 280);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [stageName]);
 
   useEffect(() => {
     if (isLoading) return;
