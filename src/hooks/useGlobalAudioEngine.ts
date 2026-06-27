@@ -39,35 +39,32 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       // Always honor playback rate — native <audio> property, no graph needed.
       audioElement.playbackRate = s.playbackSpeed;
 
-      if (!isPremium) {
-        // Non-premium: never attach the WebAudio graph. EQ is locked to
-        // Premium, and the direct <audio> path is more reliable for
-        // Android background playback.
-        if (getState() === 'processed') {
-          setBands([0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0);
-          setReverb(0);
-          engineSetStudioSpace('off');
-          setSpatial(false);
-          setLateNight(false);
-          setHeadphoneSurround(false);
-        }
-        return;
-      }
-
-      // Premium: ALWAYS attach the WebAudio graph (transparent when sliders
-      // are flat). This lets EQ tweaks apply instantly with NO reload — the
-      // graph is already wired, we just adjust the BiquadFilter gains.
+      // ALWAYS attach the WebAudio graph (transparent when sliders are flat).
+      // Audio is already piped through the CORS-clean stream-proxy + crossOrigin
+      // anonymous, so the source is never tainted. This lets EQ apply INSTANTLY
+      // on every song with zero reload — Premium just unlocks the UI knobs.
       const ok = connectAudioElement(audioElement);
       if (ok) isAttached = true;
 
-      if (getState() === 'processed') {
-        setBands(s.bands, s.bassBoost);
-        setReverb(s.reverb);
-        engineSetStudioSpace(s.studioSpace);
-        setSpatial(s.spatialAudio);
-        setLateNight(s.lateNight);
-        setHeadphoneSurround(s.headphoneSurround);
+      if (getState() !== 'processed') return;
+
+      if (!isPremium) {
+        // Non-premium: keep graph transparent. Bands flat, no effects.
+        setBands([0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0);
+        setReverb(0);
+        engineSetStudioSpace('off');
+        setSpatial(false);
+        setLateNight(false);
+        setHeadphoneSurround(false);
+        return;
       }
+
+      setBands(s.bands, s.bassBoost);
+      setReverb(s.reverb);
+      engineSetStudioSpace(s.studioSpace);
+      setSpatial(s.spatialAudio);
+      setLateNight(s.lateNight);
+      setHeadphoneSurround(s.headphoneSurround);
     };
 
     // Coalesce loadstart+loadedmetadata+canplay bursts into a single rebuild.
@@ -82,7 +79,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
     const onPlay = () => {
       if (isAttached) resume();
-      if (getRuntimePremium()) reapply(0);
+      reapply(0);
     };
     const onPointer = () => { if (isAttached) resume(); };
 
