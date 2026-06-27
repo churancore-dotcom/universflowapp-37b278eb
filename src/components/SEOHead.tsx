@@ -25,7 +25,7 @@ const DEFAULT_IMAGE =
 const SEOHead = ({
   title = 'Univers Flow — Free Music Streaming & Downloads',
   description = 'Stream and download unlimited music for free with Univers Flow. Discover millions of songs, build playlists, and listen offline.',
-  keywords = 'free music streaming, music download, offline music, music app, Univers Flow, listen music free, music player, playlist creator',
+  keywords = 'free music app, music app, song app, song download app, mp3 song download app, mp3 download app, mp3 music download app, music download app, music player, free music download, free music apps, online music app, music streaming app, offline music app, music app for Android, free music app for Android, gana wala apps, mp3 gana, hindi songs app, punjabi songs app, bollywood music app, spotify alternative, jiosaavn alternative, gaana alternative, wynk alternative, Universflow',
   image = DEFAULT_IMAGE,
   url,
   path,
