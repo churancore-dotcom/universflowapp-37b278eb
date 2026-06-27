@@ -274,14 +274,13 @@ const PremiumPage = memo(function PremiumPage() {
           <section className="pt-10 pb-8">
             <div className="mb-5"><LogoBadge size={64} /></div>
             <p className="text-[10.5px] font-bold tracking-[0.32em] uppercase text-primary mb-3">
-              Universflow Premium
+              Subscription
             </p>
             <h1 className="text-[36px] leading-[1.04] font-bold tracking-tight mb-3">
-              Music, the way<br />
-              <span className="text-primary">it's meant to sound.</span>
+              Universflow <span className="text-primary">Premium</span>
             </h1>
             <p className="text-[15px] leading-snug text-muted-foreground max-w-[340px]">
-              Spatial audio, studio EQ, zero ads. Built for people who actually listen.
+              Spatial audio, studio EQ, and zero ads — music the way it's meant to sound.
             </p>
           </section>
 
