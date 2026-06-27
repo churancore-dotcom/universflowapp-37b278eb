@@ -93,10 +93,6 @@ const ManageUsers = () => {
     }
   };
 
-  const toggleAdminStatus = async (_user: UserProfile) => {
-    toast.error('Admin role is locked to a single account and cannot be changed from the panel.');
-  };
-
   const deleteUser = async (user: UserProfile) => {
     if (user.is_admin) { toast.error('Cannot delete the admin account.'); return; }
     const label = user.email || user.username || user.user_id;
