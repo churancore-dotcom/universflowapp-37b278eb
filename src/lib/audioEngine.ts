@@ -13,7 +13,10 @@
  * All parameter changes use setTargetAtTime() for click-free transitions.
  */
 
-const SMOOTH = 0.05;        // 50ms — smooths gain knobs
+// Smoothing — small enough to feel instant (one audio render quantum at 48k
+// ≈ 2.7ms), large enough to prevent zipper/click artifacts on gain ramps.
+const SMOOTH = 0.008;       // 8ms — sub-frame, click-free
+const SNAP   = 0.003;       // 3ms — used for binary on/off toggles (8D, surround)
 const SPATIAL_RATE_HZ = 0.18; // ~5.5s per full L↔R orbit
 const SPATIAL_DEPTH = 0.92;  // 0..1 — how far the LFO swings the pan
 
