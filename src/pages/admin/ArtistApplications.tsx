@@ -406,6 +406,27 @@ function Row({ app, onClick }: { app: App; onClick: () => void }) {
   );
 }
 
+function ContextChip({ label, value, copy }: { label: string; value: string; copy?: string }) {
+  return (
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 min-w-0">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="truncate text-[11px] font-medium">{value}</p>
+        {copy && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(copy); toast.success('Copied'); }}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            aria-label={`Copy ${label}`}
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
