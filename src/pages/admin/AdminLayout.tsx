@@ -17,7 +17,7 @@ import {
   Bell,
   Shield,
   ShieldCheck,
-  Gift,
+  
   Zap,
   Lock,
   MessageCircle,
@@ -38,7 +38,7 @@ const navItems = [
   { icon: ListMusic, label: 'Playlists', path: '/admin/playlists' },
   { icon: Users, label: 'Users', path: '/admin/users' },
   { icon: Crown, label: 'Subscriptions', path: '/admin/subscriptions' },
-  { icon: Gift, label: 'Promo Codes', path: '/admin/promo-codes' },
+  
   { icon: Crown, label: 'Payment Requests', path: '/admin/payments' },
   { icon: Zap, label: 'Engagement', path: '/admin/engagement' },
   { icon: Bell, label: 'Push Notifications', path: '/admin/notifications' },
