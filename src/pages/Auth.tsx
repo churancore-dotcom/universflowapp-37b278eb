@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,10 +28,11 @@ const labels: Record<Mode, string> = {
   artist: 'Artist',
 };
 
+// Lightweight slide+fade — no blur filter (blur causes jank on mobile GPUs).
 const panelVariants = {
-  initial: (isLogin: boolean) => ({ opacity: 0, y: 18, x: isLogin ? -10 : 10, filter: 'blur(8px)' }),
-  animate: { opacity: 1, y: 0, x: 0, filter: 'blur(0px)' },
-  exit: (isLogin: boolean) => ({ opacity: 0, y: -10, x: isLogin ? 10 : -10, filter: 'blur(8px)' }),
+  initial: (isLogin: boolean) => ({ opacity: 0, x: isLogin ? -14 : 14 }),
+  animate: { opacity: 1, x: 0 },
+  exit: (isLogin: boolean) => ({ opacity: 0, x: isLogin ? 14 : -14 }),
 };
 
 const Auth = () => {
@@ -46,13 +47,15 @@ const Auth = () => {
 
   const isLogin = mode === 'login';
 
-  // Navigate to the dedicated artist auth page when the Artist tab is selected.
-  useEffect(() => {
-    if (mode === 'artist') {
-      const t = setTimeout(() => navigate('/artist/auth', { replace: true }), 180);
-      return () => clearTimeout(t);
+  const handleTab = (m: Mode) => {
+    if (m === mode) return;
+    if (m === 'artist') {
+      // Navigate instantly to the artist auth page — no delay, no setTimeout.
+      navigate('/artist/auth');
+      return;
     }
-  }, [mode, navigate]);
+    setMode(m);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,7 +177,7 @@ const Auth = () => {
               <button
                 key={m}
                 type="button"
-                onClick={() => setMode(m)}
+                onClick={() => handleTab(m)}
                 className="relative z-10 h-9 text-[12px] font-semibold tracking-tight transition-colors"
                 style={{ color: mode === m ? '#fff' : 'hsl(var(--muted-foreground))' }}
               >
@@ -186,7 +189,7 @@ const Auth = () => {
                       background: '#FF2D55',
                       boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
                     }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    transition={{ type: 'spring', stiffness: 600, damping: 38, mass: 0.5 }}
                   />
                 )}
                 <span className="relative z-10">{labels[m]}</span>
@@ -194,7 +197,7 @@ const Auth = () => {
             ))}
           </div>
 
-          <AnimatePresence mode="wait" initial={false} custom={isLogin}>
+          <AnimatePresence mode="popLayout" initial={false} custom={isLogin}>
             {mode !== 'artist' && (
               <motion.form
                 key={mode}
@@ -206,13 +209,11 @@ const Auth = () => {
                 background: 'rgba(16,16,18,0.78)',
                 border: '0.5px solid rgba(255,255,255,0.07)',
                 boxShadow: '0 30px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
-                backdropFilter: 'blur(24px)',
-                WebkitBackdropFilter: 'blur(24px)',
               }}
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
               <AnimatePresence initial={false} mode="popLayout">
                 {!isLogin && (
