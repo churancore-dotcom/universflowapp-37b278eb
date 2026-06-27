@@ -51,14 +51,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, account_type')
         .eq('user_id', sessionUser.id)
         .maybeSingle();
 
-      if (error || data) return;
-
       const metadata = (sessionUser.user_metadata || {}) as Record<string, unknown>;
       const accountType = metadata.account_type === 'artist' ? 'artist' : 'listener';
+
+      if (error) return;
+      if (data) {
+        if (accountType === 'artist' && data.account_type !== 'artist') {
+          await supabase.from('profiles').update({ account_type: 'artist' }).eq('user_id', sessionUser.id);
+        }
+        return;
+      }
 
       const { error: insertError } = await supabase.from('profiles').insert({
         user_id: sessionUser.id,
