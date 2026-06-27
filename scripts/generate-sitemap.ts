@@ -19,35 +19,22 @@ interface SitemapEntry {
 
 const today = new Date().toISOString().slice(0, 10);
 
+// Only PUBLIC, indexable routes. Auth-gated app routes (/home, /library, /search,
+// /profile, /settings, /downloads, /subscription, /verify, /check-email, /offline*,
+// /artist/status, /artist/studio/*) are excluded — they redirect logged-out crawlers
+// to /auth, which Google reports as "Page with redirect" and refuses to index.
 const staticEntries: SitemapEntry[] = [
   { path: "/", lastmod: today, changefreq: "daily", priority: "1.0" },
   { path: "/get", lastmod: today, changefreq: "weekly", priority: "0.9" },
+  { path: "/premium", lastmod: today, changefreq: "monthly", priority: "0.8" },
+  { path: "/artists", lastmod: today, changefreq: "weekly", priority: "0.85" },
+  { path: "/support", lastmod: today, changefreq: "monthly", priority: "0.65" },
+  { path: "/auth", lastmod: today, changefreq: "monthly", priority: "0.4" },
+  { path: "/artist/auth", lastmod: today, changefreq: "monthly", priority: "0.4" },
+  { path: "/artist/apply", lastmod: today, changefreq: "monthly", priority: "0.45" },
   { path: "/blog/free-music-download-apps-india", lastmod: today, changefreq: "monthly", priority: "0.7" },
   { path: "/blog/universflow-vs-jiosaavn-vs-gaana", lastmod: today, changefreq: "monthly", priority: "0.7" },
   { path: "/blog/trending-punjabi-songs-2026", lastmod: today, changefreq: "weekly", priority: "0.75" },
-  { path: "/auth", lastmod: today, changefreq: "monthly", priority: "0.5" },
-  { path: "/verify", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/check-email", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/offline-player", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/search", lastmod: today, changefreq: "daily", priority: "0.9" },
-  { path: "/library", lastmod: today, changefreq: "weekly", priority: "0.7" },
-  { path: "/profile", lastmod: today, changefreq: "weekly", priority: "0.6" },
-  { path: "/settings", lastmod: today, changefreq: "monthly", priority: "0.4" },
-  { path: "/support", lastmod: today, changefreq: "monthly", priority: "0.65" },
-  { path: "/offline", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/artists", lastmod: today, changefreq: "weekly", priority: "0.85" },
-  { path: "/subscription", lastmod: today, changefreq: "monthly", priority: "0.5" },
-  { path: "/premium", lastmod: today, changefreq: "monthly", priority: "0.8" },
-  { path: "/downloads", lastmod: today, changefreq: "weekly", priority: "0.6" },
-  { path: "/artist/auth", lastmod: today, changefreq: "monthly", priority: "0.4" },
-  { path: "/artist/apply", lastmod: today, changefreq: "monthly", priority: "0.5" },
-  { path: "/artist/status", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/artist/studio", lastmod: today, changefreq: "monthly", priority: "0.4" },
-  { path: "/artist/studio/upload", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/artist/studio/songs", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/artist/studio/analytics", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/artist/studio/followers", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/artist/studio/activity", lastmod: today, changefreq: "monthly", priority: "0.3" },
   { path: "/legal/terms", lastmod: today, changefreq: "yearly", priority: "0.35" },
   { path: "/legal/privacy", lastmod: today, changefreq: "yearly", priority: "0.35" },
   { path: "/legal/artist-terms", lastmod: today, changefreq: "yearly", priority: "0.3" },
@@ -61,24 +48,10 @@ async function fetchDynamic(): Promise<SitemapEntry[]> {
   };
   const out: SitemapEntry[] = [];
   try {
-    const [artistsRes, artistProfilesRes, playlistsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/artists?select=id,updated_at`, { headers }),
+    const [artistProfilesRes, playlistsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/artist_profiles?select=slug,updated_at&slug=not.is.null`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/playlists?select=id,updated_at&is_public=eq.true`, { headers }),
     ]);
-    if (artistsRes.ok) {
-      const rows = (await artistsRes.json()) as Array<{ id: string; updated_at?: string }>;
-      for (const r of rows) {
-        out.push({
-          path: `/artist/${r.id}`,
-          lastmod: (r.updated_at || today).slice(0, 10),
-          changefreq: "weekly",
-          priority: "0.75",
-        });
-      }
-    } else {
-      console.warn(`[sitemap] artists fetch failed: ${artistsRes.status}`);
-    }
     if (artistProfilesRes.ok) {
       const rows = (await artistProfilesRes.json()) as Array<{ slug: string | null; updated_at?: string }>;
       for (const r of rows) {
