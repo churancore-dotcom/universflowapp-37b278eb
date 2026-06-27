@@ -73,11 +73,11 @@ export default function ArtistApplications() {
   const navigate = useNavigate();
   const { status: routeStatus } = useParams<{ status?: string }>();
   const [active, setActive] = useState<App | null>(null);
+  const [activeEmail, setActiveEmail] = useState<string | null>(null);
+  const [activeUsername, setActiveUsername] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [previews, setPreviews] = useState<PreviewMap>({});
-
-  const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('artist_applications')
