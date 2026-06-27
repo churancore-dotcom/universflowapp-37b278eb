@@ -117,6 +117,8 @@ export default function ArtistApplications() {
 
   const openReview = async (app: App) => {
     setActive(app);
+    setActiveEmail(null);
+    setActiveUsername(null);
     // admin_note is fetched on demand via the admin RPC so the column stays
     // hidden from regular signed-in users at the database level.
     let currentNote: string | null = null;
@@ -126,6 +128,13 @@ export default function ArtistApplications() {
     } catch { /* ignore */ }
     setNote(currentNote ?? '');
     setPreviews({});
+    supabase.from('profiles').select('email, username').eq('user_id', app.user_id).maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setActiveEmail(data.email ?? null);
+          setActiveUsername(data.username ?? null);
+        }
+      });
     const faceShots = app.social_links?.face_shots;
     const face = Array.isArray(faceShots) ? faceShots.filter((path): path is string => typeof path === 'string') : [];
     const [front, back, selfie, center, left, right, up] = await Promise.all([
