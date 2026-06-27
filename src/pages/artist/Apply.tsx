@@ -716,6 +716,15 @@ export default function ArtistApply() {
                   </div>
                   <Field label="Stage / Artist name">
                     <Input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="e.g. KAYO" maxLength={50} disabled={isLockedReapply} />
+                    {handlePreview && (
+                      <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+                        Your public link:{' '}
+                        <span className="text-foreground/90 font-medium">universflow.in/a/{handlePreview.slug}</span>
+                        {handlePreview.taken && (
+                          <span className="ml-1 text-amber-400/90">· that name is taken, we'll use this handle for you</span>
+                        )}
+                      </p>
+                    )}
                   </Field>
                   <Field label="Legal full name">
                     <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} disabled={isLockedReapply} />
