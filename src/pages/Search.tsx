@@ -570,6 +570,7 @@ const Search = () => {
 
         {/* Header — rose-ember hero matching Home */}
         <header className="flex-shrink-0 z-30 px-3 pt-3 pb-3 safe-area-pt">
+          <h1 className="sr-only">Search Music — Songs, Artists &amp; Albums</h1>
           <RoseHero
             eyebrow="Universflow"
             title="DISCOVER"
