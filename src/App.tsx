@@ -296,9 +296,9 @@ const AnimatedRoutes = () => {
         <Routes location={location}>
           <Route path="/" element={<RootGate />} />
           <Route path="/get" element={<GetAppGate />} />
-          <Route path="/download" element={<GetAppGate />} />
-          <Route path="/app" element={<GetAppGate />} />
-          <Route path="/apk" element={<GetAppGate />} />
+          <Route path="/download" element={<Navigate to="/get" replace />} />
+          <Route path="/app" element={<Navigate to="/get" replace />} />
+          <Route path="/apk" element={<Navigate to="/get" replace />} />
           <Route path="/blog/free-music-download-apps-india" element={<BlogFreeMusicDownloadAppsIndia />} />
           <Route path="/blog/universflow-vs-jiosaavn-vs-gaana" element={<BlogUniversflowVsJiosaavnVsGaana />} />
           <Route path="/blog/trending-punjabi-songs-2026" element={<BlogTrendingPunjabiSongs2026 />} />
@@ -310,7 +310,7 @@ const AnimatedRoutes = () => {
           <Route path="/verify" element={<VerifyEmail />} />
           <Route path="/check-email" element={<CheckEmail />} />
           <Route path="/offline-player" element={<OfflinePlayerShell />} />
-          <Route path="/home" element={<ListenerRoute><Home /></ListenerRoute>} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="/search" element={<ListenerRoute><Search /></ListenerRoute>} />
           <Route path="/library" element={<ListenerRoute><Library /></ListenerRoute>} />
           <Route path="/playlist/:id" element={<ListenerRoute><PlaylistDetail /></ListenerRoute>} />
