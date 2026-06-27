@@ -677,61 +677,41 @@ export function setReverb(percent: number) {
   applyReverbMix(currentReverbPercent);
 }
 
-function startSpatialLfo() {
-  if (!engine.ctx || !engine.stereoPanner) return;
+/**
+ * Apply the persisted 8D state to the always-running LFO. Toggling is just
+ * a gain ramp (3-8ms) — no oscillator restart, no node creation, no click.
+ * Single audio-frame on/off.
+ */
+function applySpatial() {
+  if (!engine.ctx || !engine.panLfoGain || !engine.stereoPanner) return;
   const ctx = engine.ctx;
-  if (engine.panLfo) {
-    try { engine.panLfo.stop(); } catch { /* ignore */ }
-    try { engine.panLfo.disconnect(); } catch { /* ignore */ }
-  }
-  if (engine.panLfoGain) {
-    try { engine.panLfoGain.disconnect(); } catch { /* ignore */ }
-  }
-  const lfo = ctx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = SPATIAL_RATE_HZ;
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = SPATIAL_DEPTH;
-  lfo.connect(lfoGain);
-  lfoGain.connect(engine.stereoPanner.pan);
-  lfo.start();
-  engine.panLfo = lfo;
-  engine.panLfoGain = lfoGain;
-
-  // Add a touch of reverb for the "room" cue
-  if (currentSpaceId === 'off' && engine.dryGain && engine.wetGain) {
-    const now = ctx.currentTime;
-    engine.wetGain.gain.cancelScheduledValues(now);
-    engine.dryGain.gain.cancelScheduledValues(now);
-    engine.wetGain.gain.setTargetAtTime(0.22, now, SMOOTH);
-    engine.dryGain.gain.setTargetAtTime(0.85, now, SMOOTH);
-  }
-}
-
-function stopSpatialLfo() {
-  if (engine.panLfo) {
-    try { engine.panLfo.stop(); } catch { /* ignore */ }
-    try { engine.panLfo.disconnect(); } catch { /* ignore */ }
-    engine.panLfo = null;
-  }
-  if (engine.panLfoGain) {
-    try { engine.panLfoGain.disconnect(); } catch { /* ignore */ }
-    engine.panLfoGain = null;
-  }
-  if (engine.ctx && engine.stereoPanner) {
-    const now = engine.ctx.currentTime;
+  const now = ctx.currentTime;
+  const target = engine.spatialEnabled ? SPATIAL_DEPTH : 0;
+  engine.panLfoGain.gain.cancelScheduledValues(now);
+  engine.panLfoGain.gain.setTargetAtTime(target, now, SNAP);
+  if (!engine.spatialEnabled) {
+    // When fading out, pull the pan back toward center alongside the LFO fade.
     engine.stereoPanner.pan.cancelScheduledValues(now);
     engine.stereoPanner.pan.setTargetAtTime(0, now, SMOOTH);
   }
-  if (currentSpaceId === 'off') applyReverbMix(currentReverbPercent);
+  // 8D "room" cue — small reverb wash when on, restore user reverb when off.
+  if (currentSpaceId === 'off' && engine.dryGain && engine.wetGain) {
+    if (engine.spatialEnabled) {
+      engine.wetGain.gain.cancelScheduledValues(now);
+      engine.dryGain.gain.cancelScheduledValues(now);
+      engine.wetGain.gain.setTargetAtTime(0.22, now, SMOOTH);
+      engine.dryGain.gain.setTargetAtTime(0.85, now, SMOOTH);
+    } else {
+      applyReverbMix(currentReverbPercent);
+    }
+  }
 }
 
 /** Toggle 8D auto-rotating spatial mode. Single boolean — no extra knobs. */
 export function setSpatial(enabled: boolean) {
   engine.spatialEnabled = enabled;
   if (engine.mode !== 'processed') return;
-  if (enabled) startSpatialLfo();
-  else stopSpatialLfo();
+  applySpatial();
 }
 
 export function resume() {
