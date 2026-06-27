@@ -427,8 +427,9 @@ export default function ArtistApply() {
       }
 
       try { sessionStorage.setItem('uf_artist_just_submitted', String(Date.now())); } catch { /* ignore */ }
-      toast.success(isLockedReapply ? 'Verification re-submitted ✓' : 'Application submitted ✓ Auto-verification running…');
-      navigate('/artist/status', { replace: true });
+      setSubmittedSuccess({ reapply: isLockedReapply });
+      window.setTimeout(() => navigate('/artist/status', { replace: true }), 2600);
+      return;
     } catch (e: unknown) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : 'Could not submit application.');
