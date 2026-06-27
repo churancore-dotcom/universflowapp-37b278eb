@@ -24,6 +24,7 @@ import {
   uploadKycFile,
 } from '@/lib/artist';
 import type { ArtistApplicationSafe } from '@/lib/artist';
+import ArtistLoading from './ArtistLoading';
 import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
 import { validateSocialLink, atLeastNValidLinks, SocialPlatform } from '@/lib/socialLinkValidator';
 
@@ -227,62 +228,65 @@ export default function ArtistApply() {
     if (isLoading) return;
     if (!user) { navigate('/auth', { replace: true }); return; }
     (async () => {
-      const existing = await getMyApplication(user.id);
-      if (existing) {
-        const reapply = getArtistReapplyState(existing);
-        if (!isReapplyMode || existing.status !== 'rejected' || !reapply.canReapply) {
-          if (isReapplyMode && existing.status === 'rejected') toast.error(reapply.waitText || 'You can re-submit 7 days after rejection.');
-          navigate('/artist/status', { replace: true });
+      try {
+        const existing = await getMyApplication(user.id);
+        if (existing) {
+          const reapply = getArtistReapplyState(existing);
+          if (!isReapplyMode || existing.status !== 'rejected' || !reapply.canReapply) {
+            if (isReapplyMode && existing.status === 'rejected') toast.error(reapply.waitText || 'You can re-submit 7 days after rejection.');
+            navigate('/artist/status', { replace: true });
+            return;
+          }
+          setExistingApp(existing);
+          setStageName(existing.stage_name || '');
+          setRealName(existing.real_name || '');
+          const lockedCountry = existing.country_code || '';
+          const lockedDial = lockedCountry ? getDialCode(lockedCountry) : '';
+          const lockedPhone = String(existing.phone || '');
+          setPhone(lockedDial && lockedPhone.startsWith(lockedDial) ? lockedPhone.slice(lockedDial.length) : lockedPhone.replace(/\D/g, ''));
+          setCountry(existing.country_code || '');
+          const links = asSocialLinks(existing.social_links);
+          setInstagram(typeof links.instagram === 'string' ? links.instagram : '');
+          setYoutube(typeof links.youtube === 'string' ? links.youtube : '');
+          setSpotify(typeof links.spotify === 'string' ? links.spotify : '');
+          setAppleMusic(typeof links.apple_music === 'string' ? links.apple_music : '');
+          setBio(typeof links.bio === 'string' ? links.bio : '');
+          setBootChecked(true);
           return;
         }
-        setExistingApp(existing);
-        setStageName(existing.stage_name || '');
-        setRealName(existing.real_name || '');
-        const lockedCountry = existing.country_code || '';
-        const lockedDial = lockedCountry ? getDialCode(lockedCountry) : '';
-        const lockedPhone = String(existing.phone || '');
-        setPhone(lockedDial && lockedPhone.startsWith(lockedDial) ? lockedPhone.slice(lockedDial.length) : lockedPhone.replace(/\D/g, ''));
-        setCountry(existing.country_code || '');
-        const links = asSocialLinks(existing.social_links);
-        setInstagram(typeof links.instagram === 'string' ? links.instagram : '');
-        setYoutube(typeof links.youtube === 'string' ? links.youtube : '');
-        setSpotify(typeof links.spotify === 'string' ? links.spotify : '');
-        setAppleMusic(typeof links.apple_music === 'string' ? links.apple_music : '');
-        setBio(typeof links.bio === 'string' ? links.bio : '');
-        setBootChecked(true);
-        return;
-      }
 
-      let prefilledCountry = '';
-      try {
-        const raw = localStorage.getItem('uf_artist_signup');
-        if (raw) {
-          const s = JSON.parse(raw) as { full_name?: string; phone?: string; country_code?: string };
-          if (s.full_name) setRealName(s.full_name);
-          if (s.country_code) { setCountry(s.country_code); prefilledCountry = s.country_code; }
-          if (s.phone) {
-            const dial = prefilledCountry ? getDialCode(prefilledCountry) : '';
-            const rawPhone = String(s.phone);
-            const digitsOnly = rawPhone.replace(/\D/g, '');
-            const dialDigits = dial.replace(/\D/g, '');
-            setPhone(dialDigits && digitsOnly.startsWith(dialDigits)
-              ? digitsOnly.slice(dialDigits.length)
-              : digitsOnly);
-          }
-          // Lock phone + country once we have them from the verified signup.
-          if (s.country_code && s.phone) setSignupLocked(true);
-        }
-      } catch { /* ignore */ }
-
-      // Silent geo-detect ONLY as a soft suggestion if user hasn't set one.
-      if (!prefilledCountry) {
+        let prefilledCountry = '';
         try {
-          const cc = await detectCountrySilently();
-          if (cc && COUNTRIES.some(([c]) => c === cc)) setCountry(cc);
-        } catch { /* keep blank */ }
-      }
+          const raw = localStorage.getItem('uf_artist_signup');
+          if (raw) {
+            const s = JSON.parse(raw) as { full_name?: string; phone?: string; country_code?: string };
+            if (s.full_name) setRealName(s.full_name);
+            if (s.country_code) { setCountry(s.country_code); prefilledCountry = s.country_code; }
+            if (s.phone) {
+              const dial = prefilledCountry ? getDialCode(prefilledCountry) : '';
+              const rawPhone = String(s.phone);
+              const digitsOnly = rawPhone.replace(/\D/g, '');
+              const dialDigits = dial.replace(/\D/g, '');
+              setPhone(dialDigits && digitsOnly.startsWith(dialDigits)
+                ? digitsOnly.slice(dialDigits.length)
+                : digitsOnly);
+            }
+            if (s.country_code && s.phone) setSignupLocked(true);
+          }
+        } catch { /* ignore */ }
 
-      setBootChecked(true);
+        if (!prefilledCountry) {
+          try {
+            const cc = await detectCountrySilently();
+            if (cc && COUNTRIES.some(([c]) => c === cc)) setCountry(cc);
+          } catch { /* keep blank */ }
+        }
+      } catch (err) {
+        console.error('artist apply boot failed', err);
+        toast.error('Could not load your application. Please try again.');
+      } finally {
+        setBootChecked(true);
+      }
     })();
   }, [user, isLoading, navigate, isReapplyMode]);
 
@@ -433,7 +437,7 @@ export default function ArtistApply() {
   };
 
 
-  if (isLoading || !bootChecked) return <div className="min-h-[100dvh] bg-background" />;
+  if (isLoading || !bootChecked) return <ArtistLoading label="Preparing your application…" />;
 
   const meta = STEP_META[step];
   const StepIcon = meta.icon;

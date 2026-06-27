@@ -22,6 +22,7 @@ import {
   uploadArtistPhoto,
 } from '@/lib/artist';
 import { useFilePreview } from '@/lib/useFilePreview';
+import ArtistLoading from './ArtistLoading';
 
 type Profile = {
   id: string;
@@ -117,7 +118,7 @@ export default function ArtistStudio() {
   }, [songs]);
 
   if (isLoading || boot || !profile) {
-    return <div className="min-h-[100dvh] bg-background" />;
+    return <ArtistLoading label="Loading your Studio…" />;
   }
 
   return (

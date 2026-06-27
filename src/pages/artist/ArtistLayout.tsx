@@ -7,6 +7,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useArtistLive } from './_shared';
+import ArtistLoading from './ArtistLoading';
 
 const nav = [
   { to: '/artist/studio', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -130,7 +131,7 @@ export default function ArtistLayout() {
   }, [followers, location.pathname]);
 
   if (!authorized || loading || !profile) {
-    return <div className="min-h-[100dvh] bg-background" />;
+    return <ArtistLoading label="Opening Artist Studio…" />;
   }
 
   const ctx = { profile, songs, followers, user };
