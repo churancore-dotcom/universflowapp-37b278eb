@@ -17,9 +17,10 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ID_DOC_LABELS, IdDocType } from '@/lib/artist';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Copy } from 'lucide-react';
 
 type Status = 'pending' | 'approved' | 'rejected';
 
@@ -72,6 +73,8 @@ export default function ArtistApplications() {
   const navigate = useNavigate();
   const { status: routeStatus } = useParams<{ status?: string }>();
   const [active, setActive] = useState<App | null>(null);
+  const [activeEmail, setActiveEmail] = useState<string | null>(null);
+  const [activeUsername, setActiveUsername] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [previews, setPreviews] = useState<PreviewMap>({});
@@ -114,6 +117,8 @@ export default function ArtistApplications() {
 
   const openReview = async (app: App) => {
     setActive(app);
+    setActiveEmail(null);
+    setActiveUsername(null);
     // admin_note is fetched on demand via the admin RPC so the column stays
     // hidden from regular signed-in users at the database level.
     let currentNote: string | null = null;
@@ -123,6 +128,13 @@ export default function ArtistApplications() {
     } catch { /* ignore */ }
     setNote(currentNote ?? '');
     setPreviews({});
+    supabase.from('profiles').select('email, username').eq('user_id', app.user_id).maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setActiveEmail(data.email ?? null);
+          setActiveUsername(data.username ?? null);
+        }
+      });
     const faceShots = app.social_links?.face_shots;
     const face = Array.isArray(faceShots) ? faceShots.filter((path): path is string => typeof path === 'string') : [];
     const [front, back, selfie, center, left, right, up] = await Promise.all([
@@ -231,61 +243,81 @@ export default function ArtistApplications() {
         </div>
       )}
 
-      <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              {active?.artist_photo_path ? <img src={active.artist_photo_path} alt="" className="w-10 h-10 rounded-xl object-cover" /> : null}
-              <span>{active?.stage_name}</span>
-              {active ? <StatusBadge status={active.status} /> : null}
-            </DialogTitle>
-          </DialogHeader>
-          {active && (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
-              <div className="space-y-5">
-                <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <h3 className="font-semibold mb-3">Identity details</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <Info label="Legal name" value={active.real_name} />
-                    <Info label="Phone" value={active.phone} />
-                    <Info label="Country" value={active.country_code} />
-                    <Info label="Doc type" value={ID_DOC_LABELS[active.id_doc_type]} />
-                  </div>
-                </section>
-
-                <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2"><FileCheck2 className="w-4 h-4" /> Documents</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <DocPreview label="ID front" url={previews.front} />
-                    <DocPreview label="ID back" url={previews.back} />
-                    <DocPreview label="Selfie with ID" url={previews.selfie} />
-                  </div>
-                </section>
-
-                <AutoChecksPanel app={active} />
-
-                <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2"><Camera className="w-4 h-4" /> Face liveness check</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <DocPreview label="Front" url={previews.center} />
-                    <DocPreview label="Turn left" url={previews.left} />
-                    <DocPreview label="Turn right" url={previews.right} />
-                    <DocPreview label="Look up" url={previews.up} />
-                  </div>
-                </section>
-
+      <Sheet open={!!active} onOpenChange={(o) => !o && setActive(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0 border-l border-white/[0.08]">
+          <SheetHeader className="px-5 pt-5 pb-4 border-b border-white/[0.06] bg-gradient-to-b from-primary/[0.08] to-transparent">
+            <SheetTitle className="flex items-center gap-3 text-left">
+              {active?.artist_photo_path ? <img src={active.artist_photo_path} alt="" className="w-12 h-12 rounded-xl object-cover" /> : <div className="w-12 h-12 rounded-xl bg-white/[0.05] flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="truncate">{active?.stage_name}</span>
+                  {active ? <StatusBadge status={active.status} /> : null}
+                </div>
+                <SheetDescription className="text-xs mt-0.5">
+                  {active ? `${active.real_name} · Submitted ${new Date(active.created_at).toLocaleString()}` : ''}
+                </SheetDescription>
               </div>
+            </SheetTitle>
+            {active && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-[11px]">
+                <ContextChip label="Email" value={activeEmail ?? '—'} copy={activeEmail ?? undefined} />
+                <ContextChip label="Username" value={activeUsername ?? '—'} />
+                <ContextChip label="User ID" value={active.user_id.slice(0, 8) + '…'} copy={active.user_id} />
+                <ContextChip label="Application" value={active.id.slice(0, 8) + '…'} copy={active.id} />
+              </div>
+            )}
+          </SheetHeader>
+          {active && (
+            <div className="px-5 py-5 space-y-5">
+              <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="font-semibold mb-3">Identity details</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <Info label="Legal name" value={active.real_name} />
+                  <Info label="Phone" value={active.phone} />
+                  <Info label="Country" value={active.country_code} />
+                  <Info label="Doc type" value={ID_DOC_LABELS[active.id_doc_type]} />
+                </div>
+              </section>
 
-              <div className="space-y-5">
-                <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <h3 className="font-semibold mb-3">Artist profile preview</h3>
-                  {active.artist_photo_path ? <img src={active.artist_photo_path} alt="Artist profile" className="w-full aspect-square rounded-2xl object-cover mb-3" /> : <div className="w-full aspect-square rounded-2xl bg-white/[0.04] flex items-center justify-center mb-3"><ImageIcon className="w-8 h-8 text-muted-foreground" /></div>}
-                  <p className="text-lg font-semibold">{active.stage_name}</p>
-                  <p className="text-xs text-muted-foreground">Submitted {new Date(active.created_at).toLocaleString()}</p>
-                </section>
+              <AutoChecksPanel app={active} />
 
-                <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <h3 className="font-semibold mb-3">Social proof</h3>
+              <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><FileCheck2 className="w-4 h-4" /> Uploaded documents</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <DocPreview label="ID front" url={previews.front} />
+                  <DocPreview label="ID back" url={previews.back} />
+                  <DocPreview label="Selfie with ID" url={previews.selfie} />
+                </div>
+                <p className="mt-3 text-[11px] text-muted-foreground">Tap any document to open the full-size signed URL (valid 10 min).</p>
+              </section>
+
+              <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><Camera className="w-4 h-4" /> Face liveness check</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <DocPreview label="Front" url={previews.center} />
+                  <DocPreview label="Turn left" url={previews.left} />
+                  <DocPreview label="Turn right" url={previews.right} />
+                  <DocPreview label="Look up" url={previews.up} />
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="font-semibold mb-3">Artist profile preview</h3>
+                <div className="flex items-start gap-4">
+                  {active.artist_photo_path ? <img src={active.artist_photo_path} alt="Artist profile" className="w-28 h-28 rounded-2xl object-cover shrink-0" /> : <div className="w-28 h-28 rounded-2xl bg-white/[0.04] flex items-center justify-center shrink-0"><ImageIcon className="w-8 h-8 text-muted-foreground" /></div>}
+                  <div className="min-w-0">
+                    <p className="text-lg font-semibold truncate">{active.stage_name}</p>
+                    <p className="text-xs text-muted-foreground">{active.country_code}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Submitted {new Date(active.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <h3 className="font-semibold mb-3">Social proof</h3>
+                {Object.entries(active.social_links || {}).filter(([k, v]) => !!v && k !== 'face_shots').length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No social links submitted.</p>
+                ) : (
                   <ul className="text-sm space-y-2">
                     {Object.entries(active.social_links || {}).filter(([k, v]) => !!v && k !== 'face_shots').map(([k, v]) => (
                       <li key={k} className="flex items-start gap-2">
@@ -296,33 +328,33 @@ export default function ArtistApplications() {
                       </li>
                     ))}
                   </ul>
-                </section>
-
-                <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Admin note</p>
-                  <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="Required if rejecting. Tell the artist exactly what failed and what to upload next time." />
-                  <p className="mt-2 text-[11px] text-muted-foreground">Visible on the artist rejection screen. Keep it direct and useful.</p>
-                </section>
-
-                {active.status === 'pending' ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" disabled={busy} onClick={() => review('rejected')}>
-                      <XCircle className="w-4 h-4 mr-1.5" /> Reject
-                    </Button>
-                    <Button disabled={busy} onClick={() => review('approved')}>
-                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Approve
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-muted-foreground">
-                    Reviewed {active.reviewed_at ? new Date(active.reviewed_at).toLocaleString() : 'earlier'} · {active.status}
-                  </div>
                 )}
-              </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Admin note</p>
+                <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="Required if rejecting. Tell the artist exactly what failed and what to upload next time." />
+                <p className="mt-2 text-[11px] text-muted-foreground">Visible on the artist rejection screen. Keep it direct and useful.</p>
+              </section>
+
+              {active.status === 'pending' ? (
+                <div className="sticky bottom-0 -mx-5 -mb-5 px-5 py-4 bg-background/95 backdrop-blur border-t border-white/[0.06] grid grid-cols-2 gap-2">
+                  <Button variant="outline" disabled={busy} onClick={() => review('rejected')}>
+                    {busy ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <XCircle className="w-4 h-4 mr-1.5" />} Reject
+                  </Button>
+                  <Button disabled={busy} onClick={() => review('approved')}>
+                    {busy ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />} Approve
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-muted-foreground">
+                  Reviewed {active.reviewed_at ? new Date(active.reviewed_at).toLocaleString() : 'earlier'} · {active.status}
+                </div>
+              )}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -371,6 +403,27 @@ function Row({ app, onClick }: { app: App; onClick: () => void }) {
         <StatusBadge status={app.status} />
       </div>
     </button>
+  );
+}
+
+function ContextChip({ label, value, copy }: { label: string; value: string; copy?: string }) {
+  return (
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 min-w-0">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="truncate text-[11px] font-medium">{value}</p>
+        {copy && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(copy); toast.success('Copied'); }}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            aria-label={`Copy ${label}`}
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
