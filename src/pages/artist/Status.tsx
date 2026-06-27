@@ -42,6 +42,7 @@ export default function ArtistStatus() {
   const navigate = useNavigate();
   const [app, setApp] = useState<ArtistApplicationSafe | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [, force] = useState(0);
 
   const load = async () => {
@@ -62,9 +63,11 @@ export default function ArtistStatus() {
         try { sessionStorage.removeItem('uf_artist_just_submitted'); } catch { /* ignore */ }
       }
       setApp(data);
+      setLoadError(false);
     } catch (err) {
       console.error('artist status load failed', err);
       setApp(null);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -157,7 +160,9 @@ export default function ArtistStatus() {
                 We&apos;re verifying your identity
               </h2>
               <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-                Your artist workspace is being prepared. If you just submitted, keep this screen open — the live status will appear automatically when the review row syncs.
+                {loadError
+                  ? 'We could not read the latest verification row right now. Your application is still protected — refresh here and the live status will appear as soon as the secure check responds.'
+                  : 'Your artist workspace is being prepared. If you just submitted, keep this screen open — the live status will appear automatically when the review row syncs.'}
               </p>
               <div className="mt-5 rounded-2xl bg-white/[0.035] border border-white/[0.06] p-3 text-left space-y-2.5">
                 {[
