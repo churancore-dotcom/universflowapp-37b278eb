@@ -124,13 +124,12 @@ const Auth = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Logo + wordmark */}
+          {/* Logo + wordmark — shares layoutId with SplashScreen for a seamless morph */}
           <div className="flex flex-col items-center mb-7">
             <motion.div
+              layoutId="uf-brand-logo"
               className="relative"
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 32, mass: 0.7 }}
             >
               <div
                 className="absolute -inset-8 rounded-full pointer-events-none"
@@ -152,10 +151,9 @@ const Auth = () => {
             </motion.div>
 
             <motion.h1
+              layoutId="uf-brand-wordmark"
               className="mt-6 text-[38px] leading-none font-display tracking-wide text-foreground"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.18, duration: 0.4 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 32, mass: 0.7 }}
             >
               Universflow
               <span className="sr-only"> — Sign in to stream and download music</span>
