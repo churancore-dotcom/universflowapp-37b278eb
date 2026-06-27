@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { 
   Users, Search, MoreVertical, Mail, Calendar,
   Music, Heart, Clock, Crown, Ban, PlayCircle, UserCheck, Trash2
@@ -19,6 +20,7 @@ interface UserProfile {
   username: string | null;
   avatar_url: string | null;
   is_admin: boolean;
+  account_type: 'listener' | 'artist' | string;
   created_at: string;
   status: string;
   library_count?: number;
@@ -27,11 +29,13 @@ interface UserProfile {
 }
 
 const ManageUsers = () => {
+  const location = useLocation();
+  const artistSignupView = location.pathname.includes('artist-signups');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'banned' | 'suspended'>('all');
-  const [stats, setStats] = useState({ total: 0, admins: 0, thisMonth: 0, banned: 0, active: 0 });
+  const [stats, setStats] = useState({ total: 0, admins: 0, artists: 0, thisMonth: 0, banned: 0, active: 0 });
 
   useEffect(() => {
     fetchUsers();
@@ -68,6 +72,7 @@ const ManageUsers = () => {
       const usersWithCounts = (profiles || []).map(profile => ({
         ...profile,
         status: (profile as { status?: string }).status || 'active',
+        account_type: (profile as { account_type?: string }).account_type || 'listener',
         is_admin: adminUserIds.has(profile.user_id),
         library_count: libraryMap[profile.user_id] || 0,
         playlist_count: playlistMap[profile.user_id] || 0,
@@ -81,6 +86,7 @@ const ManageUsers = () => {
       setStats({
         total: usersWithCounts.length,
         admins: usersWithCounts.filter(u => u.is_admin).length,
+        artists: usersWithCounts.filter(u => u.account_type === 'artist').length,
         thisMonth: usersWithCounts.filter(u => new Date(u.created_at) >= thisMonth).length,
         banned: usersWithCounts.filter(u => u.status === 'banned').length,
         active: usersWithCounts.filter(u => u.status === 'active').length,
@@ -129,6 +135,8 @@ const ManageUsers = () => {
   };
 
   const filteredUsers = users.filter(user => {
+    if (artistSignupView && user.account_type !== 'artist') return false;
+    if (!artistSignupView && user.account_type === 'artist') return false;
     const matchesSearch = user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.username?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
@@ -145,15 +153,22 @@ const ManageUsers = () => {
   return (
     <div className="p-4 md:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-display font-bold">Manage Users</h1>
-        <p className="text-muted-foreground mt-1">View, manage, ban or suspend user accounts</p>
+        <h1 className="text-2xl md:text-3xl font-display font-bold">
+          {artistSignupView ? 'Artist Signups' : 'Manage Users'}
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          {artistSignupView
+            ? 'Accounts created through the artist signup flow — separate from normal listeners.'
+            : 'Listener accounts only. Artist signups are separated into their own admin view.'}
+        </p>
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
         {[
           { label: 'Total', value: stats.total, icon: Users, color: 'primary' },
           { label: 'Active', value: stats.active, icon: UserCheck, color: 'green-500' },
+          { label: 'Artist Signups', value: stats.artists, icon: Music, color: 'primary' },
           { label: 'Admins', value: stats.admins, icon: Crown, color: 'accent' },
           { label: 'Banned', value: stats.banned, icon: Ban, color: 'red-500' },
           { label: 'New This Month', value: stats.thisMonth, icon: Calendar, color: 'blue-500' },
@@ -220,6 +235,11 @@ const ManageUsers = () => {
                       {u.is_admin && (
                         <Badge variant="secondary" className="bg-accent/20 text-accent text-[10px]">
                           <Crown className="w-2.5 h-2.5 mr-0.5" /> Admin
+                        </Badge>
+                      )}
+                      {u.account_type === 'artist' && (
+                        <Badge className="bg-primary/15 text-primary border border-primary/20 text-[10px]">
+                          <Music className="w-2.5 h-2.5 mr-0.5" /> Artist signup
                         </Badge>
                       )}
                       {u.status === 'banned' && (
