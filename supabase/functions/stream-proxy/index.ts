@@ -139,8 +139,11 @@ function isAllowed(target: string): boolean {
   // Do NOT allow every *.supabase.co project — only this app's project host.
   if (SUPABASE_PROJECT_HOST && host === SUPABASE_PROJECT_HOST) return true;
   return ALLOWED_HOST_SUFFIXES.some((suffix) => {
-    const bare = suffix.startsWith('.') ? suffix.slice(1) : suffix;
-    return host === bare || host.endsWith(suffix);
+    // Enforce a leading dot so bare entries like "youtu.be" don't match
+    // attacker-registered hostnames like "eviltoutu.be".
+    const dotted = suffix.startsWith('.') ? suffix : '.' + suffix;
+    const bare = dotted.slice(1);
+    return host === bare || host.endsWith(dotted);
   });
 }
 
