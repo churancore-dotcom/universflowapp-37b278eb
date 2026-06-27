@@ -213,7 +213,10 @@ if (typeof window !== 'undefined') {
  */
 const buildStreamProxyUrl = (sourceUrl: string) => {
   if (!shouldProxyStreamUrl(sourceUrl)) return sourceUrl;
-  if (!isEqProcessingEnabled()) return sourceUrl;
+  // ALWAYS proxy. The Premium gate used to live here, but it caused the
+  // cold-boot EQ-is-dead bug: when the very first song loaded before the
+  // Premium check resolved, the raw URL tainted the <audio> element and
+  // the WebAudio graph could never attach to it again.
   return wrapStreamUrl(sourceUrl, { force: true });
 };
 
