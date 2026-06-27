@@ -28,10 +28,11 @@ const labels: Record<Mode, string> = {
   artist: 'Artist',
 };
 
+// Lightweight slide+fade — no blur filter (blur causes jank on mobile GPUs).
 const panelVariants = {
-  initial: (isLogin: boolean) => ({ opacity: 0, y: 18, x: isLogin ? -10 : 10, filter: 'blur(8px)' }),
-  animate: { opacity: 1, y: 0, x: 0, filter: 'blur(0px)' },
-  exit: (isLogin: boolean) => ({ opacity: 0, y: -10, x: isLogin ? 10 : -10, filter: 'blur(8px)' }),
+  initial: (isLogin: boolean) => ({ opacity: 0, x: isLogin ? -14 : 14 }),
+  animate: { opacity: 1, x: 0 },
+  exit: (isLogin: boolean) => ({ opacity: 0, x: isLogin ? 14 : -14 }),
 };
 
 const Auth = () => {
@@ -46,13 +47,15 @@ const Auth = () => {
 
   const isLogin = mode === 'login';
 
-  // Navigate to the dedicated artist auth page when the Artist tab is selected.
-  useEffect(() => {
-    if (mode === 'artist') {
-      const t = setTimeout(() => navigate('/artist/auth', { replace: true }), 180);
-      return () => clearTimeout(t);
+  const handleTab = (m: Mode) => {
+    if (m === mode) return;
+    if (m === 'artist') {
+      // Navigate instantly to the artist auth page — no delay, no setTimeout.
+      navigate('/artist/auth');
+      return;
     }
-  }, [mode, navigate]);
+    setMode(m);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
