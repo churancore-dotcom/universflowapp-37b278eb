@@ -374,7 +374,7 @@ export default function ArtistApply() {
   const countryLabel = COUNTRIES.find(([c]) => c === country)?.[1] ?? country;
 
   const canNext = () => {
-    if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && !!country && phoneCheck.ok;
+    if (step === 1) return stageName.trim().length >= 2 && !stageTaken && realName.trim().length >= 2 && !!country && phoneCheck.ok && !phoneTaken && !phoneChecking;
     if (step === 2) return linksCheck.ok;
     if (step === 3) return !!docType && !!docFront && (!needsBack || !!docBack) && !!selfie;
     if (step === 4) return !!livenessShots;
