@@ -177,7 +177,7 @@ const Auth = () => {
               <button
                 key={m}
                 type="button"
-                onClick={() => setMode(m)}
+                onClick={() => handleTab(m)}
                 className="relative z-10 h-9 text-[12px] font-semibold tracking-tight transition-colors"
                 style={{ color: mode === m ? '#fff' : 'hsl(var(--muted-foreground))' }}
               >
