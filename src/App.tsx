@@ -479,7 +479,7 @@ const AppContent = () => {
         <StructuredData />
       </Suspense>
       <Toaster />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="popLayout" initial={false}>
         {showSplash ? (
           <SplashScreen key="splash" onComplete={handleSplashComplete} />
         ) : (
