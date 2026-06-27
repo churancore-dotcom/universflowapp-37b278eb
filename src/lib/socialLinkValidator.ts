@@ -18,9 +18,12 @@ const LABEL: Record<SocialPlatform, string> = {
 
 export interface LinkCheck { ok: boolean; reason?: string; normalized?: string }
 
+// Obvious junk handles people type to bypass the check.
+const JUNK = /^(test|asdf|abcd|qwerty|xxxx|none|nil|null|undefined|fake|user|me|admin|jrj|aaa+|hhh+|jjj+)$/i;
+
 export function validateSocialLink(platform: SocialPlatform, raw: string): LinkCheck {
   const value = (raw || '').trim();
-  if (!value) return { ok: true }; // empty allowed (validation only when filled)
+  if (!value) return { ok: true };
   let url: URL;
   try {
     url = new URL(value.startsWith('http') ? value : `https://${value}`);
@@ -30,20 +33,47 @@ export function validateSocialLink(platform: SocialPlatform, raw: string): LinkC
   if (!HOSTS[platform].test(url.hostname)) {
     return { ok: false, reason: `That doesn't look like a ${LABEL[platform]} link.` };
   }
-  // Must have an actual path (profile/handle), not just the homepage
-  if (url.pathname.replace(/\/+$/, '').length < 2) {
+  const path = url.pathname.replace(/^\/+|\/+$/g, '');
+  if (path.length < 3) {
     return { ok: false, reason: `Link to your ${LABEL[platform]} profile, not the homepage.` };
+  }
+  const handle = path.split('/')[0].replace(/^@/, '');
+  if (handle.length < 4) {
+    return { ok: false, reason: `That handle is too short to be a real ${LABEL[platform]} profile.` };
+  }
+  if (JUNK.test(handle)) {
+    return { ok: false, reason: `"${handle}" doesn't look like a real ${LABEL[platform]} profile.` };
+  }
+  if (platform === 'spotify' && !/^artist\/[A-Za-z0-9]{10,}/.test(path)) {
+    return { ok: false, reason: 'Paste your Spotify artist link (open.spotify.com/artist/…).' };
+  }
+  if (platform === 'apple_music' && !/artist\//.test(path)) {
+    return { ok: false, reason: 'Paste your Apple Music artist link (music.apple.com/…/artist/…).' };
   }
   return { ok: true, normalized: url.toString() };
 }
 
-export function atLeastOneValidLink(links: Partial<Record<SocialPlatform, string>>): { ok: boolean; reason?: string } {
+export function atLeastNValidLinks(
+  links: Partial<Record<SocialPlatform, string>>,
+  min: number,
+): { ok: boolean; reason?: string } {
   const entries = Object.entries(links) as Array<[SocialPlatform, string]>;
   const filled = entries.filter(([, v]) => v && v.trim().length > 0);
-  if (filled.length === 0) return { ok: false, reason: 'Add at least one social link so we can verify you.' };
+  if (filled.length < min) {
+    return { ok: false, reason: `Add at least ${min} real artist profile link${min === 1 ? '' : 's'} so we can verify you.` };
+  }
+  let validCount = 0;
   for (const [p, v] of filled) {
     const r = validateSocialLink(p, v);
     if (!r.ok) return { ok: false, reason: r.reason };
+    validCount++;
+  }
+  if (validCount < min) {
+    return { ok: false, reason: `Add at least ${min} valid artist profile link${min === 1 ? '' : 's'}.` };
   }
   return { ok: true };
+}
+
+export function atLeastOneValidLink(links: Partial<Record<SocialPlatform, string>>) {
+  return atLeastNValidLinks(links, 1);
 }

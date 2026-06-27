@@ -25,7 +25,7 @@ import {
 } from '@/lib/artist';
 import type { ArtistApplicationSafe } from '@/lib/artist';
 import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
-import { validateSocialLink, atLeastOneValidLink, SocialPlatform } from '@/lib/socialLinkValidator';
+import { validateSocialLink, atLeastNValidLinks, SocialPlatform } from '@/lib/socialLinkValidator';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 const TOTAL_STEPS = 6;
@@ -218,6 +218,10 @@ export default function ArtistApply() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [livenessShots, setLivenessShots] = useState<LivenessShots | null>(null);
+  // True when phone+country came from the verified signup step. Re-typing
+  // those mid-application would let users break the link to their verified
+  // identity, so we lock them.
+  const [signupLocked, setSignupLocked] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
@@ -257,18 +261,16 @@ export default function ArtistApply() {
           if (s.full_name) setRealName(s.full_name);
           if (s.country_code) { setCountry(s.country_code); prefilledCountry = s.country_code; }
           if (s.phone) {
-            // The signup stores the phone as "+91 9876543210" (dial code + space + digits).
-            // The Apply phone <Input> is digits-only and renders the dial code separately,
-            // so we must strip the dial code prefix here. Otherwise the field shows
-            // "+91 9876…" and the user can't edit it without corrupting the number.
             const dial = prefilledCountry ? getDialCode(prefilledCountry) : '';
-            const raw = String(s.phone);
-            const digitsOnly = raw.replace(/\D/g, '');
+            const rawPhone = String(s.phone);
+            const digitsOnly = rawPhone.replace(/\D/g, '');
             const dialDigits = dial.replace(/\D/g, '');
             setPhone(dialDigits && digitsOnly.startsWith(dialDigits)
               ? digitsOnly.slice(dialDigits.length)
               : digitsOnly);
           }
+          // Lock phone + country once we have them from the verified signup.
+          if (s.country_code && s.phone) setSignupLocked(true);
         }
       } catch { /* ignore */ }
 
@@ -295,7 +297,7 @@ export default function ArtistApply() {
   const allowedDocs = country ? docsForCountry(country) : [];
 
   const phoneCheck = country ? validatePhone(country, phone) : { ok: false, reason: '' };
-  const linksCheck = atLeastOneValidLink({ instagram, youtube, spotify, apple_music: appleMusic });
+  const linksCheck = atLeastNValidLinks({ instagram, youtube, spotify, apple_music: appleMusic }, 2);
   const countryLabel = COUNTRIES.find(([c]) => c === country)?.[1] ?? country;
 
   const canNext = () => {
@@ -533,7 +535,7 @@ export default function ArtistApply() {
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
                         placeholder={country ? `${PHONE_DIGITS[country] ?? 10}-digit mobile number` : 'Pick country first'}
                         maxLength={15}
-                        disabled={!country || isLockedReapply}
+                        disabled={!country || isLockedReapply || signupLocked}
                       />
                     </div>
                     {country && phone.length > 0 && !phoneCheck.ok && (
@@ -547,7 +549,9 @@ export default function ArtistApply() {
                       </p>
                     )}
                     <p className="mt-1 text-[10.5px] text-muted-foreground/70">
-                      You can&apos;t change this later. Use a real number — we check it.
+                      {signupLocked
+                        ? 'Locked from your verified signup. Contact support if this is wrong.'
+                        : "You can't change this later. Use a real number — we check it."}
                     </p>
                   </Field>
                   <Field label="Country">
@@ -556,7 +560,7 @@ export default function ArtistApply() {
                       <select
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
-                        disabled={isLockedReapply}
+                        disabled={isLockedReapply || signupLocked}
                         className={`flex h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-9 pr-3 py-2 text-sm appearance-none focus:outline-none focus:border-primary/50 ${
                           !country ? 'text-muted-foreground' : ''
                         }`}
@@ -582,8 +586,8 @@ export default function ArtistApply() {
               {step === 2 && (
                 <>
                   <p className="text-[12.5px] text-muted-foreground -mt-1">
-                    Paste at least <strong>one</strong> real artist profile link so we can match it to your ID.
-                    Plain handles or fake text won&apos;t pass.
+                    Paste at least <strong>2 real artist profile links</strong> so we can match them to your ID.
+                    Plain handles, fake text, or random URLs won&apos;t pass.
                   </p>
                   <LinkField platform="instagram" value={instagram} onChange={setInstagram} placeholder="https://instagram.com/yourhandle" />
                   <LinkField platform="youtube" value={youtube} onChange={setYoutube} placeholder="https://youtube.com/@yourchannel" />

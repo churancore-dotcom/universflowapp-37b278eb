@@ -152,15 +152,29 @@ export default function ArtistApplications() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase
-      .from('artist_applications')
-      .update({ status, admin_note: note.trim() || null })
-      .eq('id', active.id);
-    setBusy(false);
-    if (error) { toast.error(error.message); setBusy(false); return; }
-    toast.success(status === 'approved' ? 'Artist verified and artist dashboard unlocked' : 'Application rejected');
-    setActive(null);
-    load();
+    try {
+      const { data, error } = await supabase
+        .from('artist_applications')
+        .update({ status, admin_note: note.trim() || null })
+        .eq('id', active.id)
+        .select('id, status')
+        .maybeSingle();
+      if (error) {
+        toast.error(error.message || 'Update failed — check your admin role.');
+        return;
+      }
+      if (!data) {
+        toast.error('Nothing was updated. You may have lost admin access — sign out and back in.');
+        return;
+      }
+      toast.success(status === 'approved' ? 'Artist verified and dashboard unlocked' : 'Application rejected');
+      setActive(null);
+      load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Unexpected error while updating the application.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
