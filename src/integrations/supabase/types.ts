@@ -2186,6 +2186,7 @@ export type Database = {
         Args: { _device_info?: Json; _platform?: string; _token: string }
         Returns: string
       }
+      safe_jsonb_text: { Args: { _value: Json }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       submit_artist_application: {
