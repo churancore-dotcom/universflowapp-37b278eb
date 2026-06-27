@@ -79,7 +79,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
     const onPlay = () => {
       if (isAttached) resume();
-      if (getRuntimePremium()) reapply(0);
+      reapply(0);
     };
     const onPointer = () => { if (isAttached) resume(); };
 
