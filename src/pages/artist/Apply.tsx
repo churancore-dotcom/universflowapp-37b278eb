@@ -535,7 +535,7 @@ export default function ArtistApply() {
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
                         placeholder={country ? `${PHONE_DIGITS[country] ?? 10}-digit mobile number` : 'Pick country first'}
                         maxLength={15}
-                        disabled={!country || isLockedReapply}
+                        disabled={!country || isLockedReapply || signupLocked}
                       />
                     </div>
                     {country && phone.length > 0 && !phoneCheck.ok && (
@@ -549,7 +549,9 @@ export default function ArtistApply() {
                       </p>
                     )}
                     <p className="mt-1 text-[10.5px] text-muted-foreground/70">
-                      You can&apos;t change this later. Use a real number — we check it.
+                      {signupLocked
+                        ? 'Locked from your verified signup. Contact support if this is wrong.'
+                        : "You can't change this later. Use a real number — we check it."}
                     </p>
                   </Field>
                   <Field label="Country">
@@ -558,7 +560,7 @@ export default function ArtistApply() {
                       <select
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
-                        disabled={isLockedReapply}
+                        disabled={isLockedReapply || signupLocked}
                         className={`flex h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-9 pr-3 py-2 text-sm appearance-none focus:outline-none focus:border-primary/50 ${
                           !country ? 'text-muted-foreground' : ''
                         }`}
@@ -584,8 +586,8 @@ export default function ArtistApply() {
               {step === 2 && (
                 <>
                   <p className="text-[12.5px] text-muted-foreground -mt-1">
-                    Paste at least <strong>one</strong> real artist profile link so we can match it to your ID.
-                    Plain handles or fake text won&apos;t pass.
+                    Paste at least <strong>2 real artist profile links</strong> so we can match them to your ID.
+                    Plain handles, fake text, or random URLs won&apos;t pass.
                   </p>
                   <LinkField platform="instagram" value={instagram} onChange={setInstagram} placeholder="https://instagram.com/yourhandle" />
                   <LinkField platform="youtube" value={youtube} onChange={setYoutube} placeholder="https://youtube.com/@yourchannel" />
