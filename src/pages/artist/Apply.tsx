@@ -196,6 +196,7 @@ export default function ArtistApply() {
   const [bootChecked, setBootChecked] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
+  const [submittedSuccess, setSubmittedSuccess] = useState<null | { reapply: boolean }>(null);
   const [existingApp, setExistingApp] = useState<ArtistApplicationSafe | null>(null);
   const isLockedReapply = isReapplyMode && !!existingApp;
 
@@ -426,8 +427,9 @@ export default function ArtistApply() {
       }
 
       try { sessionStorage.setItem('uf_artist_just_submitted', String(Date.now())); } catch { /* ignore */ }
-      toast.success(isLockedReapply ? 'Verification re-submitted ✓' : 'Application submitted ✓ Auto-verification running…');
-      navigate('/artist/status', { replace: true });
+      setSubmittedSuccess({ reapply: isLockedReapply });
+      window.setTimeout(() => navigate('/artist/status', { replace: true }), 2600);
+      return;
     } catch (e: unknown) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : 'Could not submit application.');
@@ -438,6 +440,103 @@ export default function ArtistApply() {
 
 
   if (isLoading || !bootChecked) return <ArtistLoading label="Preparing your application…" />;
+
+  if (submittedSuccess) {
+    return (
+      <>
+        <SEOHead
+          title="Application Submitted — Univers Flow"
+          description="Your artist application has been received. Auto-verification is running."
+          path="/artist/apply"
+        />
+        <div className="min-h-[100dvh] bg-background text-foreground flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(ellipse at 50% 0%, hsl(340 100% 55% / 0.20) 0%, transparent 55%)',
+            }}
+          />
+          <motion.div
+            className="relative z-10 w-full max-w-sm text-center"
+            initial={{ opacity: 0, y: 14, filter: 'blur(8px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <motion.div
+              className="mx-auto w-24 h-24 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(180deg, #34c759 0%, #1f9d3f 100%)',
+                boxShadow: '0 14px 40px rgba(52, 199, 89, 0.4)',
+              }}
+              initial={{ scale: 0.4 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 240, damping: 16 }}
+            >
+              <Check className="w-12 h-12 text-white" strokeWidth={2.4} />
+            </motion.div>
+
+            <h1 className="text-[26px] leading-none font-display tracking-tight mt-7 mb-2">
+              {submittedSuccess.reapply ? 'Re-submitted ✓' : 'Application submitted'}
+            </h1>
+            <p className="text-[13px] text-muted-foreground px-4 leading-relaxed">
+              {submittedSuccess.reapply
+                ? 'Your updated details are now in our review queue.'
+                : "We've received your details. Auto-verification is running right now."}
+            </p>
+
+            <div
+              className="rounded-[24px] p-5 mt-7 space-y-4 text-left"
+              style={{
+                background: 'rgba(16,16,18,0.78)',
+                border: '0.5px solid rgba(255,255,255,0.07)',
+                boxShadow: '0 24px 70px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+                backdropFilter: 'blur(24px)',
+              }}
+            >
+              {[
+                { icon: Sparkles, text: <>Auto-checks running on your <strong className="text-foreground">ID & socials</strong></> },
+                { icon: ShieldCheck, text: <>Our team reviews within <strong className="text-foreground">1–3 days</strong></> },
+                { icon: Check, text: <>You'll get a notification the moment we decide</> },
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <motion.div
+                    key={i}
+                    className="flex items-start gap-3"
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.25 + i * 0.1, duration: 0.4 }}
+                  >
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                      style={{
+                        background: 'rgba(255, 45, 85, 0.12)',
+                        border: '0.5px solid rgba(255, 45, 85, 0.18)',
+                      }}
+                    >
+                      <Icon className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <p className="text-[12.5px] text-muted-foreground leading-snug pt-1">{item.text}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            <motion.p
+              className="mt-6 text-[11.5px] text-muted-foreground/70 inline-flex items-center gap-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+            >
+              <Loader2 className="w-3 h-3 animate-spin" /> Taking you to your status…
+            </motion.p>
+          </motion.div>
+        </div>
+      </>
+    );
+  }
+
 
   const meta = STEP_META[step];
   const StepIcon = meta.icon;
