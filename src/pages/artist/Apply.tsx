@@ -196,6 +196,7 @@ export default function ArtistApply() {
   const [bootChecked, setBootChecked] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
+  const [submittedSuccess, setSubmittedSuccess] = useState<null | { reapply: boolean }>(null);
   const [existingApp, setExistingApp] = useState<ArtistApplicationSafe | null>(null);
   const isLockedReapply = isReapplyMode && !!existingApp;
 
