@@ -793,7 +793,17 @@ export default function ArtistApply() {
                         {phoneCheck.troll || phoneCheck.reason}
                       </p>
                     )}
-                    {country && phoneCheck.ok && (
+                    {country && phoneCheck.ok && phoneChecking && (
+                      <p className="mt-1.5 text-[11.5px] text-muted-foreground leading-snug">
+                        Checking availability…
+                      </p>
+                    )}
+                    {country && phoneCheck.ok && !phoneChecking && phoneTaken && (
+                      <p className="mt-1.5 text-[11.5px] text-rose-300 leading-snug">
+                        This phone number is already linked to another artist account.
+                      </p>
+                    )}
+                    {country && phoneCheck.ok && !phoneChecking && !phoneTaken && (
                       <p className="mt-1.5 text-[11.5px] text-emerald-300 leading-snug">
                         ✓ Valid {countryLabel.replace(/^[^\s]+\s/, '')} mobile number.
                       </p>
