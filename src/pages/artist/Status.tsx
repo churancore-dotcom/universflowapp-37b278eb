@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import StepRail, { type RailStep } from '@/components/artist/StepRail';
 import BentoCard from '@/components/artist/BentoCard';
+import ArtistLoading from './ArtistLoading';
 
 function fmtShort(iso?: string | null) {
   if (!iso) return '';
