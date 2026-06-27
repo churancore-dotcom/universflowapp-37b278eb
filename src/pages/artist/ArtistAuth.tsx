@@ -179,7 +179,13 @@ const ArtistAuth = () => {
         return;
       } else {
         const fullPhone = `${dial[1]} ${phone.trim()}`;
-        const { error } = await signUp(email, password, username, dial[0]);
+        const artistMetadata = {
+          full_name: fullName.trim(),
+          phone: fullPhone,
+          dob,
+          account_type: 'artist',
+        };
+        const { error } = await signUp(email, password, username, dial[0], artistMetadata);
         if (error) { toast.error(error.message); return; }
 
         try {
