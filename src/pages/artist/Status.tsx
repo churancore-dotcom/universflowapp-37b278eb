@@ -141,11 +141,48 @@ export default function ArtistStatus() {
     return (
       <FadeTransition>
         <Shell>
-          <div className="text-center pt-16">
-            <p className="text-muted-foreground text-[14px] mb-4">No artist application yet.</p>
-            <Button onClick={() => navigate('/artist/apply')} style={{ background: '#FF2D55' }} className="text-white">
-              Start application <ArrowRight className="w-4 h-4 ml-1.5" />
-            </Button>
+          <SEOHead title="Artist Verification — Universflow" description="Your artist identity verification is being prepared." path="/artist/status" />
+          <div className="pt-10">
+            <BentoCard glow className="p-6 text-center">
+              <div className="relative mx-auto mb-5 h-20 w-20">
+                <span className="absolute inset-0 rounded-full bg-primary/25 blur-2xl animate-pulse" />
+                <span className="relative grid h-20 w-20 place-items-center rounded-[28px] bg-primary/12 border border-primary/25">
+                  <ScanFace className="w-9 h-9 text-primary animate-pulse" />
+                </span>
+              </div>
+              <p className="text-[10.5px] uppercase tracking-[0.24em] text-primary/80 font-semibold mb-2">
+                Verification starting
+              </p>
+              <h2 className="font-display text-[25px] leading-tight tracking-tight">
+                We&apos;re verifying your identity
+              </h2>
+              <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+                Your artist workspace is being prepared. If you just submitted, keep this screen open — the live status will appear automatically when the review row syncs.
+              </p>
+              <div className="mt-5 rounded-2xl bg-white/[0.035] border border-white/[0.06] p-3 text-left space-y-2.5">
+                {[
+                  'Checking your verified email session',
+                  'Looking for your latest application securely',
+                  'Blocking duplicate submissions while status syncs',
+                ].map((text) => (
+                  <div key={text} className="flex items-center gap-2.5 text-[12px] text-foreground/80">
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="absolute inset-0 rounded-full bg-primary animate-ping" />
+                      <span className="relative rounded-full h-2 w-2 bg-primary" />
+                    </span>
+                    {text}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 grid grid-cols-1 gap-2.5">
+                <Button onClick={load} style={{ background: '#FF2D55' }} className="h-12 text-white">
+                  <RotateCw className="w-4 h-4 mr-1.5" /> Refresh verification
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/artist/apply')} className="h-12 border-white/10 bg-white/[0.03]">
+                  Continue application <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+              </div>
+            </BentoCard>
           </div>
         </Shell>
       </FadeTransition>
