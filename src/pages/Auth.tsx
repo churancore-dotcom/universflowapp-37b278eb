@@ -197,7 +197,7 @@ const Auth = () => {
             ))}
           </div>
 
-          <AnimatePresence mode="wait" initial={false} custom={isLogin}>
+          <AnimatePresence mode="popLayout" initial={false} custom={isLogin}>
             {mode !== 'artist' && (
               <motion.form
                 key={mode}
@@ -209,13 +209,11 @@ const Auth = () => {
                 background: 'rgba(16,16,18,0.78)',
                 border: '0.5px solid rgba(255,255,255,0.07)',
                 boxShadow: '0 30px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
-                backdropFilter: 'blur(24px)',
-                WebkitBackdropFilter: 'blur(24px)',
               }}
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
               <AnimatePresence initial={false} mode="popLayout">
                 {!isLogin && (
