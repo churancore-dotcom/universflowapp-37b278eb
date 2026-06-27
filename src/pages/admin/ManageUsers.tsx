@@ -35,7 +35,6 @@ const ManageUsers = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'banned' | 'suspended'>('all');
-  const [stats, setStats] = useState({ total: 0, admins: 0, artists: 0, thisMonth: 0, banned: 0, active: 0 });
 
   useEffect(() => {
     fetchUsers();
@@ -81,16 +80,6 @@ const ManageUsers = () => {
 
       setUsers(usersWithCounts);
 
-      const now = new Date();
-      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      setStats({
-        total: usersWithCounts.length,
-        admins: usersWithCounts.filter(u => u.is_admin).length,
-        artists: usersWithCounts.filter(u => u.account_type === 'artist').length,
-        thisMonth: usersWithCounts.filter(u => new Date(u.created_at) >= thisMonth).length,
-        banned: usersWithCounts.filter(u => u.status === 'banned').length,
-        active: usersWithCounts.filter(u => u.status === 'active').length,
-      });
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to load users');
@@ -134,14 +123,27 @@ const ManageUsers = () => {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    if (artistSignupView && user.account_type !== 'artist') return false;
-    if (!artistSignupView && user.account_type === 'artist') return false;
+  const accountScopedUsers = users.filter((user) =>
+    artistSignupView ? user.account_type === 'artist' : user.account_type !== 'artist',
+  );
+
+  const filteredUsers = accountScopedUsers.filter(user => {
     const matchesSearch = user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.username?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  const now = new Date();
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const stats = {
+    total: accountScopedUsers.length,
+    admins: accountScopedUsers.filter(u => u.is_admin).length,
+    artists: accountScopedUsers.filter(u => u.account_type === 'artist').length,
+    thisMonth: accountScopedUsers.filter(u => new Date(u.created_at) >= thisMonth).length,
+    banned: accountScopedUsers.filter(u => u.status === 'banned').length,
+    active: accountScopedUsers.filter(u => u.status === 'active').length,
+  };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const getInitials = (email: string | null, username: string | null) => {
