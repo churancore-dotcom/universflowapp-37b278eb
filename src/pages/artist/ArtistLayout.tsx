@@ -131,7 +131,7 @@ export default function ArtistLayout() {
   }, [followers, location.pathname]);
 
   if (!authorized || loading || !profile) {
-    return <div className="min-h-[100dvh] bg-background" />;
+    return <ArtistLoading label="Opening Artist Studio…" />;
   }
 
   const ctx = { profile, songs, followers, user };
