@@ -24,6 +24,7 @@ import {
   uploadKycFile,
 } from '@/lib/artist';
 import type { ArtistApplicationSafe } from '@/lib/artist';
+import ArtistLoading from './ArtistLoading';
 import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
 import { validateSocialLink, atLeastNValidLinks, SocialPlatform } from '@/lib/socialLinkValidator';
 
