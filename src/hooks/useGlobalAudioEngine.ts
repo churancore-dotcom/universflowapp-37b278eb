@@ -27,6 +27,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     if (!audioElement) return;
 
     let reapplyTimer: number | null = null;
+    let reapplyFrame: number | null = null;
     // Once we've attached WebAudio for this element, we can't detach — the
     // MediaElementSource permanently routes audio through the graph. We just
     // keep re-pushing settings on every src/play change.
@@ -67,8 +68,21 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       setHeadphoneSurround(s.headphoneSurround);
     };
 
-    // Coalesce loadstart+loadedmetadata+canplay bursts into a single rebuild.
+    // Two coalescing paths:
+    //   - reapplyFrame: instant (next paint frame) — used for user-driven UI
+    //     events like uf-eq-changed. 60 rapid slider moves collapse to 60
+    //     frame-aligned applies with zero queued timers.
+    //   - reapplyTimer: small delay (30ms) — used for media-readiness bursts
+    //     (loadstart + loadedmetadata + canplay fire in quick succession).
+    const reapplyNow = () => {
+      if (reapplyFrame != null) return;
+      reapplyFrame = window.requestAnimationFrame(() => {
+        reapplyFrame = null;
+        doReapply();
+      });
+    };
     const reapply = (delay = 30) => {
+      if (delay === 0) { reapplyNow(); return; }
       if (reapplyTimer != null) window.clearTimeout(reapplyTimer);
       reapplyTimer = window.setTimeout(() => {
         reapplyTimer = null;
@@ -79,7 +93,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
     const onPlay = () => {
       if (isAttached) resume();
-      reapply(0);
+      reapplyNow();
     };
     const onPointer = () => { if (isAttached) resume(); };
 
@@ -87,9 +101,9 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       if (document.visibilityState !== 'hidden' && isAttached) resume();
     };
 
-    // User toggled EQ in modal — apply IMMEDIATELY (no 180ms wait). The graph
-    // is already attached, so this is just BiquadFilter.gain updates.
-    const onEqChanged = () => reapply(0);
+    // User toggled EQ in modal — apply on the very next frame. The graph is
+    // already attached, so this is just AudioParam.setTargetAtTime() calls.
+    const onEqChanged = () => reapplyNow();
 
     doReapply();
     audioElement.addEventListener('loadstart', onMediaReady);
