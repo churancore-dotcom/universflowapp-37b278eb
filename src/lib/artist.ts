@@ -116,11 +116,14 @@ export function isBlockedStreamHost(url: string): string | null {
 export async function getMyApplication(userId: string): Promise<ArtistApplicationSafe | null> {
   // admin_note column is no longer SELECT-able by regular authenticated users;
   // fetch the rest of the row, then pull the owner-scoped note via RPC.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('artist_applications_safe')
     .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, reviewed_by, created_at, updated_at')
     .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
+  if (error) throw error;
   if (!data) return null;
   let admin_note: string | null = null;
   if (data.id) try {

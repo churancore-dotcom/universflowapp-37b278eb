@@ -339,6 +339,21 @@ export default function ArtistApply() {
     }
     setSubmitting(true);
     try {
+      const latestApp = await getMyApplication(user.id);
+      if (!isLockedReapply && latestApp) {
+        const reapply = getArtistReapplyState(latestApp);
+        if (latestApp.status === 'rejected' && reapply.canReapply) {
+          toast.error('Use the secure re-submit flow from your status screen.');
+          navigate('/artist/status', { replace: true });
+        } else {
+          toast.error(latestApp.status === 'rejected'
+            ? reapply.waitText || 'You can re-submit 7 days after rejection.'
+            : 'Your artist application already exists. Check your live status.');
+          navigate('/artist/status', { replace: true });
+        }
+        return;
+      }
+
       const blobToFile = (b: Blob, name: string) => new File([b], name, { type: b.type || 'image/jpeg' });
       const faceUploads = livenessShots
         ? await Promise.all(
@@ -409,8 +424,15 @@ export default function ArtistApply() {
       if (error) {
         // Surface friendly errors for the new anti-abuse rules.
         const msg = error.message || '';
-        if (msg.includes('re-apply 7 days') || msg.includes('Next attempt allowed')) {
+        if (msg.includes('re-apply 7 days') || msg.includes('re-submit after') || msg.includes('Next attempt allowed')) {
           toast.error(msg);
+          navigate('/artist/status', { replace: true });
+        } else if (msg.includes('already have an artist application')) {
+          toast.error('Your artist application already exists. Opening live status.');
+          navigate('/artist/status', { replace: true });
+        } else if (msg.includes('Use the re-submit verification button')) {
+          toast.error('Use the secure re-submit button from your status screen.');
+          navigate('/artist/status', { replace: true });
         } else if (msg.toLowerCase().includes('already linked to another artist')) {
           toast.error(msg);
         } else {

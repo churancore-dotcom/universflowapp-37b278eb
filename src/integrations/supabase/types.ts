@@ -1188,6 +1188,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_type: string
           avatar_url: string | null
           country_code: string | null
           created_at: string
@@ -1206,6 +1207,7 @@ export type Database = {
           username_changed: boolean
         }
         Insert: {
+          account_type?: string
           avatar_url?: string | null
           country_code?: string | null
           created_at?: string
@@ -1224,6 +1226,7 @@ export type Database = {
           username_changed?: boolean
         }
         Update: {
+          account_type?: string
           avatar_url?: string | null
           country_code?: string | null
           created_at?: string

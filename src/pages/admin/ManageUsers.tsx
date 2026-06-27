@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { 
   Users, Search, MoreVertical, Mail, Calendar,
   Music, Heart, Clock, Crown, Ban, PlayCircle, UserCheck, Trash2
@@ -19,6 +20,7 @@ interface UserProfile {
   username: string | null;
   avatar_url: string | null;
   is_admin: boolean;
+  account_type: 'listener' | 'artist' | string;
   created_at: string;
   status: string;
   library_count?: number;
@@ -27,11 +29,12 @@ interface UserProfile {
 }
 
 const ManageUsers = () => {
+  const location = useLocation();
+  const artistSignupView = location.pathname.includes('artist-signups');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'banned' | 'suspended'>('all');
-  const [stats, setStats] = useState({ total: 0, admins: 0, thisMonth: 0, banned: 0, active: 0 });
 
   useEffect(() => {
     fetchUsers();
@@ -68,6 +71,7 @@ const ManageUsers = () => {
       const usersWithCounts = (profiles || []).map(profile => ({
         ...profile,
         status: (profile as { status?: string }).status || 'active',
+        account_type: (profile as { account_type?: string }).account_type || 'listener',
         is_admin: adminUserIds.has(profile.user_id),
         library_count: libraryMap[profile.user_id] || 0,
         playlist_count: playlistMap[profile.user_id] || 0,
@@ -76,15 +80,6 @@ const ManageUsers = () => {
 
       setUsers(usersWithCounts);
 
-      const now = new Date();
-      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      setStats({
-        total: usersWithCounts.length,
-        admins: usersWithCounts.filter(u => u.is_admin).length,
-        thisMonth: usersWithCounts.filter(u => new Date(u.created_at) >= thisMonth).length,
-        banned: usersWithCounts.filter(u => u.status === 'banned').length,
-        active: usersWithCounts.filter(u => u.status === 'active').length,
-      });
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to load users');
@@ -128,12 +123,36 @@ const ManageUsers = () => {
     }
   };
 
-  const filteredUsers = users.filter(user => {
+  const accountScopedUsers = users.filter((user) =>
+    artistSignupView ? user.account_type === 'artist' : user.account_type !== 'artist',
+  );
+
+  const filteredUsers = accountScopedUsers.filter(user => {
     const matchesSearch = user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.username?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'all' || user.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  const now = new Date();
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const stats = {
+    total: accountScopedUsers.length,
+    admins: accountScopedUsers.filter(u => u.is_admin).length,
+    artists: accountScopedUsers.filter(u => u.account_type === 'artist').length,
+    thisMonth: accountScopedUsers.filter(u => new Date(u.created_at) >= thisMonth).length,
+    banned: accountScopedUsers.filter(u => u.status === 'banned').length,
+    active: accountScopedUsers.filter(u => u.status === 'active').length,
+  };
+
+  const statCards = [
+    { label: 'Total', value: stats.total, icon: Users, iconWrap: 'bg-primary/20', iconText: 'text-primary' },
+    { label: 'Active', value: stats.active, icon: UserCheck, iconWrap: 'bg-green-500/20', iconText: 'text-green-500' },
+    { label: 'Artist Signups', value: stats.artists, icon: Music, iconWrap: 'bg-primary/20', iconText: 'text-primary' },
+    { label: 'Admins', value: stats.admins, icon: Crown, iconWrap: 'bg-accent/20', iconText: 'text-accent' },
+    { label: 'Banned', value: stats.banned, icon: Ban, iconWrap: 'bg-red-500/20', iconText: 'text-red-500' },
+    { label: 'New This Month', value: stats.thisMonth, icon: Calendar, iconWrap: 'bg-blue-500/20', iconText: 'text-blue-500' },
+  ];
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const getInitials = (email: string | null, username: string | null) => {
@@ -145,22 +164,22 @@ const ManageUsers = () => {
   return (
     <div className="p-4 md:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-display font-bold">Manage Users</h1>
-        <p className="text-muted-foreground mt-1">View, manage, ban or suspend user accounts</p>
+        <h1 className="text-2xl md:text-3xl font-display font-bold">
+          {artistSignupView ? 'Artist Signups' : 'Manage Users'}
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          {artistSignupView
+            ? 'Accounts created through the artist signup flow — separate from normal listeners.'
+            : 'Listener accounts only. Artist signups are separated into their own admin view.'}
+        </p>
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        {[
-          { label: 'Total', value: stats.total, icon: Users, color: 'primary' },
-          { label: 'Active', value: stats.active, icon: UserCheck, color: 'green-500' },
-          { label: 'Admins', value: stats.admins, icon: Crown, color: 'accent' },
-          { label: 'Banned', value: stats.banned, icon: Ban, color: 'red-500' },
-          { label: 'New This Month', value: stats.thisMonth, icon: Calendar, color: 'blue-500' },
-        ].map(s => (
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        {statCards.map(s => (
           <div key={s.label} className="glass rounded-xl p-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg bg-${s.color}/20 flex items-center justify-center`}>
-              <s.icon className={`w-5 h-5 text-${s.color}`} />
+            <div className={`w-10 h-10 rounded-lg ${s.iconWrap} flex items-center justify-center`}>
+              <s.icon className={`w-5 h-5 ${s.iconText}`} />
             </div>
             <div>
               <p className="text-xl font-bold">{s.value}</p>
@@ -220,6 +239,11 @@ const ManageUsers = () => {
                       {u.is_admin && (
                         <Badge variant="secondary" className="bg-accent/20 text-accent text-[10px]">
                           <Crown className="w-2.5 h-2.5 mr-0.5" /> Admin
+                        </Badge>
+                      )}
+                      {u.account_type === 'artist' && (
+                        <Badge className="bg-primary/15 text-primary border border-primary/20 text-[10px]">
+                          <Music className="w-2.5 h-2.5 mr-0.5" /> Artist signup
                         </Badge>
                       )}
                       {u.status === 'banned' && (

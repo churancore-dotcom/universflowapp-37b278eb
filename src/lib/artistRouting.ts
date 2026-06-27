@@ -3,6 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type ArtistDestination = '/artist/studio' | '/artist/status' | '/artist/apply' | null;
 
+async function latestApplicationForUser(userId: string): Promise<{ status?: string } | null> {
+  const { data } = await supabase
+    .from('artist_applications_safe')
+    .select('status, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data as { status?: string } | null;
+}
+
 export function hasArtistSignupIntent(user?: User | null): boolean {
   const metadata = (user?.user_metadata || {}) as Record<string, unknown>;
   // Do not trust localStorage for auth/routing decisions — any user can modify
@@ -45,13 +56,7 @@ export async function getArtistDestination(user?: User | null): Promise<ArtistDe
   if (!hasArtistSignupIntent(user)) return null;
 
   try {
-    const { data: application } = await supabase
-      .from('artist_applications_safe' as never)
-      .select('status')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    const status = (application as { status?: string } | null)?.status;
+    const status = (await latestApplicationForUser(user.id))?.status;
     if (status === 'pending' || status === 'rejected' || status === 'approved') {
       return '/artist/status';
     }

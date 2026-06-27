@@ -35,6 +35,7 @@ const navItems = [
   { icon: Music, label: 'Manage Songs', path: '/admin/songs' },
   { icon: ShieldCheck, label: 'Artist Verification', path: '/admin/artist-applications' },
   { icon: Users, label: 'Manage Artists', path: '/admin/artists' },
+  { icon: Music, label: 'Artist Signups', path: '/admin/artist-signups' },
   { icon: ListMusic, label: 'Playlists', path: '/admin/playlists' },
   { icon: Users, label: 'Users', path: '/admin/users' },
   { icon: Crown, label: 'Subscriptions', path: '/admin/subscriptions' },
