@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import appLogo from '@/assets/app-logo.webp';
-
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
 /**
- * SplashScreen — clean logo reveal with CSS keyframes.
- * Fires onComplete after the logo animation finishes (≈ 2.2 s)
- * or after a hard cap so we never block the app.
+ * SplashScreen — clean logo reveal that shares a layout transition with the
+ * Auth page logo (layoutId="uf-brand-logo" / "uf-brand-wordmark"). When the
+ * splash unmounts, the logo morphs smoothly into the Auth screen logo.
  */
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const doneRef = useRef(false);
-  const [phase, setPhase] = useState<'in' | 'hold' | 'out' | 'done'>('in');
+  const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in');
 
   const finish = () => {
     if (doneRef.current) return;
@@ -22,16 +22,10 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   };
 
   useEffect(() => {
-    // Hard cap so a broken asset never wedges the app
     const cap = window.setTimeout(finish, 3500);
-
-    const t1 = window.setTimeout(() => setPhase('hold'), 600);
-    const t2 = window.setTimeout(() => setPhase('out'), 1800);
-    const t3 = window.setTimeout(() => {
-      setPhase('done');
-      finish();
-    }, 2200);
-
+    const t1 = window.setTimeout(() => setPhase('hold'), 500);
+    const t2 = window.setTimeout(() => setPhase('out'), 1700);
+    const t3 = window.setTimeout(finish, 2100);
     return () => {
       window.clearTimeout(cap);
       window.clearTimeout(t1);
@@ -41,34 +35,47 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const logoScale = phase === 'in' ? 'scale-75 opacity-0' : phase === 'hold' ? 'scale-100 opacity-100' : phase === 'out' ? 'scale-110 opacity-0' : 'scale-110 opacity-0';
+  const visible = phase !== 'in';
+  const ease = [0.22, 1, 0.36, 1] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-black">
+    <motion.div
+      className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-black"
+      initial={{ opacity: 1 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.45, ease }}
+    >
       <div className="flex flex-col items-center justify-center">
-        <img
+        <motion.img
+          layoutId="uf-brand-logo"
           src={appLogo}
           alt="Univers Flow"
           width={160}
           height={160}
           loading="eager"
           decoding="async"
-          {...({ fetchpriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>)}
-          className={`h-40 w-40 rounded-full object-cover transition-all duration-[600ms] ease-out ${logoScale}`}
+          {...({ fetchpriority: 'high' } as React.ImgHTMLAttributes<HTMLImageElement>)}
+          className="h-40 w-40 rounded-full object-cover"
+          style={{ opacity: visible ? 1 : 0 }}
           draggable={false}
+          transition={{ type: 'spring', stiffness: 260, damping: 32, mass: 0.7 }}
         />
-        <div
-          className={`mt-8 text-white transition-all duration-[600ms] ease-out ${logoScale}`}
+        <motion.div
+          layoutId="uf-brand-wordmark"
+          className="mt-8 text-white"
           style={{
             fontSize: 30,
             letterSpacing: '0.34em',
             fontWeight: 700,
+            opacity: visible ? 1 : 0,
           }}
+          transition={{ type: 'spring', stiffness: 260, damping: 32, mass: 0.7 }}
         >
           UNIVERS FLOW
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
