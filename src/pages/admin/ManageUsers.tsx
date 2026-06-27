@@ -276,6 +276,14 @@ const ManageUsers = () => {
                           <UserCheck className="w-4 h-4 mr-2" /> Activate User
                         </DropdownMenuItem>
                       )}
+                      {!u.is_admin && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => deleteUser(u)} className="text-red-500 focus:text-red-500">
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete User Permanently
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
