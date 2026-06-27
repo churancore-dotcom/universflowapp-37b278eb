@@ -120,6 +120,8 @@ export async function getMyApplication(userId: string): Promise<ArtistApplicatio
     .from('artist_applications_safe')
     .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, reviewed_by, created_at, updated_at')
     .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (!data) return null;
   let admin_note: string | null = null;
