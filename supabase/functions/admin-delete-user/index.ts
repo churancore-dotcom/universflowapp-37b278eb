@@ -74,8 +74,8 @@ Deno.serve(async (req) => {
     event_type: 'admin_delete_user',
     severity: 'warning',
     user_id: callerId,
-    details: { deleted_user_id: targetId },
+    details: { deleted_user_id: targetId, auth_user_existed: !notFound },
   });
 
-  return json({ success: true });
+  return json({ success: true, auth_user_existed: !notFound });
 });
