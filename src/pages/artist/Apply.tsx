@@ -434,7 +434,7 @@ export default function ArtistApply() {
   };
 
 
-  if (isLoading || !bootChecked) return <div className="min-h-[100dvh] bg-background" />;
+  if (isLoading || !bootChecked) return <ArtistLoading label="Preparing your application…" />;
 
   const meta = STEP_META[step];
   const StepIcon = meta.icon;
