@@ -13,7 +13,10 @@
  * All parameter changes use setTargetAtTime() for click-free transitions.
  */
 
-const SMOOTH = 0.05;        // 50ms — smooths gain knobs
+// Smoothing — small enough to feel instant (one audio render quantum at 48k
+// ≈ 2.7ms), large enough to prevent zipper/click artifacts on gain ramps.
+const SMOOTH = 0.008;       // 8ms — sub-frame, click-free
+const SNAP   = 0.003;       // 3ms — used for binary on/off toggles (8D, surround)
 const SPATIAL_RATE_HZ = 0.18; // ~5.5s per full L↔R orbit
 const SPATIAL_DEPTH = 0.92;  // 0..1 — how far the LFO swings the pan
 
@@ -168,6 +171,36 @@ const SPACE_PROFILES: Record<Exclude<StudioSpaceId, 'off'>, SpaceProfile> = {
 let currentSpaceId: StudioSpaceId = 'off';
 let currentReverbPercent = 0;
 
+// IR cache — keyed by sampleRate. Building an IR allocates and fills up to
+// 220k float samples and runs synchronously on the main thread; doing it on
+// every Studio Space toggle would glitch playback for 5-30ms. Pre-build all
+// six profiles on first chain construction so switching is a pointer swap.
+const irCache = new Map<string, AudioBuffer>();
+
+function irKey(spaceId: Exclude<StudioSpaceId, 'off'>, sampleRate: number) {
+  return `${spaceId}@${sampleRate}`;
+}
+
+function getCachedSpaceIR(ctx: AudioContext, spaceId: Exclude<StudioSpaceId, 'off'>): AudioBuffer {
+  const key = irKey(spaceId, ctx.sampleRate);
+  const cached = irCache.get(key);
+  if (cached) return cached;
+  const built = buildSpaceIR(ctx, SPACE_PROFILES[spaceId]);
+  irCache.set(key, built);
+  return built;
+}
+
+function prebuildAllSpaceIRs(ctx: AudioContext) {
+  // Idle-time warm-up so the first toggle is instant.
+  const ids: Array<Exclude<StudioSpaceId, 'off'>> = ['vinyl', 'studio', 'bedroom', 'hall', 'cathedral', 'stadium'];
+  const run = () => { for (const id of ids) { try { getCachedSpaceIR(ctx, id); } catch { /* ignore */ } } };
+  if (typeof (window as Window & { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback === 'function') {
+    (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(run);
+  } else {
+    setTimeout(run, 50);
+  }
+}
+
 function applyReverbMix(percent: number) {
   if (engine.mode !== 'processed' || !engine.ctx || !engine.dryGain || !engine.wetGain) return;
   const ctx = engine.ctx;
@@ -195,14 +228,12 @@ function buildSpaceIR(ctx: AudioContext, p: SpaceProfile): AudioBuffer {
       seed = (seed * 9301 + 49297) % 233280;
       return seed / 233280;
     };
-    // Simple one-pole LP for damping
     let lpState = 0;
     const lpCoef = 1 - p.damping * 0.7;
     for (let i = 0; i < length; i++) {
       if (i < predelaySamples) { data[i] = 0; continue; }
       const t = (i - predelaySamples) / (length - predelaySamples);
       const decay = Math.pow(1 - t, p.decay);
-      // Sparser noise for less-dense spaces
       const sample = rand() < p.density ? (rand() * 2 - 1) : 0;
       lpState = lpState + lpCoef * (sample - lpState);
       data[i] = lpState * decay * 0.55;
@@ -234,8 +265,9 @@ function getReverbIR(ctx: AudioContext): AudioBuffer {
 }
 
 /**
- * Apply a Studio Space — swaps the convolver IR and sets wet/dry to taste.
- * 'off' restores the default IR and zero wet (caller's reverb slider takes over).
+ * Apply a Studio Space — pointer-swap the convolver IR (pre-built & cached)
+ * and crossfade wet/dry. The IR build is amortized to app idle time, so this
+ * call is a few microseconds and never glitches audio.
  */
 export function setStudioSpace(spaceId: StudioSpaceId) {
   currentSpaceId = spaceId;
@@ -248,7 +280,7 @@ export function setStudioSpace(spaceId: StudioSpaceId) {
     return;
   }
   const profile = SPACE_PROFILES[spaceId];
-  engine.convolver.buffer = buildSpaceIR(ctx, profile);
+  engine.convolver.buffer = getCachedSpaceIR(ctx, spaceId);
   engine.wetGain.gain.cancelScheduledValues(now);
   engine.dryGain.gain.cancelScheduledValues(now);
   engine.wetGain.gain.setTargetAtTime(profile.wet, now, SMOOTH);
@@ -392,11 +424,26 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   engine.surroundXfeedLR = surroundXfeedLR;
   engine.surroundXfeedRL = surroundXfeedRL;
   engine.limiter = limiter;
-  engine.panLfo = null;
-  engine.panLfoGain = null;
+
+  // Persistent 8D LFO — built ONCE with the chain and left running forever.
+  // Toggling 8D just ramps lfoGain between 0 (off) and SPATIAL_DEPTH (on).
+  // No oscillator restart, no node creation, no click. Single-frame on/off.
+  const panLfo = ctx.createOscillator();
+  panLfo.type = 'sine';
+  panLfo.frequency.value = SPATIAL_RATE_HZ;
+  const panLfoGain = ctx.createGain();
+  panLfoGain.gain.value = 0; // off by default
+  panLfo.connect(panLfoGain);
+  panLfoGain.connect(stereoPanner.pan);
+  try { panLfo.start(); } catch { /* already started */ }
+  engine.panLfo = panLfo;
+  engine.panLfoGain = panLfoGain;
+
+  // Warm IR cache for instant Studio Space switching.
+  prebuildAllSpaceIRs(ctx);
 
   // Re-apply the persisted spatial state on the fresh chain
-  if (engine.spatialEnabled) startSpatialLfo();
+  applySpatial();
   // Re-apply the persisted Studio Space on the fresh chain
   if (currentSpaceId !== 'off') setStudioSpace(currentSpaceId);
   // Re-apply Late Night compression on the fresh chain
@@ -630,61 +677,41 @@ export function setReverb(percent: number) {
   applyReverbMix(currentReverbPercent);
 }
 
-function startSpatialLfo() {
-  if (!engine.ctx || !engine.stereoPanner) return;
+/**
+ * Apply the persisted 8D state to the always-running LFO. Toggling is just
+ * a gain ramp (3-8ms) — no oscillator restart, no node creation, no click.
+ * Single audio-frame on/off.
+ */
+function applySpatial() {
+  if (!engine.ctx || !engine.panLfoGain || !engine.stereoPanner) return;
   const ctx = engine.ctx;
-  if (engine.panLfo) {
-    try { engine.panLfo.stop(); } catch { /* ignore */ }
-    try { engine.panLfo.disconnect(); } catch { /* ignore */ }
-  }
-  if (engine.panLfoGain) {
-    try { engine.panLfoGain.disconnect(); } catch { /* ignore */ }
-  }
-  const lfo = ctx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = SPATIAL_RATE_HZ;
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = SPATIAL_DEPTH;
-  lfo.connect(lfoGain);
-  lfoGain.connect(engine.stereoPanner.pan);
-  lfo.start();
-  engine.panLfo = lfo;
-  engine.panLfoGain = lfoGain;
-
-  // Add a touch of reverb for the "room" cue
-  if (currentSpaceId === 'off' && engine.dryGain && engine.wetGain) {
-    const now = ctx.currentTime;
-    engine.wetGain.gain.cancelScheduledValues(now);
-    engine.dryGain.gain.cancelScheduledValues(now);
-    engine.wetGain.gain.setTargetAtTime(0.22, now, SMOOTH);
-    engine.dryGain.gain.setTargetAtTime(0.85, now, SMOOTH);
-  }
-}
-
-function stopSpatialLfo() {
-  if (engine.panLfo) {
-    try { engine.panLfo.stop(); } catch { /* ignore */ }
-    try { engine.panLfo.disconnect(); } catch { /* ignore */ }
-    engine.panLfo = null;
-  }
-  if (engine.panLfoGain) {
-    try { engine.panLfoGain.disconnect(); } catch { /* ignore */ }
-    engine.panLfoGain = null;
-  }
-  if (engine.ctx && engine.stereoPanner) {
-    const now = engine.ctx.currentTime;
+  const now = ctx.currentTime;
+  const target = engine.spatialEnabled ? SPATIAL_DEPTH : 0;
+  engine.panLfoGain.gain.cancelScheduledValues(now);
+  engine.panLfoGain.gain.setTargetAtTime(target, now, SNAP);
+  if (!engine.spatialEnabled) {
+    // When fading out, pull the pan back toward center alongside the LFO fade.
     engine.stereoPanner.pan.cancelScheduledValues(now);
     engine.stereoPanner.pan.setTargetAtTime(0, now, SMOOTH);
   }
-  if (currentSpaceId === 'off') applyReverbMix(currentReverbPercent);
+  // 8D "room" cue — small reverb wash when on, restore user reverb when off.
+  if (currentSpaceId === 'off' && engine.dryGain && engine.wetGain) {
+    if (engine.spatialEnabled) {
+      engine.wetGain.gain.cancelScheduledValues(now);
+      engine.dryGain.gain.cancelScheduledValues(now);
+      engine.wetGain.gain.setTargetAtTime(0.22, now, SMOOTH);
+      engine.dryGain.gain.setTargetAtTime(0.85, now, SMOOTH);
+    } else {
+      applyReverbMix(currentReverbPercent);
+    }
+  }
 }
 
 /** Toggle 8D auto-rotating spatial mode. Single boolean — no extra knobs. */
 export function setSpatial(enabled: boolean) {
   engine.spatialEnabled = enabled;
   if (engine.mode !== 'processed') return;
-  if (enabled) startSpatialLfo();
-  else stopSpatialLfo();
+  applySpatial();
 }
 
 export function resume() {
