@@ -119,6 +119,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
     return () => {
       if (reapplyTimer != null) clearTimeout(reapplyTimer);
+      if (reapplyFrame != null) cancelAnimationFrame(reapplyFrame);
       audioElement.removeEventListener('loadstart', onMediaReady);
       audioElement.removeEventListener('loadedmetadata', onMediaReady);
       audioElement.removeEventListener('canplay', onMediaReady);
