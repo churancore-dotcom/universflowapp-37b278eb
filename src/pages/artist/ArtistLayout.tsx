@@ -7,6 +7,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useArtistLive } from './_shared';
+import ArtistLoading from './ArtistLoading';
 
 const nav = [
   { to: '/artist/studio', label: 'Overview', icon: LayoutDashboard, end: true },
