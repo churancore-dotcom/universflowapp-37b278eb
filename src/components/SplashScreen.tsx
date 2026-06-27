@@ -47,20 +47,24 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       transition={{ duration: 0.45, ease }}
     >
       <div className="flex flex-col items-center justify-center">
-        <motion.img
+        <motion.div
           layoutId="uf-brand-logo"
-          src={appLogo}
-          alt="Univers Flow"
-          width={160}
-          height={160}
-          loading="eager"
-          decoding="async"
-          {...({ fetchpriority: 'high' } as React.ImgHTMLAttributes<HTMLImageElement>)}
-          className="h-40 w-40 rounded-full object-cover"
+          className="h-40 w-40 rounded-full overflow-hidden"
           style={{ opacity: visible ? 1 : 0 }}
-          draggable={false}
           transition={{ type: 'spring', stiffness: 260, damping: 32, mass: 0.7 }}
-        />
+        >
+          <img
+            src={appLogo}
+            alt="Univers Flow"
+            width={160}
+            height={160}
+            loading="eager"
+            decoding="async"
+            {...({ fetchpriority: 'high' } as React.ImgHTMLAttributes<HTMLImageElement>)}
+            className="h-full w-full object-cover"
+            draggable={false}
+          />
+        </motion.div>
         <motion.div
           layoutId="uf-brand-wordmark"
           className="mt-8 text-white"
