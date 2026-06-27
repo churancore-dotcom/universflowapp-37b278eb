@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user_id: sessionUser.id,
         email: sessionUser.email ?? null,
         account_type: accountType,
-      } as never);
+      });
 
       if (insertError && insertError.code !== '23505') {
         console.error('Profile bootstrap failed:', insertError);
