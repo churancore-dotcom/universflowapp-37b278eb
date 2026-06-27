@@ -233,7 +233,7 @@ export default function ArtistApply() {
   // Live duplicate check: phone number already used by another artist
   useEffect(() => {
     if (isLockedReapply) { setPhoneTaken(false); return; }
-    if (!country || !phoneCheckOk(country, phone)) { setPhoneTaken(false); return; }
+    if (!country || !validatePhone(country, phone).ok) { setPhoneTaken(false); return; }
     let cancelled = false;
     setPhoneChecking(true);
     const t = setTimeout(async () => {
