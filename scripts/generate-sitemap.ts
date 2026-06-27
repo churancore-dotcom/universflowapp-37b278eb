@@ -48,24 +48,10 @@ async function fetchDynamic(): Promise<SitemapEntry[]> {
   };
   const out: SitemapEntry[] = [];
   try {
-    const [artistsRes, artistProfilesRes, playlistsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/artists?select=id,updated_at`, { headers }),
+    const [artistProfilesRes, playlistsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/artist_profiles?select=slug,updated_at&slug=not.is.null`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/playlists?select=id,updated_at&is_public=eq.true`, { headers }),
     ]);
-    if (artistsRes.ok) {
-      const rows = (await artistsRes.json()) as Array<{ id: string; updated_at?: string }>;
-      for (const r of rows) {
-        out.push({
-          path: `/artist/${r.id}`,
-          lastmod: (r.updated_at || today).slice(0, 10),
-          changefreq: "weekly",
-          priority: "0.75",
-        });
-      }
-    } else {
-      console.warn(`[sitemap] artists fetch failed: ${artistsRes.status}`);
-    }
     if (artistProfilesRes.ok) {
       const rows = (await artistProfilesRes.json()) as Array<{ slug: string | null; updated_at?: string }>;
       for (const r of rows) {
