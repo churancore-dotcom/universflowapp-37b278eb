@@ -296,9 +296,9 @@ const AnimatedRoutes = () => {
         <Routes location={location}>
           <Route path="/" element={<RootGate />} />
           <Route path="/get" element={<GetAppGate />} />
-          <Route path="/download" element={<GetAppGate />} />
-          <Route path="/app" element={<GetAppGate />} />
-          <Route path="/apk" element={<GetAppGate />} />
+          <Route path="/download" element={<Navigate to="/get" replace />} />
+          <Route path="/app" element={<Navigate to="/get" replace />} />
+          <Route path="/apk" element={<Navigate to="/get" replace />} />
           <Route path="/blog/free-music-download-apps-india" element={<BlogFreeMusicDownloadAppsIndia />} />
           <Route path="/blog/universflow-vs-jiosaavn-vs-gaana" element={<BlogUniversflowVsJiosaavnVsGaana />} />
           <Route path="/blog/trending-punjabi-songs-2026" element={<BlogTrendingPunjabiSongs2026 />} />
