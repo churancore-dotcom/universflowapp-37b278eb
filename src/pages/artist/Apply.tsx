@@ -439,8 +439,51 @@ export default function ArtistApply() {
     }
   };
 
+  // Premium celebration: confetti bursts + native haptics when success screen shows.
+  const celebratedRef = useRef(false);
+  useEffect(() => {
+    if (!submittedSuccess || celebratedRef.current) return;
+    celebratedRef.current = true;
+
+    const fire = (origin: { x: number; y: number }, particleCount: number, opts: confetti.Options = {}) => {
+      confetti({
+        particleCount,
+        spread: 70,
+        startVelocity: 45,
+        ticks: 200,
+        gravity: 0.9,
+        scalar: 0.95,
+        origin,
+        disableForReducedMotion: true,
+        colors: ['#FF2D55', '#FF6B8A', '#FFD166', '#34C759', '#FFFFFF'],
+        ...opts,
+      });
+    };
+
+    // Center burst, then two side cannons — staggered for that real confetti feel.
+    fire({ x: 0.5, y: 0.35 }, 90, { spread: 100, startVelocity: 55 });
+    window.setTimeout(() => fire({ x: 0.1, y: 0.55 }, 55, { angle: 60 }), 180);
+    window.setTimeout(() => fire({ x: 0.9, y: 0.55 }, 55, { angle: 120 }), 220);
+    window.setTimeout(() => fire({ x: 0.5, y: 0.4 }, 60, { spread: 140, startVelocity: 35, gravity: 1.1, scalar: 1.1 }), 520);
+
+    // Subtle haptic pattern — native on Capacitor, web fallback via Vibration API.
+    (async () => {
+      try {
+        const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
+        await Haptics.notification({ type: NotificationType.Success });
+        window.setTimeout(() => Haptics.impact({ style: ImpactStyle.Light }).catch(() => {}), 220);
+      } catch {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try { navigator.vibrate([18, 60, 24, 60, 18]); } catch { /* ignore */ }
+        }
+      }
+    })();
+
+    return () => { try { confetti.reset(); } catch { /* ignore */ } };
+  }, [submittedSuccess]);
 
   if (isLoading || !bootChecked) return <ArtistLoading label="Preparing your application…" />;
+
 
   if (submittedSuccess) {
     return (
