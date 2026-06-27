@@ -226,6 +226,45 @@ export default function ArtistApply() {
   // identity, so we lock them.
   const [signupLocked, setSignupLocked] = useState(false);
   const [handlePreview, setHandlePreview] = useState<{ slug: string; taken: boolean } | null>(null);
+  const [phoneTaken, setPhoneTaken] = useState<boolean>(false);
+  const [phoneChecking, setPhoneChecking] = useState<boolean>(false);
+  const [stageTaken, setStageTaken] = useState<boolean>(false);
+
+  // Live duplicate check: phone number already used by another artist
+  useEffect(() => {
+    if (isLockedReapply) { setPhoneTaken(false); return; }
+    if (!country || !validatePhone(country, phone).ok) { setPhoneTaken(false); return; }
+    let cancelled = false;
+    setPhoneChecking(true);
+    const t = setTimeout(async () => {
+      try {
+        const e164 = `${getDialCode(country)}${phone.replace(/\D/g, '')}`;
+        const enc = new TextEncoder().encode(e164.toLowerCase());
+        const digest = await crypto.subtle.digest('SHA-256', enc);
+        const hash = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+        const { data, error } = await supabase.rpc('check_artist_phone_taken', { p_phone_hash: hash });
+        if (cancelled) return;
+        if (!error) setPhoneTaken(!!data);
+      } catch { /* ignore */ }
+      finally { if (!cancelled) setPhoneChecking(false); }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); setPhoneChecking(false); };
+  }, [phone, country, isLockedReapply]);
+
+  // Live duplicate check: stage name already used by another pending/approved artist
+  useEffect(() => {
+    if (isLockedReapply) { setStageTaken(false); return; }
+    const name = stageName.trim();
+    if (name.length < 2) { setStageTaken(false); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.rpc('check_artist_stage_name_taken', { p_stage_name: name });
+        if (!cancelled && !error) setStageTaken(!!data);
+      } catch { /* ignore */ }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [stageName, isLockedReapply]);
 
   // Live preview of the public artist link. Same stage names are allowed — the
   // backend appends -2, -3… so two artists named "KAYO" never collide. We just
@@ -335,7 +374,7 @@ export default function ArtistApply() {
   const countryLabel = COUNTRIES.find(([c]) => c === country)?.[1] ?? country;
 
   const canNext = () => {
-    if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && !!country && phoneCheck.ok;
+    if (step === 1) return stageName.trim().length >= 2 && !stageTaken && realName.trim().length >= 2 && !!country && phoneCheck.ok && !phoneTaken && !phoneChecking;
     if (step === 2) return linksCheck.ok;
     if (step === 3) return !!docType && !!docFront && (!needsBack || !!docBack) && !!selfie;
     if (step === 4) return !!livenessShots;
@@ -725,6 +764,11 @@ export default function ArtistApply() {
                         )}
                       </p>
                     )}
+                    {stageTaken && !isLockedReapply && (
+                      <p className="mt-1.5 text-[11.5px] text-rose-300 leading-snug">
+                        This stage name is already in use by another verified artist. Pick a different one.
+                      </p>
+                    )}
                   </Field>
                   <Field label="Legal full name">
                     <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} disabled={isLockedReapply} />
@@ -749,7 +793,17 @@ export default function ArtistApply() {
                         {phoneCheck.troll || phoneCheck.reason}
                       </p>
                     )}
-                    {country && phoneCheck.ok && (
+                    {country && phoneCheck.ok && phoneChecking && (
+                      <p className="mt-1.5 text-[11.5px] text-muted-foreground leading-snug">
+                        Checking availability…
+                      </p>
+                    )}
+                    {country && phoneCheck.ok && !phoneChecking && phoneTaken && (
+                      <p className="mt-1.5 text-[11.5px] text-rose-300 leading-snug">
+                        This phone number is already linked to another artist account.
+                      </p>
+                    )}
+                    {country && phoneCheck.ok && !phoneChecking && !phoneTaken && (
                       <p className="mt-1.5 text-[11.5px] text-emerald-300 leading-snug">
                         ✓ Valid {countryLabel.replace(/^[^\s]+\s/, '')} mobile number.
                       </p>
