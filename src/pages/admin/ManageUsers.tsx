@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Users, Search, Shield, ShieldOff, MoreVertical, Mail, Calendar,
-  Music, Heart, Clock, Crown, Ban, PlayCircle, UserCheck
+  Users, Search, MoreVertical, Mail, Calendar,
+  Music, Heart, Clock, Crown, Ban, PlayCircle, UserCheck, Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -93,18 +93,22 @@ const ManageUsers = () => {
     }
   };
 
-  const toggleAdminStatus = async (user: UserProfile) => {
-    const newStatus = !user.is_admin;
-    if (!confirm(`${newStatus ? 'Grant admin to' : 'Revoke admin from'} ${user.email || user.username}?`)) return;
+  const deleteUser = async (user: UserProfile) => {
+    if (user.is_admin) { toast.error('Cannot delete the admin account.'); return; }
+    const label = user.email || user.username || user.user_id;
+    if (!confirm(`Permanently delete ${label}? This wipes their profile, library, playlists, plays, subscriptions and all uploads. This cannot be undone.`)) return;
     try {
-      if (newStatus) {
-        await supabase.from('user_roles').insert({ user_id: user.user_id, role: 'admin' });
-      } else {
-        await supabase.from('user_roles').delete().eq('user_id', user.user_id).eq('role', 'admin');
-      }
-      toast.success(newStatus ? 'Admin granted' : 'Admin revoked');
-      fetchUsers();
-    } catch { toast.error('Failed to update'); }
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { user_id: user.user_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('User deleted everywhere');
+      setUsers((prev) => prev.filter((u) => u.user_id !== user.user_id));
+    } catch (err) {
+      console.error('Delete user error:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to delete user');
+    }
   };
 
   const updateUserStatus = async (user: UserProfile, newStatus: 'active' | 'banned' | 'suspended') => {
@@ -249,10 +253,6 @@ const ManageUsers = () => {
                         <Mail className="w-4 h-4 mr-2" /> Send Email
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => toggleAdminStatus(u)}>
-                        {u.is_admin ? <><ShieldOff className="w-4 h-4 mr-2" /> Remove Admin</> : <><Shield className="w-4 h-4 mr-2" /> Make Admin</>}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       {u.status !== 'banned' && (
                         <DropdownMenuItem onClick={() => updateUserStatus(u, 'banned')} className="text-red-400">
                           <Ban className="w-4 h-4 mr-2" /> Ban User
@@ -267,6 +267,14 @@ const ManageUsers = () => {
                         <DropdownMenuItem onClick={() => updateUserStatus(u, 'active')} className="text-green-400">
                           <UserCheck className="w-4 h-4 mr-2" /> Activate User
                         </DropdownMenuItem>
+                      )}
+                      {!u.is_admin && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => deleteUser(u)} className="text-red-500 focus:text-red-500">
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete User Permanently
+                          </DropdownMenuItem>
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>

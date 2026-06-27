@@ -1,612 +1,336 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, Music, Image, Upload, X, Check, Loader2, User } from 'lucide-react';
+import {
+  Search, Loader2, BadgeCheck, Music, Users, Play, Heart, Trash2,
+  ShieldOff, ExternalLink, Globe, Mail, Calendar, MoreVertical,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { compressImage, formatBytes } from '@/lib/imageCompression';
-import { getDatabaseError } from '@/lib/errorMessages';
-import { useFilePreview } from '@/lib/useFilePreview';
+import { Link } from 'react-router-dom';
 
-interface Artist {
+interface ArtistRow {
   id: string;
-  name: string;
+  user_id: string;
+  stage_name: string;
+  slug: string;
   bio: string | null;
-  photo_url: string | null;
-  genre: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
+  country_code: string | null;
+  social_links: Record<string, string>;
+  is_verified: boolean;
+  total_plays: number;
+  total_likes: number;
+  total_followers: number;
   created_at: string;
+  email?: string | null;
+  username?: string | null;
   song_count?: number;
 }
 
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  artist_id: string | null;
-  cover_url: string | null;
-}
-
-const genres = ['Pop', 'Rock', 'Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Classical', 'Country', 'Indie', 'Metal', 'Phonk', 'Lo-Fi', 'Bollywood', 'Punjabi', 'Haryanvi'];
-
 const ManageArtists = () => {
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
-  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    bio: '',
-    genre: '',
-    photo_url: '',
-  });
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoUrlPreview, setPhotoUrlPreview] = useState<string | null>(null);
-  const photoFilePreview = useFilePreview(photoFile);
-  const photoPreview = photoFilePreview || photoUrlPreview;
+  const [artists, setArtists] = useState<ArtistRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'verified' | 'unverified'>('all');
+  const [selected, setSelected] = useState<ArtistRow | null>(null);
+  const [selectedSongs, setSelectedSongs] = useState<Array<{ id: string; title: string; play_count: number; like_count: number; status: string; created_at: string }>>([]);
 
   useEffect(() => {
-    fetchArtists();
-    fetchSongs();
-
-    // Realtime subscriptions for admin
-    const artistsChannel = supabase
-      .channel('admin-artists-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'artists' }, fetchArtists)
+    load();
+    const channel = supabase
+      .channel('admin-artist-profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_profiles' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'artist_songs' }, load)
       .subscribe();
-
-    const songsChannel = supabase
-      .channel('admin-songs-artists')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, () => {
-        fetchSongs();
-        fetchArtists(); // Also refresh artist counts
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(artistsChannel);
-      supabase.removeChannel(songsChannel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const fetchArtists = async () => {
+  const load = async () => {
     try {
-      const { data: artistsData, error: artistsError } = await supabase
-        .from('artists')
-        .select('*')
-        .order('name');
-
-      if (artistsError) throw artistsError;
-
-      // Get song counts for each artist
-      const { data: songsData, error: songsError } = await supabase
-        .from('songs')
-        .select('id, artist_id');
-
-      if (songsError) throw songsError;
+      const [{ data: profiles, error }, { data: songs }] = await Promise.all([
+        supabase.from('artist_profiles').select('*').order('total_followers', { ascending: false }),
+        supabase.from('artist_songs').select('artist_user_id'),
+      ]);
+      if (error) throw error;
 
       const countMap: Record<string, number> = {};
-      (songsData || []).forEach((song) => {
-        if (song.artist_id) {
-          countMap[song.artist_id] = (countMap[song.artist_id] || 0) + 1;
-        }
+      (songs || []).forEach((s) => {
+        if (s.artist_user_id) countMap[s.artist_user_id] = (countMap[s.artist_user_id] || 0) + 1;
       });
 
-      const artistsWithCounts = (artistsData || []).map((artist) => ({
-        id: artist.id,
-        name: artist.name,
-        bio: artist.bio,
-        photo_url: artist.photo_url,
-        genre: artist.genre,
-        created_at: artist.created_at,
-        song_count: countMap[artist.id] || 0,
-      }));
+      const userIds = (profiles || []).map((p) => p.user_id);
+      const { data: profileRows } = userIds.length
+        ? await supabase.from('profiles').select('user_id, email, username').in('user_id', userIds)
+        : { data: [] as Array<{ user_id: string; email: string | null; username: string | null }> };
+      const pMap = new Map((profileRows || []).map((r) => [r.user_id, r]));
 
-      setArtists(artistsWithCounts);
-    } catch (error) {
-      console.error('Error fetching artists:', error);
+      const rows: ArtistRow[] = (profiles || []).map((p) => ({
+        ...p,
+        social_links: (p.social_links as Record<string, string>) || {},
+        email: pMap.get(p.user_id)?.email ?? null,
+        username: pMap.get(p.user_id)?.username ?? null,
+        song_count: countMap[p.user_id] || 0,
+      }));
+      setArtists(rows);
+    } catch (err) {
+      console.error('ManageArtists load error:', err);
       toast.error('Failed to load artists');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const fetchSongs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('songs')
-        .select('id, title, artist, artist_id, cover_url')
-        .order('title');
+  const stats = useMemo(() => {
+    const verified = artists.filter((a) => a.is_verified).length;
+    const plays = artists.reduce((s, a) => s + (a.total_plays || 0), 0);
+    const followers = artists.reduce((s, a) => s + (a.total_followers || 0), 0);
+    const songs = artists.reduce((s, a) => s + (a.song_count || 0), 0);
+    return { total: artists.length, verified, plays, followers, songs };
+  }, [artists]);
 
-      if (error) throw error;
-      
-      // Map with artist_id field
-      const songsWithArtistId = (data || []).map((song) => ({
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        artist_id: song.artist_id || null,
-        cover_url: song.cover_url,
-      }));
-      
-      setSongs(songsWithArtistId);
-    } catch (error) {
-      console.error('Error fetching songs:', error);
-    }
-  };
-
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const compressed = await compressImage(file);
-      setPhotoFile(compressed);
-    } catch {
-      setPhotoFile(file);
-    }
-  };
-
-  const uploadPhoto = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `artists/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('covers')
-      .upload(filePath, file);
-
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage.from('covers').getPublicUrl(filePath);
-    return data.publicUrl;
-  };
-
-  const resetForm = () => {
-    setFormData({ name: '', bio: '', genre: '', photo_url: '' });
-    setPhotoFile(null);
-    setPhotoUrlPreview(null);
-    setEditingArtist(null);
-  };
-
-  const openEditDialog = (artist: Artist) => {
-    setEditingArtist(artist);
-    setFormData({
-      name: artist.name,
-      bio: artist.bio || '',
-      genre: artist.genre || '',
-      photo_url: artist.photo_url || '',
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return artists.filter((a) => {
+      if (filter === 'verified' && !a.is_verified) return false;
+      if (filter === 'unverified' && a.is_verified) return false;
+      if (!q) return true;
+      return (
+        a.stage_name.toLowerCase().includes(q) ||
+        a.slug.toLowerCase().includes(q) ||
+        (a.email || '').toLowerCase().includes(q) ||
+        (a.username || '').toLowerCase().includes(q)
+      );
     });
-    setPhotoUrlPreview(artist.photo_url);
-    setIsDialogOpen(true);
+  }, [artists, search, filter]);
+
+  const openDetails = async (a: ArtistRow) => {
+    setSelected(a);
+    setSelectedSongs([]);
+    const { data } = await supabase
+      .from('artist_songs')
+      .select('id, title, play_count, like_count, status, created_at')
+      .eq('artist_user_id', a.user_id)
+      .order('created_at', { ascending: false });
+    setSelectedSongs(data || []);
   };
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      toast.error('Artist name is required');
-      return;
-    }
-
-    setIsSaving(true);
+  const toggleVerified = async (a: ArtistRow) => {
     try {
-      let photoUrl = formData.photo_url;
-
-      if (photoFile) {
-        setIsUploading(true);
-        photoUrl = await uploadPhoto(photoFile);
-        setIsUploading(false);
-      }
-
-      const artistData = {
-        name: formData.name.trim(),
-        bio: formData.bio.trim() || null,
-        genre: formData.genre || null,
-        photo_url: photoUrl || null,
-      };
-
-      if (editingArtist) {
-        const { error } = await supabase
-          .from('artists')
-          .update(artistData)
-          .eq('id', editingArtist.id);
-
-        if (error) throw error;
-        toast.success('Artist updated!');
-      } else {
-        const { error } = await supabase
-          .from('artists')
-          .insert(artistData);
-
-        if (error) throw error;
-        toast.success('Artist created!');
-      }
-
-      setIsDialogOpen(false);
-      resetForm();
-      fetchArtists();
-    } catch (error) {
-      toast.error(getDatabaseError(error));
-    } finally {
-      setIsSaving(false);
-      setIsUploading(false);
-    }
-  };
-
-  const handleDelete = async (artist: Artist) => {
-    if (!confirm(`Delete "${artist.name}"? This will unlink all their songs.`)) return;
-
-    try {
-      const { error } = await supabase
-        .from('artists')
-        .delete()
-        .eq('id', artist.id);
-
+      const { error } = await supabase.from('artist_profiles').update({ is_verified: !a.is_verified }).eq('id', a.id);
       if (error) throw error;
-      toast.success('Artist deleted');
-      fetchArtists();
-      fetchSongs();
-    } catch (error) {
-      toast.error(getDatabaseError(error));
+      toast.success(!a.is_verified ? 'Verified badge granted' : 'Verified badge removed');
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
     }
   };
 
-  const openAssignDialog = (artist: Artist) => {
-    setSelectedArtist(artist);
-    setIsAssignDialogOpen(true);
-  };
-
-  const assignSongToArtist = async (songId: string, artistId: string | null) => {
+  const deleteArtist = async (a: ArtistRow) => {
+    if (!confirm(`Delete artist "${a.stage_name}" and ALL their uploaded songs? This cannot be undone.`)) return;
     try {
-      const artist = artists.find(a => a.id === artistId);
-      
-      const { error } = await supabase
-        .from('songs')
-        .update({ 
-          artist_id: artistId,
-          artist: artist?.name || songs.find(s => s.id === songId)?.artist || 'Unknown'
-        })
-        .eq('id', songId);
-
+      await supabase.from('artist_songs').delete().eq('artist_user_id', a.user_id);
+      const { error } = await supabase.from('artist_profiles').delete().eq('id', a.id);
       if (error) throw error;
-      
-      toast.success(artistId ? 'Song assigned to artist' : 'Song unassigned');
-      fetchSongs();
-      fetchArtists();
-    } catch (error) {
-      console.error('Error assigning song:', error);
-      toast.error('Failed to assign song');
+      await supabase.from('user_roles').delete().eq('user_id', a.user_id).eq('role', 'artist');
+      toast.success('Artist removed');
+      setSelected(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete');
     }
   };
 
-  const getArtistSongs = (artistId: string) => {
-    return songs.filter(song => song.artist_id === artistId);
-  };
-
-  const getUnassignedSongs = () => {
-    return songs.filter(song => !song.artist_id);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const fmt = (n: number) => Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n || 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Manage Artists</h1>
-          <p className="text-muted-foreground">Create artists and assign songs to them</p>
-        </div>
-        
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Artist
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{editingArtist ? 'Edit Artist' : 'Add New Artist'}</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              {/* Photo Upload */}
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative w-32 h-32 rounded-full overflow-hidden bg-muted border-2 border-dashed border-border">
-                  {photoPreview ? (
-                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <User className="w-12 h-12 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="sr-only"
-                      onChange={(e) => { handlePhotoSelect(e); e.target.value = ''; }}
-                    />
-                    <Button type="button" variant="outline" size="sm" asChild>
-                      <span className="gap-2">
-                        <Upload className="w-4 h-4" />
-                        {photoPreview ? 'Change' : 'Upload'} Photo
-                      </span>
-                    </Button>
-                  </label>
-                  {photoPreview && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPhotoFile(null);
-                        setPhotoUrlPreview(null);
-                        setFormData(prev => ({ ...prev, photo_url: '' }));
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Name */}
-              <div className="space-y-2">
-                <Label htmlFor="name">Artist Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter artist name"
-                />
-              </div>
-
-              {/* Genre */}
-              <div className="space-y-2">
-                <Label>Genre</Label>
-                <Select
-                  value={formData.genre}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, genre: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select genre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {genres.map(genre => (
-                      <SelectItem key={genre} value={genre}>{genre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Bio */}
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={formData.bio}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                  placeholder="Short bio about the artist..."
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {isUploading ? 'Uploading...' : 'Saving...'}
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4 mr-2" />
-                    {editingArtist ? 'Update' : 'Create'}
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="p-4 md:p-8">
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-display font-bold">Manage Artists</h1>
+        <p className="text-muted-foreground text-sm mt-1">Real Universflow verified artists · live data</p>
       </div>
 
-      {/* Artists Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <AnimatePresence>
-          {artists.map((artist) => (
-            <motion.div
-              key={artist.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors"
-            >
-              <div className="flex items-start gap-4">
-                {/* Photo */}
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-muted flex-shrink-0">
-                  {artist.photo_url ? (
-                    <img src={artist.photo_url} alt={artist.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <User className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">{artist.name}</h3>
-                  {artist.genre && (
-                    <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                      {artist.genre}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
-                    <Music className="w-3 h-3" />
-                    <span>{artist.song_count} songs</span>
-                  </div>
-                  {artist.bio && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{artist.bio}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => openAssignDialog(artist)}
-                >
-                  <Music className="w-4 h-4 mr-1" />
-                  Songs
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEditDialog(artist)}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => handleDelete(artist)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {artists.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No artists yet. Add your first artist!</p>
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        {[
+          { label: 'Total Artists', value: stats.total, icon: Users, color: 'from-primary to-accent' },
+          { label: 'Verified', value: stats.verified, icon: BadgeCheck, color: 'from-emerald-500 to-teal-400' },
+          { label: 'Songs', value: stats.songs, icon: Music, color: 'from-blue-500 to-cyan-400' },
+          { label: 'Total Plays', value: fmt(stats.plays), icon: Play, color: 'from-fuchsia-500 to-pink-400' },
+          { label: 'Total Followers', value: fmt(stats.followers), icon: Heart, color: 'from-rose-500 to-orange-400' },
+        ].map((s) => (
+          <div key={s.label} className="glass rounded-2xl p-4">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-2`}>
+              <s.icon className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-xs text-muted-foreground">{s.label}</div>
+            <div className="text-xl font-bold">{s.value}</div>
           </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex gap-2">
+          {(['all', 'verified', 'unverified'] as const).map((f) => (
+            <Button key={f} variant={filter === f ? 'default' : 'outline'} size="sm" onClick={() => setFilter(f)} className="capitalize text-xs">
+              {f}
+            </Button>
+          ))}
+        </div>
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, slug, email…" className="pl-10 bg-muted/50 border-white/10" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {loading ? (
+          <div className="col-span-full flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div>
+        ) : filtered.length === 0 ? (
+          <div className="col-span-full text-center py-16 text-muted-foreground">
+            <Users className="w-12 h-12 mx-auto mb-3 opacity-50" /><p>No artists match this filter.</p>
+          </div>
+        ) : (
+          <AnimatePresence>
+            {filtered.map((a, i) => (
+              <motion.div
+                key={a.id}
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                transition={{ delay: i * 0.02 }}
+                className="glass rounded-2xl p-4 hover:ring-1 hover:ring-primary/30 transition-all"
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar className="w-14 h-14">
+                    <AvatarImage src={a.avatar_url || undefined} />
+                    <AvatarFallback>{a.stage_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-semibold truncate">{a.stage_name}</p>
+                      {a.is_verified && <BadgeCheck className="w-4 h-4 text-primary shrink-0" />}
+                      {a.country_code && <Badge variant="secondary" className="text-[10px]">{a.country_code}</Badge>}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate">/{a.slug}</p>
+                    {a.email && <p className="text-[11px] text-muted-foreground truncate">{a.email}</p>}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="w-4 h-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="glass border-white/10">
+                      <DropdownMenuItem onClick={() => openDetails(a)}><ExternalLink className="w-4 h-4 mr-2" /> View Details</DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to={`/artist/${a.slug}`}><Globe className="w-4 h-4 mr-2" /> Open Public Page</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => toggleVerified(a)}>
+                        {a.is_verified ? <><ShieldOff className="w-4 h-4 mr-2" /> Remove Verified</> : <><BadgeCheck className="w-4 h-4 mr-2" /> Mark Verified</>}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => deleteArtist(a)} className="text-red-500 focus:text-red-500">
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete Artist
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-white/5 text-center">
+                  <Stat icon={Music} value={a.song_count || 0} label="Songs" />
+                  <Stat icon={Play} value={fmt(a.total_plays)} label="Plays" />
+                  <Stat icon={Heart} value={fmt(a.total_likes)} label="Likes" />
+                  <Stat icon={Users} value={fmt(a.total_followers)} label="Fans" />
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         )}
       </div>
 
-      {/* Assign Songs Dialog */}
-      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedArtist?.photo_url ? (
-                <img src={selectedArtist.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-              ) : (
-                <User className="w-8 h-8 p-1 bg-muted rounded-full" />
-              )}
-              {selectedArtist?.name}'s Songs
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto space-y-4 py-4">
-            {/* Assigned Songs */}
-            <div>
-              <h4 className="text-sm font-medium mb-2 text-foreground">Assigned Songs</h4>
-              <div className="space-y-2">
-                {selectedArtist && getArtistSongs(selectedArtist.id).map(song => (
-                  <div
-                    key={song.id}
-                    className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg"
-                  >
-                    <div className="w-10 h-10 rounded bg-muted overflow-hidden">
-                      {song.cover_url ? (
-                        <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Music className="w-4 h-4 text-muted-foreground" />
-                        </div>
+      {/* Details Drawer */}
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto glass border-white/10">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Avatar className="w-10 h-10"><AvatarImage src={selected.avatar_url || undefined} /><AvatarFallback>{selected.stage_name.slice(0, 2)}</AvatarFallback></Avatar>
+                  <span>{selected.stage_name}</span>
+                  {selected.is_verified && <BadgeCheck className="w-5 h-5 text-primary" />}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {selected.email && <Info icon={Mail} label="Email" value={selected.email} />}
+                  {selected.username && <Info icon={Users} label="Username" value={`@${selected.username}`} />}
+                  {selected.country_code && <Info icon={Globe} label="Country" value={selected.country_code} />}
+                  <Info icon={Calendar} label="Joined" value={new Date(selected.created_at).toLocaleDateString()} />
+                </div>
+                {selected.bio && <p className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-3 whitespace-pre-wrap">{selected.bio}</p>}
+                {Object.keys(selected.social_links).length > 0 && (
+                  <div>
+                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Social</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(selected.social_links).map(([k, v]) =>
+                        typeof v === 'string' && v ? (
+                          <a key={k} href={v} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded-md bg-muted/50 hover:bg-muted">
+                            {k} <ExternalLink className="w-3 h-3 inline" />
+                          </a>
+                        ) : null,
                       )}
                     </div>
-                    <span className="flex-1 text-sm truncate">{song.title}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => assignSongToArtist(song.id, null)}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
                   </div>
-                ))}
-                {selectedArtist && getArtistSongs(selectedArtist.id).length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">No songs assigned</p>
                 )}
-              </div>
-            </div>
-
-            {/* Unassigned Songs */}
-            <div>
-              <h4 className="text-sm font-medium mb-2 text-foreground">Available Songs</h4>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {getUnassignedSongs().map(song => (
-                  <div
-                    key={song.id}
-                    className="flex items-center gap-3 p-2 bg-card border border-border rounded-lg hover:border-primary/50 cursor-pointer transition-colors"
-                    onClick={() => selectedArtist && assignSongToArtist(song.id, selectedArtist.id)}
-                  >
-                    <div className="w-10 h-10 rounded bg-muted overflow-hidden">
-                      {song.cover_url ? (
-                        <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Music className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <h4 className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Songs ({selectedSongs.length})</h4>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {selectedSongs.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between text-sm py-2 border-b border-white/5">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{s.title}</p>
+                          <p className="text-[11px] text-muted-foreground">{new Date(s.created_at).toLocaleDateString()} · {s.status}</p>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{song.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
-                    </div>
-                    <Plus className="w-4 h-4 text-primary" />
+                        <div className="flex gap-3 text-xs text-muted-foreground shrink-0">
+                          <span><Play className="w-3 h-3 inline mr-0.5" />{fmt(s.play_count)}</span>
+                          <span><Heart className="w-3 h-3 inline mr-0.5" />{fmt(s.like_count)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {selectedSongs.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No songs uploaded yet.</p>}
                   </div>
-                ))}
-                {getUnassignedSongs().length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">All songs are assigned</p>
-                )}
+                </div>
               </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-              Done
-            </Button>
-          </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
   );
 };
+
+const Stat = ({ icon: Icon, value, label }: { icon: typeof Music; value: number | string; label: string }) => (
+  <div>
+    <Icon className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-1" />
+    <div className="text-sm font-semibold">{value}</div>
+    <div className="text-[10px] text-muted-foreground">{label}</div>
+  </div>
+);
+
+const Info = ({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string }) => (
+  <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2 min-w-0">
+    <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+    <div className="min-w-0">
+      <p className="text-[10px] text-muted-foreground uppercase">{label}</p>
+      <p className="text-sm truncate">{value}</p>
+    </div>
+  </div>
+);
 
 export default ManageArtists;
