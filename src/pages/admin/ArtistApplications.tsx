@@ -78,6 +78,8 @@ export default function ArtistApplications() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [previews, setPreviews] = useState<PreviewMap>({});
+
+  const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('artist_applications')
