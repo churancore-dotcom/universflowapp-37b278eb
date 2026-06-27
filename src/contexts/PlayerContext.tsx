@@ -134,13 +134,13 @@ const CORS_ENABLED_AUDIO_HOSTS = ['supabase.co', 'the-standard.io', 'private.cof
 const shouldUseAnonymousCors = (audioUrl?: string | null) => {
   if (!audioUrl) return false;
   if (audioUrl.startsWith('blob:') || audioUrl.startsWith('data:')) return false;
-
-  try {
-    const parsed = new URL(audioUrl, window.location.href);
-    return parsed.origin === window.location.origin || CORS_ENABLED_AUDIO_HOSTS.some((host) => parsed.hostname.endsWith(host));
-  } catch {
-    return false;
-  }
+  // ALWAYS use anonymous CORS for http(s). Even if the host doesn't return
+  // ACAO headers, the element won't be tainted by an opaque load — and we
+  // proxy every remote URL below, so the response is guaranteed CORS-clean.
+  // This eliminates the cold-boot race where the very first song was loaded
+  // with crossOrigin=null and the WebAudio graph could never attach to it
+  // (forever-dead EQ on that element).
+  return audioUrl.startsWith('http');
 };
 
 const configureAudioElementSource = (audio: HTMLAudioElement, sourceUrl: string) => {
@@ -166,9 +166,6 @@ const configureAudioElementSource = (audio: HTMLAudioElement, sourceUrl: string)
 // clean response, and some hosts advertise CORS inconsistently on media ranges.
 const DIRECT_PLAYABLE_HOST_SNIPPETS = [
   'supabase.co',
-  'the-standard.io',
-  'private.coffee',
-  'saavncdn.com',
 ];
 
 const shouldProxyStreamUrl = (sourceUrl: string) => {
@@ -179,14 +176,14 @@ const shouldProxyStreamUrl = (sourceUrl: string) => {
     if (parsed.origin === window.location.origin) return false;
     if (sourceUrl.includes('/functions/v1/music-indexer?audio=')) return false;
 
-    // Premium users always go through the proxy so the WebAudio graph stays
-    // attached and EQ toggles apply INSTANTLY without reloading the stream.
-    // Free users use the direct path (no EQ, best background reliability).
-    if (isEqProcessingEnabled()) return true;
-
+    // ALWAYS proxy remote streams (regardless of Premium state). This is what
+    // makes the EQ "work instantly on every single song" — the audio element
+    // is fed CORS-clean bytes from the very first play, so the WebAudio graph
+    // attaches cleanly on canplay and can never be tainted by a slow Premium
+    // check or a host that misreports CORS on a Range response.
     if (DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host))) return false;
 
-    return false;
+    return true;
   } catch {
     return false;
   }
