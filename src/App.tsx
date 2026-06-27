@@ -351,6 +351,7 @@ const AnimatedRoutes = () => {
             <Route path="upload" element={<UploadMusic />} />
             <Route path="songs" element={<ManageSongs />} />
             <Route path="artists" element={<ManageArtists />} />
+            <Route path="artist-signups" element={<ManageUsers />} />
             <Route path="playlists" element={<ManagePlaylists />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="subscriptions" element={<ManageSubscriptions />} />
