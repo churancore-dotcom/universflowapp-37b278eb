@@ -135,7 +135,7 @@ export default function ArtistStatus() {
     ];
   }, [app]);
 
-  if (isLoading || loading) return <div className="min-h-[100dvh] bg-background" />;
+  if (isLoading || loading) return <ArtistLoading label="Checking your verification…" />;
 
   if (!app) {
     return (
