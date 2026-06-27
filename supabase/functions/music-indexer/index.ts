@@ -133,8 +133,11 @@ const AUDIO_PROXY_ALLOWED_HOST_SUFFIXES = [
 function hostnameMatchesAllowedSuffix(hostname: string): boolean {
   const host = hostname.toLowerCase();
   return AUDIO_PROXY_ALLOWED_HOST_SUFFIXES.some((suffix) => {
-    const bare = suffix.startsWith('.') ? suffix.slice(1) : suffix;
-    return host === bare || host.endsWith(suffix);
+    // Enforce a leading dot so bare entries like "youtu.be" don't match
+    // attacker-registered hostnames like "eviltoutu.be".
+    const dotted = suffix.startsWith('.') ? suffix : '.' + suffix;
+    const bare = dotted.slice(1);
+    return host === bare || host.endsWith(dotted);
   });
 }
 
