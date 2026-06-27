@@ -15,7 +15,13 @@ interface AuthContextType {
   isLoading: boolean;
   isOffline: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null; isAdmin?: boolean }>;
-  signUp: (email: string, password: string, username: string, countryCode?: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    username: string,
+    countryCode?: string,
+    extraMetadata?: Record<string, unknown>,
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshEmailVerified: () => Promise<void>;
 }
@@ -51,9 +57,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error || data) return;
 
+      const metadata = (sessionUser.user_metadata || {}) as Record<string, unknown>;
+      const accountType = metadata.account_type === 'artist' ? 'artist' : 'listener';
+
       const { error: insertError } = await supabase.from('profiles').insert({
         user_id: sessionUser.id,
         email: sessionUser.email ?? null,
+        account_type: accountType,
       });
 
       if (insertError && insertError.code !== '23505') {
@@ -212,7 +222,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [checkAdminRole, ensureUserProfile]);
 
-  const signUp = useCallback(async (email: string, password: string, username: string, countryCode?: string) => {
+  const signUp = useCallback(async (
+    email: string,
+    password: string,
+    username: string,
+    countryCode?: string,
+    extraMetadata: Record<string, unknown> = {},
+  ) => {
     try {
       const trimmedUsername = username.trim();
       if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
@@ -238,6 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         options: {
           emailRedirectTo: window.location.origin,
           data: {
+            ...extraMetadata,
             username: trimmedUsername,
             country_code: countryCode ? countryCode.toUpperCase().slice(0, 2) : undefined,
           },
