@@ -310,7 +310,7 @@ const AnimatedRoutes = () => {
           <Route path="/verify" element={<VerifyEmail />} />
           <Route path="/check-email" element={<CheckEmail />} />
           <Route path="/offline-player" element={<OfflinePlayerShell />} />
-          <Route path="/home" element={<ListenerRoute><Home /></ListenerRoute>} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="/search" element={<ListenerRoute><Search /></ListenerRoute>} />
           <Route path="/library" element={<ListenerRoute><Library /></ListenerRoute>} />
           <Route path="/playlist/:id" element={<ListenerRoute><PlaylistDetail /></ListenerRoute>} />
