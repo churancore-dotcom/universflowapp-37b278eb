@@ -424,11 +424,26 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   engine.surroundXfeedLR = surroundXfeedLR;
   engine.surroundXfeedRL = surroundXfeedRL;
   engine.limiter = limiter;
-  engine.panLfo = null;
-  engine.panLfoGain = null;
+
+  // Persistent 8D LFO — built ONCE with the chain and left running forever.
+  // Toggling 8D just ramps lfoGain between 0 (off) and SPATIAL_DEPTH (on).
+  // No oscillator restart, no node creation, no click. Single-frame on/off.
+  const panLfo = ctx.createOscillator();
+  panLfo.type = 'sine';
+  panLfo.frequency.value = SPATIAL_RATE_HZ;
+  const panLfoGain = ctx.createGain();
+  panLfoGain.gain.value = 0; // off by default
+  panLfo.connect(panLfoGain);
+  panLfoGain.connect(stereoPanner.pan);
+  try { panLfo.start(); } catch { /* already started */ }
+  engine.panLfo = panLfo;
+  engine.panLfoGain = panLfoGain;
+
+  // Warm IR cache for instant Studio Space switching.
+  prebuildAllSpaceIRs(ctx);
 
   // Re-apply the persisted spatial state on the fresh chain
-  if (engine.spatialEnabled) startSpatialLfo();
+  applySpatial();
   // Re-apply the persisted Studio Space on the fresh chain
   if (currentSpaceId !== 'off') setStudioSpace(currentSpaceId);
   // Re-apply Late Night compression on the fresh chain
