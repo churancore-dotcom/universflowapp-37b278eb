@@ -58,7 +58,16 @@ Deno.serve(async (req) => {
   } catch (_) { /* non-blocking */ }
 
   const { error: delErr } = await admin.auth.admin.deleteUser(targetId);
-  if (delErr) return json({ error: delErr.message }, 500);
+  const notFound = delErr && /not.?found|no rows|does not exist/i.test(delErr.message);
+  if (delErr && !notFound) return json({ error: delErr.message }, 500);
+
+  // Idempotent cleanup: clear public-schema rows even if auth row was already gone.
+  // ON DELETE CASCADE handles this when auth.users deletion succeeds; we mirror it
+  // manually so "User not found" doesn't leave orphaned profile/artist rows behind.
+  await admin.from('artist_profiles').delete().eq('user_id', targetId);
+  await admin.from('profiles').delete().eq('user_id', targetId);
+  await admin.from('user_roles').delete().eq('user_id', targetId);
+  await admin.from('user_subscriptions').delete().eq('user_id', targetId);
 
   // Audit
   await admin.from('audit_logs').insert({
