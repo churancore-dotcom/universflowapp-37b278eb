@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Users, Search, Shield, ShieldOff, MoreVertical, Mail, Calendar,
-  Music, Heart, Clock, Crown, Ban, PlayCircle, UserCheck
+  Users, Search, MoreVertical, Mail, Calendar,
+  Music, Heart, Clock, Crown, Ban, PlayCircle, UserCheck, Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
