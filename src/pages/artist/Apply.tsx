@@ -764,6 +764,11 @@ export default function ArtistApply() {
                         )}
                       </p>
                     )}
+                    {stageTaken && !isLockedReapply && (
+                      <p className="mt-1.5 text-[11.5px] text-rose-300 leading-snug">
+                        This stage name is already in use by another verified artist. Pick a different one.
+                      </p>
+                    )}
                   </Field>
                   <Field label="Legal full name">
                     <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} disabled={isLockedReapply} />
