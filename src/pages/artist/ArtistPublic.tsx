@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayer, type Song as PlayerSong } from '@/contexts/PlayerContext';
+import ArtistLoading from './ArtistLoading';
 
 type Profile = {
   id: string;
