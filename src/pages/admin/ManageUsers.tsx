@@ -257,10 +257,6 @@ const ManageUsers = () => {
                         <Mail className="w-4 h-4 mr-2" /> Send Email
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => toggleAdminStatus(u)}>
-                        {u.is_admin ? <><ShieldOff className="w-4 h-4 mr-2" /> Remove Admin</> : <><Shield className="w-4 h-4 mr-2" /> Make Admin</>}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       {u.status !== 'banned' && (
                         <DropdownMenuItem onClick={() => updateUserStatus(u, 'banned')} className="text-red-400">
                           <Ban className="w-4 h-4 mr-2" /> Ban User
