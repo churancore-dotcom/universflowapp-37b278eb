@@ -2012,6 +2012,14 @@ export type Database = {
         Args: { _endpoint: string; _max_per_minute: number; _user_id: string }
         Returns: boolean
       }
+      check_artist_phone_taken: {
+        Args: { p_phone_hash: string }
+        Returns: boolean
+      }
+      check_artist_stage_name_taken: {
+        Args: { p_stage_name: string }
+        Returns: boolean
+      }
       consume_free_skip: { Args: never; Returns: Json }
       expire_old_subscriptions: { Args: never; Returns: number }
       find_profile_by_share_code: {
