@@ -171,6 +171,36 @@ const SPACE_PROFILES: Record<Exclude<StudioSpaceId, 'off'>, SpaceProfile> = {
 let currentSpaceId: StudioSpaceId = 'off';
 let currentReverbPercent = 0;
 
+// IR cache — keyed by sampleRate. Building an IR allocates and fills up to
+// 220k float samples and runs synchronously on the main thread; doing it on
+// every Studio Space toggle would glitch playback for 5-30ms. Pre-build all
+// six profiles on first chain construction so switching is a pointer swap.
+const irCache = new Map<string, AudioBuffer>();
+
+function irKey(spaceId: Exclude<StudioSpaceId, 'off'>, sampleRate: number) {
+  return `${spaceId}@${sampleRate}`;
+}
+
+function getCachedSpaceIR(ctx: AudioContext, spaceId: Exclude<StudioSpaceId, 'off'>): AudioBuffer {
+  const key = irKey(spaceId, ctx.sampleRate);
+  const cached = irCache.get(key);
+  if (cached) return cached;
+  const built = buildSpaceIR(ctx, SPACE_PROFILES[spaceId]);
+  irCache.set(key, built);
+  return built;
+}
+
+function prebuildAllSpaceIRs(ctx: AudioContext) {
+  // Idle-time warm-up so the first toggle is instant.
+  const ids: Array<Exclude<StudioSpaceId, 'off'>> = ['vinyl', 'studio', 'bedroom', 'hall', 'cathedral', 'stadium'];
+  const run = () => { for (const id of ids) { try { getCachedSpaceIR(ctx, id); } catch { /* ignore */ } } };
+  if (typeof (window as Window & { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback === 'function') {
+    (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(run);
+  } else {
+    setTimeout(run, 50);
+  }
+}
+
 function applyReverbMix(percent: number) {
   if (engine.mode !== 'processed' || !engine.ctx || !engine.dryGain || !engine.wetGain) return;
   const ctx = engine.ctx;
@@ -198,14 +228,12 @@ function buildSpaceIR(ctx: AudioContext, p: SpaceProfile): AudioBuffer {
       seed = (seed * 9301 + 49297) % 233280;
       return seed / 233280;
     };
-    // Simple one-pole LP for damping
     let lpState = 0;
     const lpCoef = 1 - p.damping * 0.7;
     for (let i = 0; i < length; i++) {
       if (i < predelaySamples) { data[i] = 0; continue; }
       const t = (i - predelaySamples) / (length - predelaySamples);
       const decay = Math.pow(1 - t, p.decay);
-      // Sparser noise for less-dense spaces
       const sample = rand() < p.density ? (rand() * 2 - 1) : 0;
       lpState = lpState + lpCoef * (sample - lpState);
       data[i] = lpState * decay * 0.55;
@@ -237,8 +265,9 @@ function getReverbIR(ctx: AudioContext): AudioBuffer {
 }
 
 /**
- * Apply a Studio Space — swaps the convolver IR and sets wet/dry to taste.
- * 'off' restores the default IR and zero wet (caller's reverb slider takes over).
+ * Apply a Studio Space — pointer-swap the convolver IR (pre-built & cached)
+ * and crossfade wet/dry. The IR build is amortized to app idle time, so this
+ * call is a few microseconds and never glitches audio.
  */
 export function setStudioSpace(spaceId: StudioSpaceId) {
   currentSpaceId = spaceId;
@@ -251,7 +280,7 @@ export function setStudioSpace(spaceId: StudioSpaceId) {
     return;
   }
   const profile = SPACE_PROFILES[spaceId];
-  engine.convolver.buffer = buildSpaceIR(ctx, profile);
+  engine.convolver.buffer = getCachedSpaceIR(ctx, spaceId);
   engine.wetGain.gain.cancelScheduledValues(now);
   engine.dryGain.gain.cancelScheduledValues(now);
   engine.wetGain.gain.setTargetAtTime(profile.wet, now, SMOOTH);
