@@ -186,7 +186,7 @@ export default function ArtistPublic() {
     [songs],
   );
 
-  if (loading) return <div className="min-h-[100dvh] bg-background" />;
+  if (loading) return <ArtistLoading label="Loading artist…" />;
 
   if (!profile) {
     return (
