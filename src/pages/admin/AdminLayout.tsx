@@ -17,7 +17,7 @@ import {
   Bell,
   Shield,
   ShieldCheck,
-  Gift,
+  
   Zap,
   Lock,
   MessageCircle,
