@@ -85,15 +85,15 @@
   },
   "overrides": {
     "@xmldom/xmldom": "^0.9.10",
-    "glob": "^10.4.5",
-    "minimatch": "^10.0.1",
+    "glob": "^13.0.6",
+    "minimatch": "^10.2.5",
     "brace-expansion": "^2.0.2",
     "@isaacs/brace-expansion": "^5.0.1"
   },
   "resolutions": {
     "@xmldom/xmldom": "^0.9.10",
-    "glob": "^10.4.5",
-    "minimatch": "^10.0.1",
+    "glob": "^13.0.6",
+    "minimatch": "^10.2.5",
     "brace-expansion": "^2.0.2",
     "@isaacs/brace-expansion": "^5.0.1"
   }
